@@ -4,7 +4,7 @@ import { readStoredToken } from './oauthStore.js';
 const DEFAULT_API_VERSION = '2025-03';
 const MAX_RETRIES = 5;
 const RETRY_BASE_MS = 1000;
-const OAUTH_TOKEN_URL = 'https://www.nuvemshop.com/apps/authorize/token';
+const OAUTH_TOKEN_URL = 'https://www.nuvemshop.com.br/apps/authorize/token';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

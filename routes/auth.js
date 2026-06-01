@@ -43,7 +43,7 @@ router.get('/install', (req, res) => {
     });
   }
 
-  const authUrl = new URL(`https://www.nuvemshop.com/apps/${clientId}/authorize`);
+  const authUrl = new URL(`https://www.nuvemshop.com.br/apps/${clientId}/authorize`);
   authUrl.searchParams.set('scope', scopes);
   authUrl.searchParams.set('redirect_uri', callbackUrl);
 
