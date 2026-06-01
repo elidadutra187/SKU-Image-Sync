@@ -1,159 +1,72 @@
-/**
- * Rotas de sincronização de imagens
- */
-
 import { Router } from 'express';
+
 import ImageSyncService from '../services/imageSync.js';
 
 const router = Router();
-
-// Status de sincronização em andamento
 let currentSync = null;
 
-function getSyncOptions(body = {}) {
+function normalizePositiveInteger(value, fallback) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 1) return fallback;
+  return number;
+}
+
+function syncOptions(req, mode, dryRun = false) {
   return {
-    imagesRoot: body.imagesRoot || process.env.IMAGES_ROOT || './Fotos',
-    onlySku: body.sku || null,
-    maxSkus: body.maxSkus || null,
-    concurrency: body.concurrency || 2,
+    imagesRoot: req.body?.imagesRoot || process.env.IMAGES_ROOT || './Fotos',
+    mode,
+    dryRun,
+    onlySku: req.body?.sku || req.body?.onlySku || null,
+    maxSkus: req.body?.maxSkus ? normalizePositiveInteger(req.body.maxSkus, null) : null,
+    concurrency: normalizePositiveInteger(req.body?.concurrency, 2),
+    reportPath: req.body?.reportPath || `reports/sku-image-sync-${Date.now()}.csv`,
   };
 }
 
-// POST /sync/add - Adicionar imagens novas
-router.post('/add', async (req, res) => {
+async function runSync(req, res, mode, dryRun = false) {
   if (currentSync) {
     return res.status(409).json({
-      error: 'Sincronização já em andamento',
+      success: false,
       status: 'busy',
+      currentSync,
+      error: 'A sync process is already running.',
     });
   }
 
   try {
-    currentSync = 'add';
-    const options = {
-      ...getSyncOptions(req.body),
-      mode: 'add',
-      dryRun: false,
-    };
-
-    const service = new ImageSyncService(options);
+    currentSync = dryRun ? `dry-run:${mode}` : mode;
+    const service = new ImageSyncService(syncOptions(req, mode, dryRun));
     const result = await service.run();
-
     res.json({
       success: true,
-      mode: 'add',
-      ...result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  } finally {
-    currentSync = null;
-  }
-});
-
-// POST /sync/sync - Sincronizar (adicionar novas, atualizar alteradas)
-router.post('/sync', async (req, res) => {
-  if (currentSync) {
-    return res.status(409).json({
-      error: 'Sincronização já em andamento',
-      status: 'busy',
-    });
-  }
-
-  try {
-    currentSync = 'sync';
-    const options = {
-      ...getSyncOptions(req.body),
-      mode: 'sync',
-      dryRun: false,
-    };
-
-    const service = new ImageSyncService(options);
-    const result = await service.run();
-
-    res.json({
-      success: true,
-      mode: 'sync',
-      ...result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  } finally {
-    currentSync = null;
-  }
-});
-
-// POST /sync/replace - Substituir todas as imagens
-router.post('/replace', async (req, res) => {
-  if (currentSync) {
-    return res.status(409).json({
-      error: 'Sincronização já em andamento',
-      status: 'busy',
-    });
-  }
-
-  try {
-    currentSync = 'replace';
-    const options = {
-      ...getSyncOptions(req.body),
-      mode: 'replace',
-      dryRun: false,
-    };
-
-    const service = new ImageSyncService(options);
-    const result = await service.run();
-
-    res.json({
-      success: true,
-      mode: 'replace',
-      ...result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  } finally {
-    currentSync = null;
-  }
-});
-
-// POST /sync/dry-run - Simular sincronização
-router.post('/dry-run', async (req, res) => {
-  try {
-    const mode = req.body.mode || 'sync';
-    const options = {
-      ...getSyncOptions(req.body),
       mode,
-      dryRun: true,
-    };
-
-    const service = new ImageSyncService(options);
-    const result = await service.run();
-
-    res.json({
-      success: true,
-      mode: `dry-run:${mode}`,
+      dryRun,
       ...result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
+      mode,
+      dryRun,
       error: error.message,
     });
+  } finally {
+    currentSync = null;
   }
+}
+
+router.post('/dry-run', (req, res) => {
+  const mode = ['add', 'sync', 'replace'].includes(req.body?.mode) ? req.body.mode : 'sync';
+  return runSync(req, res, mode, true);
 });
 
-// GET /sync/status - Status da sincronização
+router.post('/add', (req, res) => runSync(req, res, 'add', false));
+router.post('/sync', (req, res) => runSync(req, res, 'sync', false));
+router.post('/replace', (req, res) => runSync(req, res, 'replace', false));
+
 router.get('/status', (req, res) => {
   res.json({
-    running: currentSync !== null,
+    running: Boolean(currentSync),
     mode: currentSync,
   });
 });

@@ -1,186 +1,130 @@
 # SKU Image Sync
 
-Aplicativo Node.js para sincronizar imagens de produtos da Nuvemshop automaticamente atraves do SKU.
+Backend Node.js para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave.
 
-## Funcionalidades
+## Estrutura esperada das imagens
 
-- Sincronizacao de imagens em massa por SKU
-- Tres modos de operacao: ADD, SYNC e REPLACE
-- Interface web simples
-- CLI para automacao
-- Dry Run para simular sem alteracoes
-- Relatorio CSV detalhado
-- Retry automatico em caso de erros
-- Suporte a JPG, PNG, GIF e WebP
-- Controle de estado para evitar reenvios
-
-## Estrutura das Imagens
-
-```
+```text
 Fotos/
-├── 1001/
-│   ├── 1.jpg
-│   ├── 2.jpg
-├── 1002/
-│   ├── 1.jpg
-│   ├── 2.png
+  1001/
+    1.jpg
+    2.jpg
+  1002/
+    1.jpg
+    2.jpg
 ```
 
-Cada pasta deve ter exatamente o nome do SKU do produto na Nuvemshop.
+Cada subpasta dentro de `Fotos` deve ter exatamente o SKU do produto.
 
-## Instalacao
+## Modos
 
-```bash
-git clone https://github.com/elidadutra187/SKU-Image-Sync.git
-cd SKU-Image-Sync
-npm install
-```
+- `dry-run`: simula a sincronizacao sem enviar ou remover imagens.
+- `add`: adiciona imagens locais que ainda nao aparecem no estado local de sincronizacao.
+- `sync`: adiciona imagens novas e reenvia imagens alteradas por hash local.
+- `replace`: remove todas as imagens atuais do produto e envia todas as imagens da pasta do SKU.
 
-## Configuracao
+## Variaveis de ambiente
 
-Copie o arquivo de exemplo e configure:
-
-```bash
-cp .env.example .env
-```
-
-Edite o `.env`:
+Copie `.env.example` para `.env` em ambiente local.
 
 ```env
-NUVEMSHOP_STORE_ID=seu_id_da_loja
-NUVEMSHOP_ACCESS_TOKEN=seu_token_de_acesso
-NUVEMSHOP_USER_AGENT=SKU Image Sync (seu@email.com)
+NUVEMSHOP_STORE_ID=
+NUVEMSHOP_ACCESS_TOKEN=
+NUVEMSHOP_USER_AGENT=
 PORT=3000
 ```
 
-## Uso - Interface Web
+O arquivo tambem inclui variaveis opcionais para pasta de imagens, versao da API e estrutura futura de OAuth.
+
+## Rodar localmente
 
 ```bash
+npm install
 npm start
 ```
 
-Acesse `http://localhost:3000`
+Abra `http://localhost:3000`.
 
-## Uso - Linha de Comando
+## Rotas
 
-### Dry Run (simular)
+Paginas:
+
+- `GET /`
+- `GET /privacy`
+- `GET /support`
+
+OAuth scaffold:
+
+- `GET /auth/install`
+- `GET /auth/callback`
+- `GET /auth/status`
+
+Sincronizacao:
+
+- `POST /sync/dry-run`
+- `POST /sync/add`
+- `POST /sync/sync`
+- `POST /sync/replace`
+- `GET /sync/status`
+
+Produtos:
+
+- `GET /products/sku/:sku`
+- `GET /products/:id`
+- `GET /products/:id/images`
+
+Exemplo de dry-run:
 
 ```bash
-node sync-images.js --dry-run
+curl -X POST http://localhost:3000/sync/dry-run \
+  -H "Content-Type: application/json" \
+  -d "{\"imagesRoot\":\"./Fotos\",\"mode\":\"sync\"}"
 ```
 
-### Adicionar imagens novas
+## CLI
 
 ```bash
-node sync-images.js --mode add
+npm run sync:dry-run
+npm run sync:add
+npm run sync:sync
+npm run sync:replace
 ```
 
-### Sincronizar (adicionar novas + atualizar alteradas)
+Ou:
 
 ```bash
-node sync-images.js --mode sync
+node sync-images.js --images-root ./Fotos --mode replace --only-sku 1001
 ```
-
-### Substituir todas as imagens
-
-```bash
-node sync-images.js --mode replace
-```
-
-### Opcoes adicionais
-
-```bash
-# Processar apenas um SKU
-node sync-images.js --only-sku 1001 --dry-run
-
-# Limitar quantidade de SKUs
-node sync-images.js --max-skus 10
-
-# Pasta de imagens personalizada
-node sync-images.js --images-root ./MinhasImagens
-
-# Aumentar concorrencia
-node sync-images.js --concurrency 3
-```
-
-## Modos de Operacao
-
-| Modo | Descricao |
-|------|-----------|
-| `add` | Adiciona apenas imagens novas. Nao altera imagens existentes. |
-| `sync` | Adiciona novas e reenvia imagens que foram modificadas localmente. |
-| `replace` | Remove TODAS as imagens do produto e envia as da pasta. |
-
-## Endpoints da API
-
-### Autenticacao
-
-- `GET /auth/status` - Verificar conexao com Nuvemshop
-
-### Sincronizacao
-
-- `POST /sync/add` - Executar modo ADD
-- `POST /sync/sync` - Executar modo SYNC
-- `POST /sync/replace` - Executar modo REPLACE
-- `POST /sync/dry-run` - Simular sincronizacao
-- `GET /sync/status` - Status da sincronizacao atual
-
-### Produtos
-
-- `GET /products/sku/:sku` - Buscar produto por SKU
-- `GET /products/:id` - Buscar produto por ID
-- `GET /products/:id/images` - Listar imagens do produto
 
 ## Deploy no Render
 
-1. Conecte seu repositorio GitHub ao Render
-2. Configure as variaveis de ambiente
-3. Build Command: `npm install`
-4. Start Command: `npm start`
+Configure um Web Service com:
 
-URL esperada: `https://sku-image-sync.onrender.com`
+- Language: `Node.js`
+- Build Command: `npm install`
+- Start Command: `npm start`
 
-## Arquivos Gerados
+Variaveis de ambiente no Render:
 
-- `relatorio-sync-[timestamp].csv` - Relatorio de cada execucao
-- `.nuvemshop-sync-state.json` - Estado da sincronizacao (nao apagar)
-
-## Estrutura do Projeto
-
-```
-SKU-Image-Sync/
-├── server.js           # Servidor Express
-├── sync-images.js      # CLI
-├── package.json
-├── .env.example
-├── .gitignore
-├── README.md
-├── public/
-│   ├── index.html      # Interface web
-│   ├── privacy.html    # Politica de privacidade
-│   └── support.html    # Pagina de suporte
-├── routes/
-│   ├── auth.js         # Rotas de autenticacao
-│   ├── sync.js         # Rotas de sincronizacao
-│   └── products.js     # Rotas de produtos
-├── services/
-│   ├── nuvemshop.js    # Cliente da API Nuvemshop
-│   └── imageSync.js    # Logica de sincronizacao
-└── utils/
-    ├── logger.js       # Utilitario de log
-    └── csvReport.js    # Gerador de relatorios
+```env
+NUVEMSHOP_STORE_ID=
+NUVEMSHOP_ACCESS_TOKEN=
+NUVEMSHOP_USER_AGENT=SKU Image Sync (seu-email@exemplo.com)
+PORT=3000
 ```
 
-## Limites
+Depois do deploy, use a URL do Render na Nuvemshop Partners:
 
-- Tamanho maximo por imagem: 10MB
-- Formatos suportados: JPG, JPEG, PNG, GIF, WebP
-- Respeita rate limit da API (retry automatico)
+- URL do aplicativo: `https://sku-image-sync.onrender.com`
+- Callback: `https://sku-image-sync.onrender.com/auth/callback`
+- Privacy: `https://sku-image-sync.onrender.com/privacy`
+- Support: `https://sku-image-sync.onrender.com/support`
 
-## Licenca
+## API Nuvemshop usada
 
-MIT
+- `GET /products/sku/{sku}`
+- `GET /products/{product_id}/images`
+- `POST /products/{product_id}/images`
+- `DELETE /products/{product_id}/images/{image_id}`
 
-## Autor
-
-Elida Dutra - [@elidadutra187](https://github.com/elidadutra187)
+As requisicoes usam o header `Authentication: bearer <token>` e `User-Agent`.

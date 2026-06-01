@@ -1,27 +1,15 @@
-# Dependências
 node_modules/
-
-# Variáveis de ambiente
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
 
-# Arquivos de estado e relatórios
+Fotos/
+reports/
 *.csv
 .nuvemshop-sync-state.json
 
-# Logs
-logs/
-*.log
 npm-debug.log*
-
-# Sistema operacional
+yarn-debug.log*
+yarn-error.log*
 .DS_Store
 Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-
-# Pasta de imagens (não versionar imagens)
-Fotos/

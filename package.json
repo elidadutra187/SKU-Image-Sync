@@ -1,7 +1,7 @@
 {
   "name": "sku-image-sync",
   "version": "1.0.0",
-  "description": "Sincroniza imagens de produtos da Nuvemshop automaticamente através do SKU",
+  "description": "Backend Node.js para sincronizar imagens de produtos da Nuvemshop usando SKU.",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -17,8 +17,7 @@
     "tiendanube",
     "sku",
     "images",
-    "sync",
-    "ecommerce"
+    "sync"
   ],
   "author": "Elida Dutra",
   "license": "MIT",

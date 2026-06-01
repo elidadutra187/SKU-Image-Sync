@@ -1,28 +1,19 @@
-/**
- * Gerador de relatórios CSV
- */
-
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const HEADERS = ['data', 'sku', 'produto_id', 'arquivo', 'acao', 'status', 'mensagem'];
+const HEADERS = ['date', 'sku', 'product_id', 'file', 'action', 'status', 'message'];
 
 function csvEscape(value) {
-  const str = String(value ?? '');
-  return `"${str.replaceAll('"', '""')}"`;
+  const text = String(value ?? '');
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
-async function pathExists(filePath) {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
+async function ensureDir(filePath) {
+  await fs.mkdir(path.dirname(path.resolve(filePath)), { recursive: true });
 }
 
 export class CsvReport {
-  constructor(reportPath = 'relatorio-sync.csv') {
+  constructor(reportPath = 'reports/sku-image-sync.csv') {
     this.reportPath = path.resolve(reportPath);
     this.rows = [];
     this.initialized = false;
@@ -30,11 +21,8 @@ export class CsvReport {
 
   async initialize() {
     if (this.initialized) return;
-
-    const exists = await pathExists(this.reportPath);
-    if (!exists) {
-      await fs.writeFile(this.reportPath, HEADERS.join(';') + '\n', 'utf8');
-    }
+    await ensureDir(this.reportPath);
+    await fs.writeFile(this.reportPath, `${HEADERS.join(';')}\n`, 'utf8');
     this.initialized = true;
   }
 
@@ -42,68 +30,40 @@ export class CsvReport {
     await this.initialize();
 
     const record = {
-      data: row.data || new Date().toISOString(),
+      date: row.date || new Date().toISOString(),
       sku: row.sku || '',
-      produto_id: row.produto_id || '',
-      arquivo: row.arquivo || '',
-      acao: row.acao || '',
+      product_id: row.product_id || '',
+      file: row.file || '',
+      action: row.action || '',
       status: row.status || '',
-      mensagem: row.mensagem || '',
+      message: row.message || '',
     };
 
-    const line = HEADERS.map((key) => csvEscape(record[key])).join(';') + '\n';
+    const line = `${HEADERS.map((key) => csvEscape(record[key])).join(';')}\n`;
     await fs.appendFile(this.reportPath, line, 'utf8');
     this.rows.push(record);
   }
 
-  async addSuccess(sku, productId, arquivo, acao, mensagem) {
-    await this.addRow({
-      sku,
-      produto_id: productId,
-      arquivo,
-      acao,
-      status: 'ok',
-      mensagem,
-    });
+  addSuccess(sku, productId, file, action, message) {
+    return this.addRow({ sku, product_id: productId, file, action, status: 'ok', message });
   }
 
-  async addError(sku, productId, arquivo, acao, mensagem) {
-    await this.addRow({
-      sku,
-      produto_id: productId,
-      arquivo,
-      acao,
-      status: 'erro',
-      mensagem,
-    });
+  addError(sku, productId, file, action, message) {
+    return this.addRow({ sku, product_id: productId, file, action, status: 'error', message });
   }
 
-  async addSkip(sku, productId, arquivo, mensagem) {
-    await this.addRow({
-      sku,
-      produto_id: productId,
-      arquivo,
-      acao: 'skip',
-      status: 'ok',
-      mensagem,
-    });
+  addSkip(sku, productId, file, message) {
+    return this.addRow({ sku, product_id: productId, file, action: 'skip', status: 'ok', message });
   }
 
   getSummary() {
-    const total = this.rows.length;
-    const success = this.rows.filter((r) => r.status === 'ok').length;
-    const errors = this.rows.filter((r) => r.status === 'erro').length;
-    const skipped = this.rows.filter((r) => r.acao === 'skip').length;
-    const uploads = this.rows.filter((r) => r.acao === 'upload' && r.status === 'ok').length;
-    const deletes = this.rows.filter((r) => r.acao === 'delete' && r.status === 'ok').length;
-
     return {
-      total,
-      success,
-      errors,
-      skipped,
-      uploads,
-      deletes,
+      rows: this.rows.length,
+      success: this.rows.filter((row) => row.status === 'ok').length,
+      errors: this.rows.filter((row) => row.status === 'error').length,
+      skipped: this.rows.filter((row) => row.action === 'skip').length,
+      uploads: this.rows.filter((row) => row.action === 'upload' && row.status === 'ok').length,
+      deletes: this.rows.filter((row) => row.action.startsWith('delete') && row.status === 'ok').length,
       reportPath: this.reportPath,
     };
   }

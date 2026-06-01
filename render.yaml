@@ -13,6 +13,10 @@ services:
       - key: NUVEMSHOP_ACCESS_TOKEN
         sync: false
       - key: NUVEMSHOP_USER_AGENT
-        value: SKU Image Sync
+        value: SKU Image Sync (seu-email@exemplo.com)
+      - key: IMAGES_ROOT
+        value: ./Fotos
+      - key: NUVEMSHOP_API_VERSION
+        value: 2025-03
       - key: PORT
         value: 10000

@@ -1,7 +1,3 @@
-/**
- * Logger utilitário com níveis e timestamps
- */
-
 const COLORS = {
   reset: '\x1b[0m',
   red: '\x1b[31m',
@@ -14,46 +10,37 @@ const COLORS = {
 };
 
 function timestamp() {
-  return new Date().toISOString().replace('T', ' ').substring(0, 19);
+  return new Date().toISOString().replace('T', ' ').slice(0, 19);
 }
 
-function formatMessage(level, message, color) {
-  const ts = `${COLORS.gray}[${timestamp()}]${COLORS.reset}`;
-  const lvl = `${color}[${level}]${COLORS.reset}`;
-  return `${ts} ${lvl} ${message}`;
+function line(level, message, color) {
+  return `${COLORS.gray}[${timestamp()}]${COLORS.reset} ${color}[${level}]${COLORS.reset} ${message}`;
 }
 
 export const logger = {
   info(message) {
-    console.log(formatMessage('INFO', message, COLORS.blue));
+    console.log(line('INFO', message, COLORS.blue));
   },
-
   success(message) {
-    console.log(formatMessage('OK', message, COLORS.green));
+    console.log(line('OK', message, COLORS.green));
   },
-
   warn(message) {
-    console.warn(formatMessage('WARN', message, COLORS.yellow));
+    console.warn(line('WARN', message, COLORS.yellow));
   },
-
   error(message) {
-    console.error(formatMessage('ERROR', message, COLORS.red));
+    console.error(line('ERROR', message, COLORS.red));
   },
-
   debug(message) {
     if (process.env.DEBUG === 'true') {
-      console.log(formatMessage('DEBUG', message, COLORS.magenta));
+      console.log(line('DEBUG', message, COLORS.magenta));
     }
   },
-
   sku(sku, message) {
-    console.log(formatMessage(`SKU ${sku}`, message, COLORS.cyan));
+    console.log(line(`SKU ${sku}`, message, COLORS.cyan));
   },
-
   separator() {
-    console.log(`${COLORS.gray}${'─'.repeat(60)}${COLORS.reset}`);
+    console.log(`${COLORS.gray}${'-'.repeat(60)}${COLORS.reset}`);
   },
-
   header(title) {
     this.separator();
     console.log(`${COLORS.cyan}${title}${COLORS.reset}`);

@@ -1,33 +1,22 @@
-/**
- * SKU Image Sync - Servidor Express
- * Sincroniza imagens de produtos da Nuvemshop através do SKU
- */
-
 import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import authRoutes from './routes/auth.js';
-import syncRoutes from './routes/sync.js';
 import productsRoutes from './routes/products.js';
+import syncRoutes from './routes/sync.js';
 import logger from './utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = Number(process.env.PORT || 3000);
 
-// Middlewares
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rotas da API
-app.use('/auth', authRoutes);
-app.use('/sync', syncRoutes);
-app.use('/products', productsRoutes);
-
-// Páginas HTML
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -40,63 +29,51 @@ app.get('/support', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'support.html'));
 });
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    timestamp: new Date().toISOString(),
+    name: 'SKU Image Sync',
     version: '1.0.0',
+    time: new Date().toISOString(),
   });
 });
 
-// API info
 app.get('/api', (req, res) => {
   res.json({
     name: 'SKU Image Sync',
-    version: '1.0.0',
-    endpoints: {
-      auth: {
-        'GET /auth/status': 'Verificar conexão com Nuvemshop',
-      },
-      sync: {
-        'POST /sync/add': 'Adicionar imagens novas',
-        'POST /sync/sync': 'Sincronizar imagens',
-        'POST /sync/replace': 'Substituir todas as imagens',
-        'POST /sync/dry-run': 'Simular sincronização',
-        'GET /sync/status': 'Status da sincronização',
-      },
-      products: {
-        'GET /products/sku/:sku': 'Buscar produto por SKU',
-        'GET /products/:id': 'Buscar produto por ID',
-        'GET /products/:id/images': 'Listar imagens do produto',
-      },
+    routes: {
+      pages: ['GET /', 'GET /privacy', 'GET /support'],
+      auth: ['GET /auth/install', 'GET /auth/callback', 'GET /auth/status'],
+      sync: ['POST /sync/dry-run', 'POST /sync/add', 'POST /sync/sync', 'POST /sync/replace', 'GET /sync/status'],
+      products: ['GET /products/sku/:sku', 'GET /products/:id', 'GET /products/:id/images'],
     },
   });
 });
 
-// 404
+app.use('/auth', authRoutes);
+app.use('/sync', syncRoutes);
+app.use('/products', productsRoutes);
+
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Rota não encontrada',
-    path: req.path,
+    success: false,
+    error: 'Route not found',
+    path: req.originalUrl,
   });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
-  logger.error(err.message);
-  res.status(500).json({
-    error: 'Erro interno do servidor',
-    message: err.message,
+  logger.error(err.stack || err.message);
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || 'Internal server error',
   });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
+app.listen(port, () => {
   logger.header('SKU Image Sync');
-  logger.info(`Servidor rodando na porta ${PORT}`);
-  logger.info(`http://localhost:${PORT}`);
-  logger.separator();
+  logger.info(`Server running on port ${port}`);
+  logger.info(`Local URL: http://localhost:${port}`);
 });
 
 export default app;

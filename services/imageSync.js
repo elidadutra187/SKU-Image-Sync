@@ -1,17 +1,15 @@
-/**
- * Serviço de sincronização de imagens por SKU
- */
-
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import crypto from 'node:crypto';
-import logger from '../utils/logger.js';
+
 import CsvReport from '../utils/csvReport.js';
+import logger from '../utils/logger.js';
 import NuvemshopClient from './nuvemshop.js';
 
-const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
-const STATE_FILE = '.nuvemshop-sync-state.json';
+const SUPPORTED_EXTENSIONS = new Set(['.gif', '.jpg', '.jpeg', '.png', '.webp']);
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const DEFAULT_STATE_FILE = '.nuvemshop-sync-state.json';
+const VALID_MODES = new Set(['add', 'sync', 'replace']);
 
 async function pathExists(filePath) {
   try {
@@ -26,26 +24,33 @@ function naturalSort(a, b) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-async function sha256File(filePath) {
+async function fileSha256(filePath) {
   const buffer = await fs.readFile(filePath);
   return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+async function readJsonFile(filePath, fallback) {
+  if (!(await pathExists(filePath))) return fallback;
+  const raw = await fs.readFile(filePath, 'utf8');
+  return JSON.parse(raw);
 }
 
 export class ImageSyncService {
   constructor(options = {}) {
     this.imagesRoot = path.resolve(options.imagesRoot || './Fotos');
     this.mode = options.mode || 'sync';
-    this.dryRun = options.dryRun || false;
-    this.concurrency = options.concurrency || 2;
+    this.dryRun = Boolean(options.dryRun);
+    this.concurrency = Math.max(1, Number(options.concurrency || 2));
     this.onlySku = options.onlySku || null;
-    this.maxSkus = options.maxSkus || null;
-    this.statePath = path.resolve(options.stateFile || STATE_FILE);
-    this.reportPath = options.reportPath || `relatorio-sync-${Date.now()}.csv`;
+    this.maxSkus = options.maxSkus ? Number(options.maxSkus) : null;
+    this.statePath = path.resolve(options.stateFile || DEFAULT_STATE_FILE);
+    this.reportPath = options.reportPath || `reports/sku-image-sync-${Date.now()}.csv`;
 
     this.client = null;
-    this.state = { skus: {} };
     this.report = null;
+    this.state = { skus: {} };
     this.stats = {
+      skusFound: 0,
       processed: 0,
       uploaded: 0,
       deleted: 0,
@@ -55,21 +60,17 @@ export class ImageSyncService {
   }
 
   async initialize() {
-    this.client = NuvemshopClient.fromEnv();
-    this.state = await this.loadState();
-    this.report = new CsvReport(this.reportPath);
+    if (!VALID_MODES.has(this.mode)) {
+      throw new Error(`Invalid sync mode: ${this.mode}. Use add, sync or replace.`);
+    }
 
     if (!(await pathExists(this.imagesRoot))) {
-      throw new Error(`Pasta de imagens não encontrada: ${this.imagesRoot}`);
+      throw new Error(`Images root folder not found: ${this.imagesRoot}`);
     }
-  }
 
-  async loadState() {
-    if (!(await pathExists(this.statePath))) {
-      return { skus: {} };
-    }
-    const raw = await fs.readFile(this.statePath, 'utf8');
-    return JSON.parse(raw);
+    this.client = NuvemshopClient.fromEnv();
+    this.report = new CsvReport(this.reportPath);
+    this.state = await readJsonFile(this.statePath, { skus: {} });
   }
 
   async saveState() {
@@ -78,18 +79,17 @@ export class ImageSyncService {
 
   async listSkuFolders() {
     const entries = await fs.readdir(this.imagesRoot, { withFileTypes: true });
-
     let folders = entries
       .filter((entry) => entry.isDirectory())
       .map((entry) => ({
         sku: entry.name.trim(),
         dir: path.join(this.imagesRoot, entry.name),
       }))
-      .filter((item) => item.sku.length > 0)
+      .filter((entry) => entry.sku.length > 0)
       .sort((a, b) => naturalSort(a.sku, b.sku));
 
     if (this.onlySku) {
-      folders = folders.filter((item) => item.sku === this.onlySku);
+      folders = folders.filter((folder) => folder.sku === this.onlySku);
     }
 
     if (this.maxSkus) {
@@ -99,162 +99,161 @@ export class ImageSyncService {
     return folders;
   }
 
-  async listImagesInFolder(dir) {
+  async listLocalImages(dir) {
     const entries = await fs.readdir(dir, { withFileTypes: true });
-    const files = [];
+    const images = [];
 
     for (const entry of entries) {
       if (!entry.isFile()) continue;
+
       const ext = path.extname(entry.name).toLowerCase();
       if (!SUPPORTED_EXTENSIONS.has(ext)) continue;
 
       const filePath = path.join(dir, entry.name);
       const stat = await fs.stat(filePath);
-
-      files.push({
+      images.push({
         filename: entry.name,
         filePath,
         size: stat.size,
-        hash: await sha256File(filePath),
+        hash: await fileSha256(filePath),
       });
     }
 
-    return files.sort((a, b) => naturalSort(a.filename, b.filename));
+    return images.sort((a, b) => naturalSort(a.filename, b.filename));
+  }
+
+  async findProduct(sku) {
+    const product = await this.client.getProductBySku(sku);
+    await this.client.delay();
+
+    if (!product?.id) {
+      throw new Error('Product returned without id.');
+    }
+
+    return product;
+  }
+
+  async deleteImages(productId, images, sku, action = 'delete') {
+    for (const image of images) {
+      try {
+        await this.client.deleteProductImage(productId, image.id);
+        await this.client.delay();
+        await this.report.addSuccess(sku, productId, image.id, action, 'Image deleted.');
+        this.stats.deleted++;
+      } catch (error) {
+        await this.report.addError(sku, productId, image.id, action, error.message);
+        this.stats.errors++;
+      }
+    }
+  }
+
+  async uploadImage(productId, sku, localImage, position, stateForSku) {
+    if (localImage.size > MAX_IMAGE_BYTES) {
+      throw new Error(`Image is larger than 10MB: ${localImage.size} bytes.`);
+    }
+
+    const attachment = (await fs.readFile(localImage.filePath)).toString('base64');
+    const uploaded = await this.client.uploadProductImage(productId, {
+      attachment,
+      filename: localImage.filename,
+      position,
+    });
+    await this.client.delay();
+
+    stateForSku.files[localImage.filename] = {
+      hash: localImage.hash,
+      imageId: uploaded?.id || null,
+      size: localImage.size,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    await this.report.addSuccess(sku, productId, localImage.filename, 'upload', `Image uploaded. ID: ${uploaded?.id || 'N/A'}`);
+    this.stats.uploaded++;
   }
 
   async processSku(folder) {
     const { sku, dir } = folder;
     const stateForSku = this.state.skus[sku] || { productId: null, files: {} };
+    const localImages = await this.listLocalImages(dir);
 
-    logger.sku(sku, 'Lendo imagens da pasta...');
-    const localImages = await this.listImagesInFolder(dir);
+    logger.sku(sku, `Found ${localImages.length} local image(s).`);
 
-    if (localImages.length === 0) {
-      await this.report.addSkip(sku, '', '', 'Nenhuma imagem suportada na pasta');
-      logger.sku(sku, 'Nenhuma imagem encontrada');
+    if (!localImages.length) {
+      await this.report.addSkip(sku, '', '', 'No supported image files found in folder.');
+      this.stats.skipped++;
       return;
     }
 
-    // Buscar produto
     let product;
     try {
-      product = await this.client.getProductBySku(sku);
-      await this.client.delay();
+      product = await this.findProduct(sku);
     } catch (error) {
-      await this.report.addError(sku, '', '', 'buscar_produto', error.message);
-      logger.sku(sku, `Produto não encontrado: ${error.message}`);
+      await this.report.addError(sku, '', '', 'find_product', error.message);
+      logger.sku(sku, `Product not found: ${error.message}`);
       this.stats.errors++;
       return;
     }
 
-    const productId = product?.id;
-    if (!productId) {
-      await this.report.addError(sku, '', '', 'buscar_produto', 'Produto sem ID');
-      this.stats.errors++;
-      return;
-    }
+    const productId = product.id;
+    const remoteImages = await this.client.getProductImages(productId);
+    await this.client.delay();
 
-    logger.sku(sku, `Produto ${productId} encontrado. ${localImages.length} imagens locais`);
-
-    // Modo DRY-RUN
     if (this.dryRun) {
-      const currentImages = await this.client.getProductImages(productId);
-      await this.report.addSuccess(sku, productId, '', `dry-run:${this.mode}`,
-        `Loja: ${currentImages.length} imagens. Local: ${localImages.length} imagens`);
-      logger.sku(sku, `[DRY-RUN] Loja: ${currentImages.length}, Local: ${localImages.length}`);
+      await this.report.addSuccess(
+        sku,
+        productId,
+        '',
+        `dry-run:${this.mode}`,
+        `Remote images: ${remoteImages.length}. Local images: ${localImages.length}.`
+      );
+      this.stats.processed++;
       return;
     }
 
-    // Modo REPLACE: apagar todas as imagens primeiro
     if (this.mode === 'replace') {
-      const currentImages = await this.client.getProductImages(productId);
-      logger.sku(sku, `Removendo ${currentImages.length} imagens atuais...`);
-
-      for (const image of currentImages) {
-        try {
-          await this.client.deleteProductImage(productId, image.id);
-          await this.client.delay();
-          await this.report.addSuccess(sku, productId, image.id, 'delete', 'Imagem removida');
-          this.stats.deleted++;
-        } catch (error) {
-          await this.report.addError(sku, productId, image.id, 'delete', error.message);
-          this.stats.errors++;
-        }
-      }
-
+      logger.sku(sku, `Deleting ${remoteImages.length} existing image(s).`);
+      await this.deleteImages(productId, remoteImages, sku, 'delete_replace');
       stateForSku.files = {};
     }
 
-    // Processar cada imagem local
     let position = 1;
     for (const localImage of localImages) {
       const previous = stateForSku.files[localImage.filename];
       const unchanged = previous?.hash === localImage.hash && previous?.imageId;
 
-      // Skip se já sincronizado (modos sync e add)
-      if ((this.mode === 'sync' || this.mode === 'add') && unchanged) {
-        await this.report.addSkip(sku, productId, localImage.filename, 'Já sincronizado');
+      if ((this.mode === 'add' || this.mode === 'sync') && unchanged) {
+        await this.report.addSkip(sku, productId, localImage.filename, 'File hash already synced.');
         this.stats.skipped++;
         position++;
         continue;
       }
 
-      // Modo SYNC: remover imagem alterada antes de reenviar
       if (this.mode === 'sync' && previous?.imageId && previous.hash !== localImage.hash) {
-        try {
-          await this.client.deleteProductImage(productId, previous.imageId);
-          await this.client.delay();
-          await this.report.addSuccess(sku, productId, localImage.filename, 'delete_changed',
-            `Imagem ${previous.imageId} removida para reenvio`);
-          this.stats.deleted++;
-        } catch (error) {
-          await this.report.addError(sku, productId, localImage.filename, 'delete_changed', error.message);
-        }
+        await this.deleteImages(productId, [{ id: previous.imageId }], sku, 'delete_changed');
       }
 
-      // Upload da imagem
       try {
-        if (localImage.size > MAX_IMAGE_BYTES) {
-          throw new Error(`Imagem maior que 10MB: ${localImage.size} bytes`);
-        }
-
-        const base64 = (await fs.readFile(localImage.filePath)).toString('base64');
-        const uploaded = await this.client.uploadProductImage(productId, {
-          filename: localImage.filename,
-          attachment: base64,
-          position,
-        });
-        await this.client.delay();
-
-        stateForSku.productId = productId;
-        stateForSku.files[localImage.filename] = {
-          hash: localImage.hash,
-          imageId: uploaded?.id || null,
-          uploadedAt: new Date().toISOString(),
-          size: localImage.size,
-        };
-
-        await this.report.addSuccess(sku, productId, localImage.filename, 'upload',
-          `Imagem enviada. ID: ${uploaded?.id || 'N/A'}`);
-        logger.sku(sku, `Enviada: ${localImage.filename}`);
-        this.stats.uploaded++;
+        await this.uploadImage(productId, sku, localImage, position, stateForSku);
+        logger.sku(sku, `Uploaded ${localImage.filename}.`);
       } catch (error) {
         await this.report.addError(sku, productId, localImage.filename, 'upload', error.message);
-        logger.sku(sku, `Erro ao enviar ${localImage.filename}: ${error.message}`);
+        logger.sku(sku, `Upload failed for ${localImage.filename}: ${error.message}`);
         this.stats.errors++;
       }
 
       position++;
     }
 
+    stateForSku.productId = productId;
+    stateForSku.updatedAt = new Date().toISOString();
     this.state.skus[sku] = stateForSku;
     this.stats.processed++;
   }
 
   async runWithConcurrency(items, limit, worker) {
     const queue = [...items];
-    const workers = Array.from({ length: limit }, async () => {
-      while (queue.length > 0) {
+    const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+      while (queue.length) {
         const item = queue.shift();
         await worker(item);
       }
@@ -264,26 +263,25 @@ export class ImageSyncService {
 
   async run() {
     await this.initialize();
-
     const folders = await this.listSkuFolders();
+    this.stats.skusFound = folders.length;
 
-    if (folders.length === 0) {
-      throw new Error('Nenhuma pasta de SKU encontrada');
+    if (!folders.length) {
+      throw new Error('No SKU folders found.');
     }
 
     logger.header('SKU Image Sync');
-    logger.info(`Pasta: ${this.imagesRoot}`);
-    logger.info(`Modo: ${this.mode}${this.dryRun ? ' (DRY-RUN)' : ''}`);
-    logger.info(`SKUs encontrados: ${folders.length}`);
-    logger.info(`Concorrência: ${this.concurrency}`);
-    logger.info(`Relatório: ${this.reportPath}`);
-    logger.separator();
+    logger.info(`Images root: ${this.imagesRoot}`);
+    logger.info(`Mode: ${this.mode}${this.dryRun ? ' (dry-run)' : ''}`);
+    logger.info(`SKU folders: ${folders.length}`);
+    logger.info(`Concurrency: ${this.concurrency}`);
+    logger.info(`Report: ${path.resolve(this.reportPath)}`);
 
     await this.runWithConcurrency(folders, this.concurrency, async (folder) => {
       try {
         await this.processSku(folder);
       } catch (error) {
-        await this.report.addError(folder.sku, '', '', 'processar_sku', error.message);
+        await this.report.addError(folder.sku, '', '', 'process_sku', error.message);
         logger.error(`SKU ${folder.sku}: ${error.message}`);
         this.stats.errors++;
       }
@@ -293,14 +291,12 @@ export class ImageSyncService {
       await this.saveState();
     }
 
-    logger.separator();
-    logger.header('Resumo');
-    logger.info(`SKUs processados: ${this.stats.processed}`);
-    logger.info(`Imagens enviadas: ${this.stats.uploaded}`);
-    logger.info(`Imagens removidas: ${this.stats.deleted}`);
-    logger.info(`Imagens ignoradas: ${this.stats.skipped}`);
-    logger.info(`Erros: ${this.stats.errors}`);
-    logger.info(`Relatório salvo em: ${this.reportPath}`);
+    logger.header('Summary');
+    logger.info(`Processed SKUs: ${this.stats.processed}`);
+    logger.info(`Uploaded images: ${this.stats.uploaded}`);
+    logger.info(`Deleted images: ${this.stats.deleted}`);
+    logger.info(`Skipped items: ${this.stats.skipped}`);
+    logger.info(`Errors: ${this.stats.errors}`);
 
     return {
       stats: this.stats,
