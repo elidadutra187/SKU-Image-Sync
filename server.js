@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/auth.js';
 import productsRoutes from './routes/products.js';
 import syncRoutes from './routes/sync.js';
+import webhookRoutes from './routes/webhooks.js';
 import logger from './utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -46,6 +47,7 @@ app.get('/api', (req, res) => {
       auth: ['GET /auth/install', 'GET /auth/callback', 'GET /auth/status'],
       sync: ['POST /sync/dry-run', 'POST /sync/add', 'POST /sync/sync', 'POST /sync/replace', 'GET /sync/status'],
       products: ['GET /products/sku/:sku', 'GET /products/:id', 'GET /products/:id/images'],
+      webhooks: ['GET /webhooks/status', 'POST /webhooks/store-redact', 'POST /webhooks/customers-redact', 'POST /webhooks/customers-data-request'],
     },
   });
 });
@@ -53,6 +55,7 @@ app.get('/api', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
+app.use('/webhooks', webhookRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import NuvemshopClient from '../services/nuvemshop.js';
+import { saveStoredToken, tokenStatus } from '../services/oauthStore.js';
 
 const router = Router();
 
@@ -14,11 +15,14 @@ router.get('/status', async (req, res) => {
   try {
     const client = NuvemshopClient.fromEnv();
     const result = await client.testConnection();
-    res.json(result);
+    res.json({
+      ...result,
+      token: tokenStatus(),
+    });
   } catch (error) {
     res.json({
       connected: false,
-      storeId: process.env.NUVEMSHOP_STORE_ID || null,
+      token: tokenStatus(),
       message: error.message,
     });
   }
@@ -39,16 +43,14 @@ router.get('/install', (req, res) => {
     });
   }
 
-  const authUrl = new URL('https://www.nuvemshop.com/apps/authorize');
-  authUrl.searchParams.set('client_id', clientId);
-  authUrl.searchParams.set('response_type', 'code');
+  const authUrl = new URL(`https://www.nuvemshop.com/apps/${clientId}/authorize`);
   authUrl.searchParams.set('scope', scopes);
   authUrl.searchParams.set('redirect_uri', callbackUrl);
 
   res.redirect(authUrl.toString());
 });
 
-router.get('/callback', (req, res) => {
+router.get('/callback', async (req, res) => {
   const { code, error } = req.query;
 
   if (error) {
@@ -65,13 +67,44 @@ router.get('/callback', (req, res) => {
     });
   }
 
-  res.json({
-    success: true,
-    oauthReady: false,
-    message: 'OAuth callback received. Automatic token exchange is intentionally not enabled in this first backend version.',
-    nextStep: 'After enabling complete OAuth, exchange this code for user_id/store_id and access_token.',
-    code,
-  });
+  try {
+    const exchanged = await NuvemshopClient.exchangeAuthorizationCode(code);
+    await saveStoredToken({
+      storeId: exchanged.storeId,
+      accessToken: exchanged.accessToken,
+      scopes: exchanged.scopes,
+      installedAt: new Date().toISOString(),
+    });
+
+    res.send(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>SKU Image Sync instalado</title>
+          <style>
+            body { font-family: Arial, Helvetica, sans-serif; margin: 40px; color: #17202a; }
+            main { max-width: 720px; }
+            code { background: #edf2f7; border-radius: 4px; padding: 2px 6px; }
+          </style>
+        </head>
+        <body>
+          <main>
+            <h1>SKU Image Sync instalado</h1>
+            <p>O aplicativo foi autorizado e o token da loja foi salvo com sucesso.</p>
+            <p>Store ID: <code>${exchanged.storeId}</code></p>
+            <p>Agora voce pode usar as rotas de sincronizacao do backend.</p>
+          </main>
+        </body>
+      </html>
+    `);
+  } catch (exchangeError) {
+    res.status(500).json({
+      success: false,
+      error: exchangeError.message,
+    });
+  }
 });
 
 export default router;

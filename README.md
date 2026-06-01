@@ -59,6 +59,8 @@ OAuth scaffold:
 - `GET /auth/callback`
 - `GET /auth/status`
 
+When `NUVEMSHOP_CLIENT_ID` and `NUVEMSHOP_CLIENT_SECRET` are configured, `/auth/callback` exchanges the OAuth `code` for an `access_token` and stores it locally in `.nuvemshop-oauth-token.json`. The token is not printed in responses.
+
 Sincronizacao:
 
 - `POST /sync/dry-run`
@@ -72,6 +74,13 @@ Produtos:
 - `GET /products/sku/:sku`
 - `GET /products/:id`
 - `GET /products/:id/images`
+
+LGPD webhooks:
+
+- `POST /webhooks/store-redact`
+- `POST /webhooks/customers-redact`
+- `POST /webhooks/customers-data-request`
+- `GET /webhooks/status`
 
 Exemplo de dry-run:
 
@@ -107,11 +116,15 @@ Configure um Web Service com:
 Variaveis de ambiente no Render:
 
 ```env
-NUVEMSHOP_STORE_ID=
-NUVEMSHOP_ACCESS_TOKEN=
 NUVEMSHOP_USER_AGENT=SKU Image Sync (seu-email@exemplo.com)
+APP_URL=https://sku-image-sync.onrender.com
+NUVEMSHOP_CLIENT_ID=33268
+NUVEMSHOP_CLIENT_SECRET=
+NUVEMSHOP_APP_SCOPES=read_products,write_products
 PORT=3000
 ```
+
+`NUVEMSHOP_STORE_ID` and `NUVEMSHOP_ACCESS_TOKEN` can still be used for manual-token mode. After OAuth installation, the callback stores `user_id` as the store ID and uses the generated access token automatically.
 
 Depois do deploy, use a URL do Render na Nuvemshop Partners:
 
@@ -119,6 +132,9 @@ Depois do deploy, use a URL do Render na Nuvemshop Partners:
 - Callback: `https://sku-image-sync.onrender.com/auth/callback`
 - Privacy: `https://sku-image-sync.onrender.com/privacy`
 - Support: `https://sku-image-sync.onrender.com/support`
+- LGPD store redact: `https://sku-image-sync.onrender.com/webhooks/store-redact`
+- LGPD customers redact: `https://sku-image-sync.onrender.com/webhooks/customers-redact`
+- LGPD customers data request: `https://sku-image-sync.onrender.com/webhooks/customers-data-request`
 
 ## API Nuvemshop usada
 

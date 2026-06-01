@@ -14,9 +14,17 @@ services:
         sync: false
       - key: NUVEMSHOP_USER_AGENT
         value: SKU Image Sync (seu-email@exemplo.com)
+      - key: APP_URL
+        value: https://sku-image-sync.onrender.com
       - key: IMAGES_ROOT
         value: ./Fotos
       - key: NUVEMSHOP_API_VERSION
         value: 2025-03
+      - key: NUVEMSHOP_CLIENT_ID
+        value: "33268"
+      - key: NUVEMSHOP_CLIENT_SECRET
+        sync: false
+      - key: NUVEMSHOP_APP_SCOPES
+        value: read_products,write_products
       - key: PORT
         value: 10000

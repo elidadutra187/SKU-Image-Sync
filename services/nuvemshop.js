@@ -1,8 +1,10 @@
 import logger from '../utils/logger.js';
+import { readStoredToken } from './oauthStore.js';
 
 const DEFAULT_API_VERSION = '2025-03';
 const MAX_RETRIES = 5;
 const RETRY_BASE_MS = 1000;
+const OAUTH_TOKEN_URL = 'https://www.nuvemshop.com/apps/authorize/token';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,9 +30,12 @@ export class NuvemshopClient {
   }
 
   static fromEnv() {
+    const storedToken = readStoredToken();
+    const storeId = process.env.NUVEMSHOP_STORE_ID || storedToken?.storeId;
+    const accessToken = process.env.NUVEMSHOP_ACCESS_TOKEN || storedToken?.accessToken;
     const missing = [];
-    if (!process.env.NUVEMSHOP_STORE_ID) missing.push('NUVEMSHOP_STORE_ID');
-    if (!process.env.NUVEMSHOP_ACCESS_TOKEN) missing.push('NUVEMSHOP_ACCESS_TOKEN');
+    if (!storeId) missing.push('NUVEMSHOP_STORE_ID or OAuth token');
+    if (!accessToken) missing.push('NUVEMSHOP_ACCESS_TOKEN or OAuth token');
     if (!process.env.NUVEMSHOP_USER_AGENT) missing.push('NUVEMSHOP_USER_AGENT');
 
     if (missing.length) {
@@ -38,12 +43,57 @@ export class NuvemshopClient {
     }
 
     return new NuvemshopClient({
-      storeId: process.env.NUVEMSHOP_STORE_ID,
-      accessToken: process.env.NUVEMSHOP_ACCESS_TOKEN,
+      storeId,
+      accessToken,
       userAgent: process.env.NUVEMSHOP_USER_AGENT,
       apiVersion: process.env.NUVEMSHOP_API_VERSION || DEFAULT_API_VERSION,
       requestDelay: process.env.NUVEMSHOP_REQUEST_DELAY_MS,
     });
+  }
+
+  static async exchangeAuthorizationCode(code) {
+    const clientId = process.env.NUVEMSHOP_CLIENT_ID;
+    const clientSecret = process.env.NUVEMSHOP_CLIENT_SECRET;
+
+    const missing = [];
+    if (!clientId) missing.push('NUVEMSHOP_CLIENT_ID');
+    if (!clientSecret) missing.push('NUVEMSHOP_CLIENT_SECRET');
+    if (!code) missing.push('code');
+
+    if (missing.length) {
+      throw new Error(`Missing OAuth values: ${missing.join(', ')}`);
+    }
+
+    const response = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+      }),
+    });
+
+    const data = parseResponseBody(await response.text());
+
+    if (!response.ok) {
+      const detail = typeof data === 'string' ? data : JSON.stringify(data);
+      throw new Error(`OAuth token exchange failed ${response.status}: ${detail}`);
+    }
+
+    if (!data?.access_token || !data?.user_id) {
+      throw new Error('OAuth token response did not include access_token and user_id.');
+    }
+
+    return {
+      accessToken: data.access_token,
+      storeId: String(data.user_id),
+      scopes: data.scope || null,
+      raw: data,
+    };
   }
 
   async request(endpoint, options = {}, attempt = 1) {

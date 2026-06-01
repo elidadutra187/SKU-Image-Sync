@@ -7,6 +7,7 @@ Fotos/
 reports/
 *.csv
 .nuvemshop-sync-state.json
+.nuvemshop-oauth-token.json
 
 npm-debug.log*
 yarn-debug.log*
