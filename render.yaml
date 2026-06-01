@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: sku-image-sync
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NUVEMSHOP_STORE_ID
+        sync: false
+      - key: NUVEMSHOP_ACCESS_TOKEN
+        sync: false
+      - key: NUVEMSHOP_USER_AGENT
+        value: SKU Image Sync
+      - key: PORT
+        value: 10000
