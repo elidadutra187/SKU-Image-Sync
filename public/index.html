@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SKU Image Sync - Nuvemshop</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+
+    h1 {
+      color: #333;
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 24px;
+    }
+
+    .status-box {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-indicator.connected { background: #28a745; }
+    .status-indicator.disconnected { background: #dc3545; }
+    .status-indicator.checking { background: #ffc107; }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #ffc107;
+      color: #333;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 2px solid #667eea;
+      color: #667eea;
+    }
+
+    .options {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .options h3 {
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .form-group input {
+      width: 100%;
+      max-width: 300px;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .log-box {
+      background: #1a1a2e;
+      border-radius: 8px;
+      padding: 20px;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .log-box .log-entry {
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .log-box .log-info { color: #87ceeb; }
+    .log-box .log-success { color: #90ee90; }
+    .log-box .log-warning { color: #ffd700; }
+    .log-box .log-error { color: #ff6b6b; }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .footer a {
+      color: white;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .mode-description {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 8px;
+      padding: 12px;
+      background: #e9ecef;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 600px) {
+      .btn-group {
+        flex-direction: column;
+      }
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>SKU Image Sync</h1>
+      <p class="subtitle">Sincronize imagens de produtos da Nuvemshop automaticamente pelo SKU</p>
+
+      <div class="status-box">
+        <span class="status-indicator checking" id="statusIndicator"></span>
+        <span id="statusText">Verificando conexao...</span>
+      </div>
+
+      <div class="options">
+        <h3>Opcoes</h3>
+        <div class="form-group">
+          <label for="sku">SKU especifico (opcional)</label>
+          <input type="text" id="sku" placeholder="Ex: 1001">
+        </div>
+        <div class="form-group">
+          <label for="maxSkus">Limite de SKUs (opcional)</label>
+          <input type="number" id="maxSkus" placeholder="Ex: 10" min="1">
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 12px;">Acoes</h3>
+      <div class="btn-group">
+        <button class="btn btn-outline" onclick="runSync('dry-run')">Dry Run</button>
+        <button class="btn btn-success" onclick="runSync('add')">Adicionar</button>
+        <button class="btn btn-primary" onclick="runSync('sync')">Sincronizar</button>
+        <button class="btn btn-danger" onclick="runSync('replace')">Substituir</button>
+      </div>
+
+      <div class="mode-description" id="modeDescription">
+        <strong>Dry Run:</strong> Simula a sincronizacao sem fazer alteracoes.
+      </div>
+
+      <h3 style="margin: 24px 0 12px;">Log</h3>
+      <div class="log-box" id="logBox">
+        <div class="log-entry log-info">[Sistema] Aguardando acao...</div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <a href="/privacy">Privacidade</a> |
+      <a href="/support">Suporte</a> |
+      <a href="/api">API</a>
+    </footer>
+  </div>
+
+  <script>
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const logBox = document.getElementById('logBox');
+    const modeDescription = document.getElementById('modeDescription');
+
+    const descriptions = {
+      'dry-run': '<strong>Dry Run:</strong> Simula a sincronizacao sem fazer alteracoes. Use para verificar quais imagens seriam enviadas.',
+      'add': '<strong>Adicionar:</strong> Envia apenas imagens novas. Nao remove nem substitui imagens existentes.',
+      'sync': '<strong>Sincronizar:</strong> Envia imagens novas e atualiza imagens que foram modificadas localmente.',
+      'replace': '<strong>Substituir:</strong> Remove TODAS as imagens atuais do produto e envia as imagens da pasta. Use com cuidado!'
+    };
+
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logBox.appendChild(entry);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('/auth/status');
+        const data = await res.json();
+
+        if (data.connected) {
+          statusIndicator.className = 'status-indicator connected';
+          statusText.textContent = `Conectado - Loja ${data.storeId}`;
+          log('Conexao com Nuvemshop estabelecida', 'success');
+        } else {
+          statusIndicator.className = 'status-indicator disconnected';
+          statusText.textContent = 'Desconectado - ' + data.message;
+          log('Erro de conexao: ' + data.message, 'error');
+        }
+      } catch (error) {
+        statusIndicator.className = 'status-indicator disconnected';
+        statusText.textContent = 'Erro ao verificar conexao';
+        log('Erro: ' + error.message, 'error');
+      }
+    }
+
+    async function runSync(mode) {
+      const sku = document.getElementById('sku').value.trim();
+      const maxSkus = document.getElementById('maxSkus').value;
+
+      const buttons = document.querySelectorAll('.btn');
+      buttons.forEach(btn => btn.disabled = true);
+
+      log(`Iniciando ${mode}...`, 'info');
+      modeDescription.innerHTML = descriptions[mode];
+
+      try {
+        const body = {};
+        if (sku) body.sku = sku;
+        if (maxSkus) body.maxSkus = parseInt(maxSkus);
+        if (mode === 'dry-run') body.mode = 'sync';
+
+        const endpoint = mode === 'dry-run' ? '/sync/dry-run' : `/sync/${mode}`;
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          log(`Concluido! Enviadas: ${data.stats?.uploaded || 0}, Erros: ${data.stats?.errors || 0}`, 'success');
+          if (data.report?.reportPath) {
+            log(`Relatorio salvo em: ${data.report.reportPath}`, 'info');
+          }
+        } else {
+          log('Erro: ' + data.error, 'error');
+        }
+      } catch (error) {
+        log('Erro: ' + error.message, 'error');
+      } finally {
+        buttons.forEach(btn => btn.disabled = false);
+      }
+    }
+
+    // Verificar status ao carregar
+    checkStatus();
+
+    // Atualizar descrição ao passar mouse
+    document.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('mouseenter', function() {
+        const mode = this.textContent.toLowerCase().replace(' ', '-');
+        const modeMap = {
+          'dry run': 'dry-run',
+          'adicionar': 'add',
+          'sincronizar': 'sync',
+          'substituir': 'replace'
+        };
+        const key = modeMap[this.textContent.toLowerCase()] || mode;
+        if (descriptions[key]) {
+          modeDescription.innerHTML = descriptions[key];
+        }
+      });
+    });
+  </script>
+</body>
+</html>

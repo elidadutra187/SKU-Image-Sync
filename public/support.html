@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suporte - SKU Image Sync</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 24px;
+    }
+
+    h2 {
+      color: #444;
+      margin: 24px 0 12px;
+      font-size: 1.3rem;
+    }
+
+    h3 {
+      color: #555;
+      margin: 16px 0 8px;
+      font-size: 1.1rem;
+    }
+
+    p {
+      color: #555;
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    code {
+      background: #f4f4f4;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+
+    pre {
+      background: #1a1a2e;
+      color: #0f0;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 16px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+
+    .faq-item {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .faq-item h3 {
+      margin-top: 0;
+      color: #667eea;
+    }
+
+    .contact-box {
+      background: #667eea;
+      color: white;
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .contact-box h2 {
+      color: white;
+      margin-top: 0;
+    }
+
+    .contact-box p {
+      color: rgba(255,255,255,0.9);
+    }
+
+    .contact-box a {
+      color: white;
+      font-weight: 600;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 24px;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    ul {
+      margin: 16px 0;
+      padding-left: 24px;
+    }
+
+    li {
+      color: #555;
+      line-height: 1.7;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Suporte</h1>
+      <p>Encontre ajuda para usar o SKU Image Sync.</p>
+
+      <h2>Guia Rapido</h2>
+
+      <h3>1. Configuracao Inicial</h3>
+      <p>Copie o arquivo <code>.env.example</code> para <code>.env</code> e preencha:</p>
+      <pre>NUVEMSHOP_STORE_ID=seu_id_da_loja
+NUVEMSHOP_ACCESS_TOKEN=seu_token
+NUVEMSHOP_USER_AGENT=SKU Image Sync (seu@email.com)</pre>
+
+      <h3>2. Estrutura de Pastas</h3>
+      <p>Organize suas imagens assim:</p>
+      <pre>Fotos/
+├── SKU001/
+│   ├── 1.jpg
+│   ├── 2.jpg
+├── SKU002/
+│   ├── 1.png
+│   ├── 2.webp</pre>
+
+      <h3>3. Executando</h3>
+      <p>Via interface web:</p>
+      <pre>npm start
+# Acesse http://localhost:3000</pre>
+
+      <p>Via linha de comando:</p>
+      <pre># Simular (dry-run)
+node sync-images.js --dry-run
+
+# Adicionar novas
+node sync-images.js --mode add
+
+# Sincronizar
+node sync-images.js --mode sync
+
+# Substituir todas
+node sync-images.js --mode replace</pre>
+
+      <h2>FAQ - Perguntas Frequentes</h2>
+
+      <div class="faq-item">
+        <h3>Como obter o token de acesso?</h3>
+        <p>Acesse o painel de Apps da sua loja Nuvemshop ou crie um app em <a href="https://partners.nuvemshop.com.br" target="_blank">partners.nuvemshop.com.br</a>. O token precisa ter permissao de leitura e escrita em produtos.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Quais formatos de imagem sao suportados?</h3>
+        <p>JPG, JPEG, PNG, GIF e WebP. O tamanho maximo por imagem e 10MB.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>O que faz cada modo?</h3>
+        <ul>
+          <li><strong>Add:</strong> Apenas adiciona imagens novas</li>
+          <li><strong>Sync:</strong> Adiciona novas e atualiza alteradas</li>
+          <li><strong>Replace:</strong> Remove todas e reenvia da pasta</li>
+        </ul>
+      </div>
+
+      <div class="faq-item">
+        <h3>Como testar sem alterar a loja?</h3>
+        <p>Use o modo Dry Run. Ele simula toda a sincronizacao e gera um relatorio, mas nao faz nenhuma alteracao real.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Onde fica o relatorio?</h3>
+        <p>Um arquivo CSV e gerado na pasta do projeto com o nome <code>relatorio-sync-[timestamp].csv</code>.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>A sincronizacao parou no meio. E agora?</h3>
+        <p>Execute novamente com o modo <code>sync</code>. O arquivo de estado (<code>.nuvemshop-sync-state.json</code>) guarda o progresso e evita reenviar imagens ja sincronizadas.</p>
+      </div>
+
+      <a href="/" class="back-link">Voltar para o inicio</a>
+    </div>
+
+    <div class="card contact-box">
+      <h2>Precisa de mais ajuda?</h2>
+      <p>Entre em contato pelo GitHub:</p>
+      <p><a href="https://github.com/elidadutra187/SKU-Image-Sync/issues" target="_blank">Abrir uma issue</a></p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "name": "sku-image-sync",
+  "version": "1.0.0",
+  "description": "Sincroniza imagens de produtos da Nuvemshop automaticamente através do SKU",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "sync:dry-run": "node sync-images.js --images-root ./Fotos --dry-run",
+    "sync:add": "node sync-images.js --images-root ./Fotos --mode add",
+    "sync:sync": "node sync-images.js --images-root ./Fotos --mode sync",
+    "sync:replace": "node sync-images.js --images-root ./Fotos --mode replace"
+  },
+  "keywords": [
+    "nuvemshop",
+    "tiendanube",
+    "sku",
+    "images",
+    "sync",
+    "ecommerce"
+  ],
+  "author": "Elida Dutra",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
