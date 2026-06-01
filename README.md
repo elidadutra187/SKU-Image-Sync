@@ -6,15 +6,35 @@ Backend Node.js para sincronizar imagens de produtos da Nuvemshop usando o SKU c
 
 ```text
 Fotos/
-  1001/
+  1001 Produto Azul/
     1.jpg
     2.jpg
-  1002/
+  ABC-123 - Camiseta/
     1.jpg
     2.jpg
 ```
 
-Cada subpasta dentro de `Fotos` deve ter exatamente o SKU do produto.
+Cada subpasta dentro de `Fotos` deve comecar pelo SKU do produto. O texto depois do primeiro bloco do nome da pasta e ignorado. Exemplos:
+
+- `1001`
+- `1001 Produto Azul`
+- `ABC-123 - Camiseta`
+
+Nesses casos o app usa `1001` ou `ABC-123` para buscar o produto na Nuvemshop.
+
+## Uso pelo site
+
+1. Acesse `https://sku-image-sync.onrender.com`.
+2. Selecione a pasta `Fotos`.
+3. Opcionalmente envie um CSV para filtrar os SKUs que entram na previa.
+4. Clique em `Gerar previa`.
+5. Confira produto, fotos locais e fotos atuais da Nuvemshop.
+6. Desmarque qualquer produto incorreto.
+7. Escolha `ADD`, `SYNC` ou `REPLACE`.
+8. Use `Simular selecionados` antes de sincronizar.
+9. Clique em `Sincronizar selecionados`.
+
+O CSV pode usar virgula ou ponto e virgula. A coluna pode se chamar `sku`, `codigo`, `pasta`, `folder` ou ser a primeira coluna do arquivo.
 
 ## Modos
 
@@ -63,6 +83,8 @@ When `NUVEMSHOP_CLIENT_ID` and `NUVEMSHOP_CLIENT_SECRET` are configured, `/auth/
 
 Sincronizacao:
 
+- `POST /sync/preview`
+- `POST /sync/session/:sessionId/run`
 - `POST /sync/dry-run`
 - `POST /sync/add`
 - `POST /sync/sync`

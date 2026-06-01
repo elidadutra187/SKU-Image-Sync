@@ -6,73 +6,384 @@
     <title>SKU Image Sync</title>
     <style>
       :root {
-        color-scheme: light;
         font-family: Arial, Helvetica, sans-serif;
         color: #17202a;
-        background: #f6f8fb;
+        background: #f5f7fa;
       }
-      body {
-        margin: 0;
-      }
+      body { margin: 0; }
       main {
-        width: min(920px, calc(100% - 32px));
+        width: min(1180px, calc(100% - 32px));
         margin: 0 auto;
-        padding: 56px 0;
+        padding: 32px 0 56px;
       }
-      h1 {
-        margin: 0 0 12px;
-        font-size: clamp(32px, 4vw, 52px);
-        line-height: 1.05;
+      h1 { margin: 0 0 8px; font-size: 34px; }
+      h2 { margin: 0 0 16px; font-size: 20px; }
+      p { line-height: 1.5; }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
+        margin-bottom: 24px;
       }
-      p {
-        font-size: 18px;
-        line-height: 1.6;
+      .status {
+        min-width: 220px;
+        padding: 12px 14px;
+        border: 1px solid #d7dee8;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 14px;
       }
-      section {
-        margin-top: 32px;
+      .panel {
+        background: #fff;
+        border: 1px solid #d7dee8;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      input, select, button {
+        font: inherit;
+      }
+      input[type="file"], select {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #ccd5df;
+        border-radius: 6px;
+        padding: 10px;
+        background: #fff;
+      }
+      button {
+        border: 1px solid #0f5fa8;
+        border-radius: 6px;
+        padding: 10px 14px;
+        background: #0b6bcb;
+        color: #fff;
+        cursor: pointer;
+        min-height: 42px;
+      }
+      button.secondary {
+        background: #fff;
+        color: #0b4f93;
+      }
+      button:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: end;
+      }
+      .hint {
+        color: #5d6b7a;
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      .message {
+        white-space: pre-wrap;
+        font-size: 14px;
+        color: #344054;
+      }
+      .products {
+        display: grid;
+        gap: 12px;
+      }
+      .product {
+        border: 1px solid #d7dee8;
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+      }
+      .productHead {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: start;
+      }
+      .sku {
+        font-weight: 700;
+        font-size: 16px;
+      }
+      .meta {
+        color: #5d6b7a;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .badge {
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 12px;
+        background: #ecfdf3;
+        color: #067647;
+      }
+      .badge.error {
+        background: #fef3f2;
+        color: #b42318;
+      }
+      .images {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .thumb {
+        aspect-ratio: 1;
+        border: 1px solid #d7dee8;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #f8fafc;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .subhead {
+        font-size: 13px;
+        font-weight: 700;
+        margin-top: 12px;
       }
       code {
         background: #e8edf5;
         border-radius: 4px;
-        padding: 2px 6px;
+        padding: 2px 5px;
       }
-      a {
-        color: #0b6bcb;
-      }
-      .panel {
-        background: #ffffff;
-        border: 1px solid #d9e0ea;
-        border-radius: 8px;
-        padding: 24px;
-      }
-      ul {
-        line-height: 1.8;
+      @media (max-width: 820px) {
+        .top, .grid, .split { grid-template-columns: 1fr; display: grid; }
+        .productHead { grid-template-columns: auto 1fr; }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>SKU Image Sync</h1>
-      <p>Aplicativo para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave.</p>
+      <div class="top">
+        <div>
+          <h1>SKU Image Sync</h1>
+          <p>Envie uma pasta de fotos, confira produto por produto e sincronize imagens na Nuvemshop.</p>
+        </div>
+        <div class="status" id="status">Verificando conexao...</div>
+      </div>
 
       <section class="panel">
-        <h2>Status do backend</h2>
-        <p>Use <code>/health</code> para verificar o servidor e <code>/auth/status</code> para testar a conexao com a API da Nuvemshop.</p>
+        <h2>Como usar</h2>
+        <p>Crie uma pasta <code>Fotos</code> com subpastas que comecem pelo SKU. O que vier depois do SKU e ignorado.</p>
+        <p>Exemplos validos: <code>1001</code>, <code>1001 Produto Azul</code>, <code>ABC-123 - Camiseta</code>. O app usa <code>1001</code> ou <code>ABC-123</code> para buscar o produto.</p>
+        <p>O CSV e opcional. Use-o para limitar os SKUs que entram na previa. A coluna pode se chamar <code>sku</code>, <code>codigo</code>, <code>pasta</code> ou ser a primeira coluna do arquivo.</p>
       </section>
 
-      <section>
-        <h2>Rotas principais</h2>
-        <ul>
-          <li><code>POST /sync/dry-run</code> simula a sincronizacao.</li>
-          <li><code>POST /sync/add</code> adiciona imagens novas.</li>
-          <li><code>POST /sync/sync</code> sincroniza por hash local.</li>
-          <li><code>POST /sync/replace</code> remove imagens antigas e reenvia tudo.</li>
-        </ul>
+      <section class="panel">
+        <h2>Enviar e conferir</h2>
+        <div class="grid">
+          <div>
+            <label for="folder">Pasta Fotos</label>
+            <input id="folder" type="file" webkitdirectory multiple accept="image/*">
+            <div class="hint">Selecione a pasta raiz que contem as subpastas dos SKUs.</div>
+          </div>
+          <div>
+            <label for="csv">CSV de SKUs (opcional)</label>
+            <input id="csv" type="file" accept=".csv,text/csv">
+            <div class="hint">Se enviado, so entram SKUs presentes no CSV.</div>
+          </div>
+          <div>
+            <label for="mode">Modo</label>
+            <select id="mode">
+              <option value="add">ADD - adicionar imagens novas</option>
+              <option value="sync">SYNC - sincronizar alteradas</option>
+              <option value="replace">REPLACE - apagar e reenviar</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button id="previewBtn">Gerar previa</button>
+            <button id="dryRunBtn" class="secondary" disabled>Simular selecionados</button>
+            <button id="runBtn" disabled>Sincronizar selecionados</button>
+          </div>
+        </div>
+        <p class="message" id="message"></p>
       </section>
 
-      <section>
-        <p><a href="/privacy">Privacidade</a> | <a href="/support">Suporte</a></p>
+      <section class="panel" id="resultPanel" hidden>
+        <h2>Produtos encontrados</h2>
+        <div class="actions">
+          <button class="secondary" id="selectAllBtn">Selecionar todos validos</button>
+          <button class="secondary" id="clearAllBtn">Desmarcar todos</button>
+        </div>
+        <div class="products" id="products"></div>
       </section>
+
+      <p><a href="/privacy">Privacidade</a> | <a href="/support">Suporte</a></p>
     </main>
+
+    <script>
+      let currentSessionId = null;
+      let currentItems = [];
+
+      const statusEl = document.querySelector('#status');
+      const messageEl = document.querySelector('#message');
+      const productsEl = document.querySelector('#products');
+      const resultPanel = document.querySelector('#resultPanel');
+      const previewBtn = document.querySelector('#previewBtn');
+      const dryRunBtn = document.querySelector('#dryRunBtn');
+      const runBtn = document.querySelector('#runBtn');
+
+      function setMessage(text) {
+        messageEl.textContent = text;
+      }
+
+      async function checkStatus() {
+        try {
+          const response = await fetch('/auth/status');
+          const data = await response.json();
+          statusEl.textContent = data.connected ? `Conectado na loja ${data.storeId}` : `Nao conectado: ${data.message}`;
+        } catch (error) {
+          statusEl.textContent = `Erro de status: ${error.message}`;
+        }
+      }
+
+      function selectedSkus() {
+        return [...document.querySelectorAll('.product input[type="checkbox"]:checked')]
+          .map((checkbox) => checkbox.value);
+      }
+
+      function renderItems(items) {
+        productsEl.innerHTML = '';
+        currentItems = items;
+        resultPanel.hidden = false;
+        dryRunBtn.disabled = false;
+        runBtn.disabled = false;
+
+        for (const item of items) {
+          const card = document.createElement('article');
+          card.className = 'product';
+          const disabled = item.status !== 'ok' ? 'disabled' : '';
+          const checked = item.status === 'ok' ? 'checked' : '';
+          const badgeClass = item.status === 'ok' ? 'badge' : 'badge error';
+          const productText = item.product ? `${item.product.name || 'Produto sem nome'} (#${item.product.id})` : item.error;
+
+          card.innerHTML = `
+            <div class="productHead">
+              <input type="checkbox" value="${item.sku}" ${checked} ${disabled}>
+              <div>
+                <div class="sku">${item.sku}</div>
+                <div class="meta">Pasta: ${item.sourceFolder}</div>
+                <div class="meta">${productText}</div>
+              </div>
+              <span class="${badgeClass}">${item.status === 'ok' ? 'ok' : 'erro'}</span>
+            </div>
+            <div class="split">
+              <div>
+                <div class="subhead">Fotos enviadas (${item.localImages.length})</div>
+                <div class="images">
+                  ${item.localImages.map((image) => `<div class="thumb"><img src="${image.previewUrl}" alt="${image.filename}" title="${image.filename}"></div>`).join('')}
+                </div>
+              </div>
+              <div>
+                <div class="subhead">Fotos atuais na Nuvemshop (${item.remoteImages.length})</div>
+                <div class="images">
+                  ${item.remoteImages.map((image) => `<div class="thumb"><img src="${image.src}" alt="Imagem atual ${image.id}"></div>`).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+          productsEl.appendChild(card);
+        }
+      }
+
+      async function buildPreview() {
+        const files = [...document.querySelector('#folder').files];
+        const csv = document.querySelector('#csv').files[0];
+
+        if (!files.length) {
+          setMessage('Selecione a pasta Fotos antes de gerar a previa.');
+          return;
+        }
+
+        const form = new FormData();
+        const manifest = files.map((file) => ({
+          name: file.name,
+          path: file.webkitRelativePath || file.name,
+          size: file.size,
+        }));
+
+        files.forEach((file) => form.append('images', file, file.name));
+        form.append('manifest', JSON.stringify(manifest));
+        if (csv) form.append('csv', csv, csv.name);
+
+        previewBtn.disabled = true;
+        setMessage('Enviando arquivos e consultando produtos...');
+
+        try {
+          const response = await fetch('/sync/preview', { method: 'POST', body: form });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'Falha na previa.');
+          currentSessionId = data.sessionId;
+          renderItems(data.items);
+          setMessage(`${data.count} SKU(s) na previa. Desmarque qualquer item antes de sincronizar.`);
+        } catch (error) {
+          setMessage(`Erro: ${error.message}`);
+        } finally {
+          previewBtn.disabled = false;
+        }
+      }
+
+      async function runSelected(dryRun) {
+        if (!currentSessionId) return;
+        const skus = selectedSkus();
+        if (!skus.length) {
+          setMessage('Selecione ao menos um SKU.');
+          return;
+        }
+
+        const mode = document.querySelector('#mode').value;
+        dryRunBtn.disabled = true;
+        runBtn.disabled = true;
+        setMessage(dryRun ? 'Simulando selecionados...' : 'Sincronizando selecionados...');
+
+        try {
+          const response = await fetch(`/sync/session/${currentSessionId}/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode, dryRun, selectedSkus: skus }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'Falha na sincronizacao.');
+          setMessage(JSON.stringify(data, null, 2));
+        } catch (error) {
+          setMessage(`Erro: ${error.message}`);
+        } finally {
+          dryRunBtn.disabled = false;
+          runBtn.disabled = false;
+        }
+      }
+
+      document.querySelector('#previewBtn').addEventListener('click', buildPreview);
+      document.querySelector('#dryRunBtn').addEventListener('click', () => runSelected(true));
+      document.querySelector('#runBtn').addEventListener('click', () => runSelected(false));
+      document.querySelector('#selectAllBtn').addEventListener('click', () => {
+        document.querySelectorAll('.product input[type="checkbox"]:not(:disabled)').forEach((checkbox) => { checkbox.checked = true; });
+      });
+      document.querySelector('#clearAllBtn').addEventListener('click', () => {
+        document.querySelectorAll('.product input[type="checkbox"]').forEach((checkbox) => { checkbox.checked = false; });
+      });
+
+      checkStatus();
+    </script>
   </body>
 </html>

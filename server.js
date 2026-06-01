@@ -45,7 +45,7 @@ app.get('/api', (req, res) => {
     routes: {
       pages: ['GET /', 'GET /privacy', 'GET /support'],
       auth: ['GET /auth/install', 'GET /auth/callback', 'GET /auth/status'],
-      sync: ['POST /sync/dry-run', 'POST /sync/add', 'POST /sync/sync', 'POST /sync/replace', 'GET /sync/status'],
+      sync: ['POST /sync/preview', 'POST /sync/session/:sessionId/run', 'POST /sync/dry-run', 'POST /sync/add', 'POST /sync/sync', 'POST /sync/replace', 'GET /sync/status'],
       products: ['GET /products/sku/:sku', 'GET /products/:id', 'GET /products/:id/images'],
       webhooks: ['GET /webhooks/status', 'POST /webhooks/store-redact', 'POST /webhooks/customers-redact', 'POST /webhooks/customers-data-request'],
     },

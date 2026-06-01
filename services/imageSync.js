@@ -43,6 +43,7 @@ export class ImageSyncService {
     this.concurrency = Math.max(1, Number(options.concurrency || 2));
     this.onlySku = options.onlySku || null;
     this.maxSkus = options.maxSkus ? Number(options.maxSkus) : null;
+    this.folders = Array.isArray(options.folders) ? options.folders : null;
     this.statePath = path.resolve(options.stateFile || DEFAULT_STATE_FILE);
     this.reportPath = options.reportPath || `reports/sku-image-sync-${Date.now()}.csv`;
 
@@ -64,7 +65,7 @@ export class ImageSyncService {
       throw new Error(`Invalid sync mode: ${this.mode}. Use add, sync or replace.`);
     }
 
-    if (!(await pathExists(this.imagesRoot))) {
+    if (!this.folders && !(await pathExists(this.imagesRoot))) {
       throw new Error(`Images root folder not found: ${this.imagesRoot}`);
     }
 
@@ -78,6 +79,16 @@ export class ImageSyncService {
   }
 
   async listSkuFolders() {
+    if (this.folders) {
+      return this.folders
+        .map((folder) => ({
+          sku: folder.sku,
+          dir: folder.dir,
+          sourceFolder: folder.sourceFolder || folder.sku,
+        }))
+        .sort((a, b) => naturalSort(a.sku, b.sku));
+    }
+
     const entries = await fs.readdir(this.imagesRoot, { withFileTypes: true });
     let folders = entries
       .filter((entry) => entry.isDirectory())

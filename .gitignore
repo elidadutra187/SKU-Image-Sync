@@ -5,6 +5,7 @@ node_modules/
 
 Fotos/
 reports/
+uploads/
 *.csv
 .nuvemshop-sync-state.json
 .nuvemshop-oauth-token.json
