@@ -173,7 +173,7 @@ export class NuvemshopClient {
   }
 
   getProductImages(productId) {
-    return this.request(`/products/${encodeURIComponent(productId)}/images?per_page=250`);
+    return this.request(`/products/${encodeURIComponent(productId)}/images?per_page=200`);
   }
 
   uploadProductImage(productId, image) {
