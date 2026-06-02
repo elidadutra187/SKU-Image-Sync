@@ -702,6 +702,47 @@
         reportLink.hidden = false;
       }
 
+      function renderRunResult(data, dryRun) {
+        const stats = data.stats || {};
+        const batch = data.batch || currentBatch;
+        showReportLink(data.reportDownloadUrl);
+        if (dryRun) lastSimulationOk = true;
+        setMessage(
+          `${dryRun ? 'Simulacao concluida' : 'Sincronizacao concluida'}.\n` +
+          `${batch?.label ? `Lote utilizado: ${batch.label} de ${batch.total || '?'} subpasta(s)\n` : ''}` +
+          `SKUs processados: ${stats.processed ?? 0}\n` +
+          `Imagens enviadas: ${stats.uploaded ?? 0}\n` +
+          `Imagens removidas: ${stats.deleted ?? 0}\n` +
+          `Ignorados: ${stats.skipped ?? 0}\n` +
+          `Erros: ${stats.errors ?? 0}`
+        );
+      }
+
+      async function waitForJob(jobId, dryRun) {
+        while (true) {
+          const response = await fetch(`/sync/job/${encodeURIComponent(jobId)}`);
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'Falha ao consultar progresso.');
+
+          const job = data.job;
+          const total = job.progress?.total || 0;
+          const completed = job.progress?.completed || 0;
+          const currentSku = job.progress?.currentSku ? ` SKU atual: ${job.progress.currentSku}.` : '';
+          setMessage(`Processando job ${job.id}...\nProgresso: ${completed}/${total}.${currentSku}`);
+
+          if (job.status === 'completed') {
+            renderRunResult(job.result, dryRun);
+            return;
+          }
+
+          if (job.status === 'failed') {
+            throw new Error(job.error || 'Job falhou.');
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      }
+
       function naturalCompare(a, b) {
         return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
       }
@@ -1011,19 +1052,11 @@
           });
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.error || 'Falha na sincronizacao.');
-          const stats = data.stats || {};
-          const batch = data.batch || currentBatch;
-          showReportLink(data.reportDownloadUrl);
-          if (dryRun) lastSimulationOk = true;
-          setMessage(
-            `${dryRun ? 'Simulacao concluida' : 'Sincronizacao concluida'}.\n` +
-            `${batch?.label ? `Lote utilizado: ${batch.label} de ${batch.total || '?'} subpasta(s)\n` : ''}` +
-            `SKUs processados: ${stats.processed ?? 0}\n` +
-            `Imagens enviadas: ${stats.uploaded ?? 0}\n` +
-            `Imagens removidas: ${stats.deleted ?? 0}\n` +
-            `Ignorados: ${stats.skipped ?? 0}\n` +
-            `Erros: ${stats.errors ?? 0}`
-          );
+          if (data.jobId) {
+            await waitForJob(data.jobId, dryRun);
+          } else {
+            renderRunResult(data, dryRun);
+          }
         } catch (error) {
           setMessage(`Erro: ${error.message}`);
         } finally {

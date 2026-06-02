@@ -6,6 +6,7 @@ import path from 'node:path';
 import ImageSyncService from '../services/imageSync.js';
 import NuvemshopClient from '../services/nuvemshop.js';
 import { readStoreSession } from '../services/session.js';
+import { getCurrentJob, getJob, hasRunningJob, startSyncJob } from '../services/syncJobs.js';
 import {
   createUploadSession,
   deleteUploadSession,
@@ -122,7 +123,7 @@ async function previewSession(session) {
 }
 
 async function runSync(req, res, mode, dryRun = false) {
-  if (currentSync) {
+  if (currentSync || hasRunningJob()) {
     return res.status(409).json({
       success: false,
       status: 'busy',
@@ -138,9 +139,6 @@ async function runSync(req, res, mode, dryRun = false) {
       storeId: readStoreSession(req),
     });
     const result = await service.run();
-    if (!dryRun) {
-      await deleteUploadSession(session.id);
-    }
     res.json({
       success: true,
       mode,
@@ -227,7 +225,7 @@ router.get('/session/:sessionId/image/:sku/:filename', async (req, res) => {
 });
 
 router.post('/session/:sessionId/run', async (req, res) => {
-  if (currentSync) {
+  if (currentSync || hasRunningJob()) {
     return res.status(409).json({
       success: false,
       status: 'busy',
@@ -265,24 +263,42 @@ router.post('/session/:sessionId/run', async (req, res) => {
   }
 
   try {
-    currentSync = dryRun ? `dry-run:${mode}` : mode;
-    const service = new ImageSyncService({
+    const job = startSyncJob({
       mode,
       dryRun,
-      folders,
-      batch: session.batch,
-      concurrency: normalizePositiveInteger(req.body?.concurrency, 1),
-      reportPath: `reports/sku-image-sync-${Date.now()}.csv`,
-      storeId: session.storeId,
+      run: async (onProgress) => {
+        const service = new ImageSyncService({
+          mode,
+          dryRun,
+          folders,
+          batch: session.batch,
+          concurrency: normalizePositiveInteger(req.body?.concurrency, 1),
+          reportPath: `reports/sku-image-sync-${Date.now()}.csv`,
+          storeId: session.storeId,
+          onProgress,
+        });
+        const result = await service.run();
+        if (!dryRun) {
+          await deleteUploadSession(session.id);
+        }
+
+        return {
+          success: true,
+          mode,
+          dryRun,
+          selectedSkus: folders.map((folder) => folder.sku),
+          reportDownloadUrl: reportDownloadUrl(result),
+          ...result,
+        };
+      },
     });
-    const result = await service.run();
-    res.json({
+
+    res.status(202).json({
       success: true,
-      mode,
-      dryRun,
-      selectedSkus: folders.map((folder) => folder.sku),
-      reportDownloadUrl: reportDownloadUrl(result),
-      ...result,
+      status: 'running',
+      jobId: job.id,
+      statusUrl: `/sync/job/${job.id}`,
+      job,
     });
   } catch (error) {
     res.status(500).json({
@@ -291,8 +307,6 @@ router.post('/session/:sessionId/run', async (req, res) => {
       dryRun,
       error: error.message,
     });
-  } finally {
-    currentSync = null;
   }
 });
 
@@ -321,10 +335,26 @@ router.get('/report/:filename', async (req, res) => {
   }
 });
 
+router.get('/job/:jobId', (req, res) => {
+  const job = getJob(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      error: 'Job not found.',
+    });
+  }
+
+  res.json({
+    success: true,
+    job,
+  });
+});
+
 router.get('/status', (req, res) => {
   res.json({
-    running: Boolean(currentSync),
+    running: Boolean(currentSync) || hasRunningJob(),
     mode: currentSync,
+    job: getCurrentJob(),
   });
 });
 

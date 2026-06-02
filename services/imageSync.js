@@ -48,6 +48,7 @@ export class ImageSyncService {
     this.batch = options.batch || null;
     this.statePath = path.resolve(options.stateFile || DEFAULT_STATE_FILE);
     this.reportPath = options.reportPath || `reports/sku-image-sync-${Date.now()}.csv`;
+    this.onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
 
     this.client = null;
     this.report = null;
@@ -284,6 +285,7 @@ export class ImageSyncService {
     await this.initialize();
     const folders = await this.listSkuFolders();
     this.stats.skusFound = folders.length;
+    let completedFolders = 0;
 
     if (!folders.length) {
       throw new Error('No SKU folders found.');
@@ -298,14 +300,19 @@ export class ImageSyncService {
     logger.info(`SKU folders: ${folders.length}`);
     logger.info(`Concurrency: ${this.concurrency}`);
     logger.info(`Report: ${path.resolve(this.reportPath)}`);
+    this.onProgress?.({ total: folders.length, completed: 0, currentSku: null });
 
     await this.runWithConcurrency(folders, this.concurrency, async (folder) => {
       try {
+        this.onProgress?.({ total: folders.length, completed: completedFolders, currentSku: folder.sku });
         await this.processSku(folder);
       } catch (error) {
         await this.report.addError(folder.sku, '', '', 'process_sku', error.message);
         logger.error(`SKU ${folder.sku}: ${error.message}`);
         this.stats.errors++;
+      } finally {
+        completedFolders++;
+        this.onProgress?.({ total: folders.length, completed: completedFolders, currentSku: folder.sku });
       }
     });
 
