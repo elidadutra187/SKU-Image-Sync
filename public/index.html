@@ -99,6 +99,48 @@
         color: var(--muted);
         font-size: 14px;
       }
+      .statusActions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .statusActions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        border: 1px solid var(--blue);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: var(--blue);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .connectPanel {
+        border: 1px solid #f3cf72;
+        background: var(--amber-bg);
+      }
+      .connectPanel[hidden] {
+        display: none;
+      }
+      .connectPanel p {
+        margin: 0 0 12px;
+        color: #5f4300;
+      }
+      .connectPanel a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border-radius: 6px;
+        padding: 10px 14px;
+        background: var(--blue);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+      }
       .panel {
         background: var(--panel);
         border: 1px solid var(--line);
@@ -434,8 +476,17 @@
         <aside class="status">
           <strong>Conexao Nuvemshop</strong>
           <span id="status">Verificando conexao...</span>
+          <div class="statusActions" id="statusActions" hidden>
+            <a href="/auth/install" target="_top">Conectar</a>
+          </div>
         </aside>
       </header>
+
+      <section class="panel connectPanel" id="connectPanel" hidden>
+        <h2>Conectar com a Nuvemshop</h2>
+        <p>O app precisa estar autorizado na loja antes de consultar produtos ou sincronizar imagens. Se voce abriu pelo painel da Nuvemshop e apareceu erro, conecte por este botao e depois volte ao app.</p>
+        <a href="/auth/install" target="_top">Conectar com a Nuvemshop</a>
+      </section>
 
       <section class="panel">
         <h2>Fluxo de trabalho</h2>
@@ -554,8 +605,11 @@
       let currentSessionId = null;
       let currentItems = [];
       let lastSimulationOk = false;
+      let isConnected = false;
 
       const statusEl = document.querySelector('#status');
+      const statusActions = document.querySelector('#statusActions');
+      const connectPanel = document.querySelector('#connectPanel');
       const messageEl = document.querySelector('#message');
       const productsEl = document.querySelector('#products');
       const resultPanel = document.querySelector('#resultPanel');
@@ -589,7 +643,7 @@
       }
 
       function setBusy(isBusy, text) {
-        previewBtn.disabled = isBusy;
+        previewBtn.disabled = isBusy || !isConnected;
         dryRunBtn.disabled = isBusy || !currentSessionId;
         runBtn.disabled = isBusy || !currentSessionId;
         progress.hidden = !isBusy;
@@ -645,9 +699,20 @@
         try {
           const response = await fetch('/auth/status');
           const data = await response.json();
+          isConnected = Boolean(data.connected);
           statusEl.textContent = data.connected ? `Conectado na loja ${data.storeId}` : `Nao conectado: ${data.message}`;
+          statusActions.hidden = data.connected;
+          connectPanel.hidden = data.connected;
+          previewBtn.disabled = !isConnected;
+          if (!data.connected) {
+            setMessage('Conecte com a Nuvemshop antes de enviar arquivos. Depois da autorizacao, volte para esta pagina.');
+          }
         } catch (error) {
+          isConnected = false;
           statusEl.textContent = `Erro de status: ${error.message}`;
+          statusActions.hidden = false;
+          connectPanel.hidden = false;
+          previewBtn.disabled = true;
         }
       }
 
