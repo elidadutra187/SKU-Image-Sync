@@ -42,6 +42,22 @@
       button.secondary:hover {
         background: #edf6ff;
       }
+      .buttonLink {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border: 1px solid var(--blue);
+        border-radius: 6px;
+        padding: 10px 14px;
+        background: #fff;
+        color: var(--blue);
+        cursor: pointer;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .buttonLink:hover { background: #edf6ff; }
+      .buttonLink[hidden] { display: none; }
       button:disabled {
         opacity: .52;
         cursor: not-allowed;
@@ -605,6 +621,7 @@
       <div class="stickyInner">
         <div class="stickyInfo" id="stickyInfo">Gere uma previa para liberar a sincronizacao.</div>
         <div class="stickyActions">
+          <a id="reportLink" class="buttonLink" href="#" hidden>Baixar relatorio</a>
           <button id="dryRunBtn" class="secondary" disabled>Simular selecionados</button>
           <button id="runBtn" disabled>Sincronizar selecionados</button>
         </div>
@@ -635,6 +652,7 @@
       const previewBtn = document.querySelector('#previewBtn');
       const dryRunBtn = document.querySelector('#dryRunBtn');
       const runBtn = document.querySelector('#runBtn');
+      const reportLink = document.querySelector('#reportLink');
       const stickyInfo = document.querySelector('#stickyInfo');
       const folderInput = document.querySelector('#folder');
       const csvInput = document.querySelector('#csv');
@@ -671,6 +689,17 @@
         progress.hidden = !isBusy;
         progressText.textContent = text || 'Processando...';
         if (text) setMessage(text);
+      }
+
+      function clearReportLink() {
+        reportLink.hidden = true;
+        reportLink.removeAttribute('href');
+      }
+
+      function showReportLink(url) {
+        if (!url) return;
+        reportLink.href = url;
+        reportLink.hidden = false;
       }
 
       function naturalCompare(a, b) {
@@ -934,6 +963,7 @@
 
         setBusy(true, `Enviando lote com ${groups.length} subpasta(s) e consultando produtos na Nuvemshop...`);
         lastSimulationOk = false;
+        clearReportLink();
 
         try {
           const response = await fetch('/sync/preview', { method: 'POST', body: form });
@@ -983,6 +1013,7 @@
           if (!response.ok || !data.success) throw new Error(data.error || 'Falha na sincronizacao.');
           const stats = data.stats || {};
           const batch = data.batch || currentBatch;
+          showReportLink(data.reportDownloadUrl);
           if (dryRun) lastSimulationOk = true;
           setMessage(
             `${dryRun ? 'Simulacao concluida' : 'Sincronizacao concluida'}.\n` +

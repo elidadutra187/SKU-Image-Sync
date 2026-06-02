@@ -22,6 +22,12 @@ function hasManualToken() {
   return Boolean(process.env.NUVEMSHOP_STORE_ID && process.env.NUVEMSHOP_ACCESS_TOKEN);
 }
 
+function reportDownloadUrl(result) {
+  const reportPath = result?.report?.reportPath;
+  if (!reportPath) return null;
+  return `/sync/report/${encodeURIComponent(path.basename(reportPath))}`;
+}
+
 function normalizePositiveInteger(value, fallback) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 1) return fallback;
@@ -139,6 +145,7 @@ async function runSync(req, res, mode, dryRun = false) {
       success: true,
       mode,
       dryRun,
+      reportDownloadUrl: reportDownloadUrl(result),
       ...result,
     });
   } catch (error) {
@@ -274,6 +281,7 @@ router.post('/session/:sessionId/run', async (req, res) => {
       mode,
       dryRun,
       selectedSkus: folders.map((folder) => folder.sku),
+      reportDownloadUrl: reportDownloadUrl(result),
       ...result,
     });
   } catch (error) {
@@ -291,6 +299,27 @@ router.post('/session/:sessionId/run', async (req, res) => {
 router.post('/add', (req, res) => runSync(req, res, 'add', false));
 router.post('/sync', (req, res) => runSync(req, res, 'sync', false));
 router.post('/replace', (req, res) => runSync(req, res, 'replace', false));
+
+router.get('/report/:filename', async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  if (!/^sku-image-sync-\d+\.csv$/.test(filename)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid report filename.',
+    });
+  }
+
+  const reportPath = path.resolve('reports', filename);
+  try {
+    await fs.access(reportPath);
+    res.download(reportPath, filename);
+  } catch {
+    res.status(404).json({
+      success: false,
+      error: 'Report not found.',
+    });
+  }
+});
 
 router.get('/status', (req, res) => {
   res.json({
