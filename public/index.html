@@ -176,7 +176,7 @@
         font-weight: 700;
         margin-bottom: 6px;
       }
-      input[type="file"], select {
+      input[type="file"], input[type="search"], select {
         width: 100%;
         border: 1px solid #cbd6e2;
         border-radius: 6px;
@@ -189,6 +189,20 @@
         margin-top: 10px;
         color: var(--muted);
         font-size: 13px;
+      }
+      .inlineNotice {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #f8fbfe;
+        color: #344054;
+        font-size: 13px;
+        margin-top: 10px;
+      }
+      .inlineNotice.warn {
+        border-color: #f3cf72;
+        background: var(--amber-bg);
+        color: #5f4300;
       }
       .message {
         border: 1px solid var(--line);
@@ -232,6 +246,12 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 190px;
+        gap: 10px;
+        width: min(520px, 100%);
       }
       .products {
         display: grid;
@@ -354,6 +374,38 @@
         gap: 10px;
         flex-wrap: wrap;
       }
+      .progress {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        background: rgba(15, 23, 42, .36);
+      }
+      .progress[hidden] {
+        display: none;
+      }
+      .progressBox {
+        width: min(360px, calc(100% - 32px));
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid var(--line);
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
+      }
+      .spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 4px solid #dceeff;
+        border-top-color: var(--blue);
+        margin: 0 auto 12px;
+        animation: spin .8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
       footer {
         color: var(--muted);
         font-size: 13px;
@@ -426,6 +478,7 @@
               <label for="csv">CSV de SKUs (opcional)</label>
               <input id="csv" type="file" accept=".csv,text/csv">
               <div class="dropMeta" id="csvMeta">Use CSV para limitar a previa. Aceita virgula ou ponto e virgula.</div>
+              <button type="button" class="secondary" id="csvTemplateBtn" style="margin-top:10px">Baixar modelo CSV</button>
             </div>
             <div class="field">
               <label for="mode">Modo de sincronizacao</label>
@@ -439,6 +492,7 @@
                 <span><strong>SYNC:</strong> atualiza fotos que mudaram.</span>
                 <span><strong>REPLACE:</strong> apaga as fotos atuais do produto e reenvia tudo.</span>
               </div>
+              <div class="inlineNotice" id="modeWarning">ADD e o modo mais seguro para primeira sincronizacao.</div>
             </div>
             <button id="previewBtn">Gerar previa</button>
           </div>
@@ -456,7 +510,15 @@
         </div>
 
         <div class="toolbar">
-          <div class="dropMeta">Confira as imagens antes de sincronizar. Itens com erro ficam desmarcados.</div>
+          <div class="filters">
+            <input id="searchInput" type="search" placeholder="Buscar por SKU, pasta ou produto">
+            <select id="statusFilter">
+              <option value="all">Todos</option>
+              <option value="selected">Selecionados</option>
+              <option value="ok">Encontrados</option>
+              <option value="error">Com erro</option>
+            </select>
+          </div>
           <div class="toolbarActions">
             <button class="secondary" id="selectAllBtn">Selecionar todos validos</button>
             <button class="secondary" id="clearAllBtn">Desmarcar todos</button>
@@ -480,9 +542,18 @@
       </div>
     </div>
 
+    <div class="progress" id="progress" hidden>
+      <div class="progressBox">
+        <div class="spinner"></div>
+        <strong id="progressText">Processando...</strong>
+        <p class="dropMeta">Nao feche esta pagina durante a operacao.</p>
+      </div>
+    </div>
+
     <script>
       let currentSessionId = null;
       let currentItems = [];
+      let lastSimulationOk = false;
 
       const statusEl = document.querySelector('#status');
       const messageEl = document.querySelector('#message');
@@ -497,6 +568,12 @@
       const folderMeta = document.querySelector('#folderMeta');
       const csvMeta = document.querySelector('#csvMeta');
       const dropzone = document.querySelector('#dropzone');
+      const progress = document.querySelector('#progress');
+      const progressText = document.querySelector('#progressText');
+      const searchInput = document.querySelector('#searchInput');
+      const statusFilter = document.querySelector('#statusFilter');
+      const modeSelect = document.querySelector('#mode');
+      const modeWarning = document.querySelector('#modeWarning');
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -515,6 +592,8 @@
         previewBtn.disabled = isBusy;
         dryRunBtn.disabled = isBusy || !currentSessionId;
         runBtn.disabled = isBusy || !currentSessionId;
+        progress.hidden = !isBusy;
+        progressText.textContent = text || 'Processando...';
         if (text) setMessage(text);
       }
 
@@ -532,6 +611,34 @@
           : 'Gere uma previa para liberar a sincronizacao.';
         runBtn.disabled = !currentSessionId || selected === 0;
         dryRunBtn.disabled = !currentSessionId || selected === 0;
+      }
+
+      function applyFilters() {
+        const query = searchInput.value.trim().toLowerCase();
+        const status = statusFilter.value;
+        document.querySelectorAll('.product').forEach((card) => {
+          const selected = card.querySelector('input[type="checkbox"]')?.checked;
+          const haystack = card.dataset.search || '';
+          const matchesText = !query || haystack.includes(query);
+          const matchesStatus =
+            status === 'all' ||
+            (status === 'selected' && selected) ||
+            (status === 'ok' && card.dataset.status === 'ok') ||
+            (status === 'error' && card.dataset.status === 'error');
+          card.hidden = !(matchesText && matchesStatus);
+        });
+      }
+
+      function updateModeWarning() {
+        const mode = modeSelect.value;
+        modeWarning.classList.toggle('warn', mode === 'replace');
+        if (mode === 'replace') {
+          modeWarning.textContent = 'REPLACE remove todas as fotos atuais dos produtos selecionados antes de reenviar. Use somente depois de conferir a previa.';
+        } else if (mode === 'sync') {
+          modeWarning.textContent = 'SYNC compara com o estado local e reenvia fotos alteradas.';
+        } else {
+          modeWarning.textContent = 'ADD e o modo mais seguro para primeira sincronizacao: ele mantem as fotos atuais.';
+        }
       }
 
       async function checkStatus() {
@@ -576,11 +683,13 @@
         for (const item of items) {
           const card = document.createElement('article');
           card.className = `product ${item.status === 'ok' ? '' : 'off'}`;
+          card.dataset.status = item.status;
           const disabled = item.status !== 'ok' ? 'disabled' : '';
           const checked = item.status === 'ok' ? 'checked' : '';
           const badgeClass = item.status === 'ok' ? 'badge' : 'badge error';
           const badgeText = item.status === 'ok' ? 'encontrado' : 'erro';
           const productText = item.product ? `${item.product.name || 'Produto sem nome'} (#${item.product.id})` : item.error;
+          card.dataset.search = `${item.sku} ${item.sourceFolder} ${productText}`.toLowerCase();
 
           card.innerHTML = `
             <div class="productHead">
@@ -613,9 +722,11 @@
           checkbox.addEventListener('change', () => {
             checkbox.closest('.product').classList.toggle('off', !checkbox.checked);
             updateSelectionState();
+            applyFilters();
           });
         });
         updateSelectionState();
+        applyFilters();
       }
 
       async function buildPreview() {
@@ -639,6 +750,7 @@
         if (csv) form.append('csv', csv, csv.name);
 
         setBusy(true, 'Enviando arquivos e consultando produtos na Nuvemshop...');
+        lastSimulationOk = false;
 
         try {
           const response = await fetch('/sync/preview', { method: 'POST', body: form });
@@ -665,6 +777,14 @@
         }
 
         const mode = document.querySelector('#mode').value;
+        if (!dryRun && mode === 'replace') {
+          const confirmed = window.confirm('REPLACE vai apagar as fotos atuais dos produtos selecionados e reenviar as novas. Confirmar?');
+          if (!confirmed) return;
+        }
+        if (!dryRun && !lastSimulationOk) {
+          const confirmed = window.confirm('Voce ainda nao simulou esta selecao nesta previa. Deseja sincronizar mesmo assim?');
+          if (!confirmed) return;
+        }
         const label = dryRun ? 'Simulando selecionados...' : 'Sincronizando selecionados...';
         setBusy(true, label);
 
@@ -677,6 +797,7 @@
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.error || 'Falha na sincronizacao.');
           const stats = data.stats || {};
+          if (dryRun) lastSimulationOk = true;
           setMessage(
             `${dryRun ? 'Simulacao concluida' : 'Sincronizacao concluida'}.\n` +
             `SKUs processados: ${stats.processed ?? 0}\n` +
@@ -705,6 +826,16 @@
         csvMeta.textContent = csvInput.files[0] ? `CSV selecionado: ${csvInput.files[0].name}` : 'Use CSV para limitar a previa.';
       });
 
+      document.querySelector('#csvTemplateBtn').addEventListener('click', () => {
+        const blob = new Blob(['sku;observacao\\n1001;exemplo\\nABC-123;exemplo\\n'], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'modelo-skus.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
       ['dragenter', 'dragover'].forEach((eventName) => {
         dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'));
       });
@@ -715,6 +846,9 @@
       previewBtn.addEventListener('click', buildPreview);
       dryRunBtn.addEventListener('click', () => runSelected(true));
       runBtn.addEventListener('click', () => runSelected(false));
+      searchInput.addEventListener('input', applyFilters);
+      statusFilter.addEventListener('change', applyFilters);
+      modeSelect.addEventListener('change', updateModeWarning);
       document.querySelector('#selectAllBtn').addEventListener('click', () => {
         document.querySelectorAll('.product input[type="checkbox"]:not(:disabled)').forEach((checkbox) => {
           checkbox.checked = true;
@@ -730,6 +864,7 @@
         updateSelectionState();
       });
 
+      updateModeWarning();
       checkStatus();
     </script>
   </body>
