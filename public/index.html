@@ -232,6 +232,11 @@
         color: var(--muted);
         font-size: 13px;
       }
+      .batchGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
       .inlineNotice {
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -545,6 +550,19 @@
               </div>
               <div class="inlineNotice" id="modeWarning">ADD e o modo mais seguro para primeira sincronizacao.</div>
             </div>
+            <div class="field">
+              <label>Previa por lote</label>
+              <div class="batchGrid">
+                <select id="batchSize">
+                  <option value="20">20 subpastas</option>
+                  <option value="50">50 subpastas</option>
+                </select>
+                <select id="batchPage" disabled>
+                  <option value="0">Selecione a pasta</option>
+                </select>
+              </div>
+              <div class="dropMeta" id="batchMeta">Use lotes para pastas grandes. 20 e mais rapido; 50 processa mais produtos por vez.</div>
+            </div>
             <button id="previewBtn">Gerar previa</button>
           </div>
         </div>
@@ -628,6 +646,9 @@
       const statusFilter = document.querySelector('#statusFilter');
       const modeSelect = document.querySelector('#mode');
       const modeWarning = document.querySelector('#modeWarning');
+      const batchSizeSelect = document.querySelector('#batchSize');
+      const batchPageSelect = document.querySelector('#batchPage');
+      const batchMeta = document.querySelector('#batchMeta');
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -649,6 +670,84 @@
         progress.hidden = !isBusy;
         progressText.textContent = text || 'Processando...';
         if (text) setMessage(text);
+      }
+
+      function naturalCompare(a, b) {
+        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+      }
+
+      function getRelativePath(file) {
+        return String(file.webkitRelativePath || file.name || '').replaceAll('\\', '/');
+      }
+
+      function getFolderName(file) {
+        const parts = getRelativePath(file).split('/').filter(Boolean);
+        return parts.length > 1 ? parts[parts.length - 2] : (file.name || '').replace(/\.[^.]+$/, '');
+      }
+
+      function extractSkuFromFolderName(folderName) {
+        const normalized = String(folderName || '').trim();
+        const match = normalized.match(/^[A-Za-z0-9][A-Za-z0-9._-]*/);
+        return match ? match[0] : normalized;
+      }
+
+      function getImageFiles() {
+        return [...folderInput.files].filter((file) => file.type.startsWith('image/'));
+      }
+
+      function getFolderGroups() {
+        const groups = new Map();
+        for (const file of getImageFiles()) {
+          const folderName = getFolderName(file);
+          const sku = extractSkuFromFolderName(folderName);
+          const key = `${sku}::${folderName}`;
+          if (!groups.has(key)) {
+            groups.set(key, {
+              sku,
+              folderName,
+              files: [],
+            });
+          }
+          groups.get(key).files.push(file);
+        }
+
+        return [...groups.values()].sort((a, b) => naturalCompare(a.sku, b.sku) || naturalCompare(a.folderName, b.folderName));
+      }
+
+      function selectedBatchGroups() {
+        const groups = getFolderGroups();
+        const batchSize = Number(batchSizeSelect.value || 20);
+        const page = Number(batchPageSelect.value || 0);
+        return groups.slice(page * batchSize, page * batchSize + batchSize);
+      }
+
+      function updateBatchControls() {
+        const groups = getFolderGroups();
+        const batchSize = Number(batchSizeSelect.value || 20);
+        const pages = Math.max(1, Math.ceil(groups.length / batchSize));
+        const currentPage = Math.min(Number(batchPageSelect.value || 0), pages - 1);
+
+        batchPageSelect.innerHTML = '';
+        if (!groups.length) {
+          batchPageSelect.disabled = true;
+          batchPageSelect.append(new Option('Selecione a pasta', '0'));
+          batchMeta.textContent = 'Use lotes para pastas grandes. 20 e mais rapido; 50 processa mais produtos por vez.';
+          return;
+        }
+
+        for (let page = 0; page < pages; page++) {
+          const start = page * batchSize + 1;
+          const end = Math.min((page + 1) * batchSize, groups.length);
+          batchPageSelect.append(new Option(`${start}-${end}`, String(page)));
+        }
+        batchPageSelect.value = String(currentPage);
+        batchPageSelect.disabled = pages <= 1;
+
+        const batch = selectedBatchGroups();
+        const fileCount = batch.reduce((total, group) => total + group.files.length, 0);
+        const first = currentPage * batchSize + 1;
+        const last = Math.min((currentPage + 1) * batchSize, groups.length);
+        batchMeta.textContent = `${groups.length} subpasta(s) encontrada(s). Lote atual: ${first}-${last}, com ${fileCount} imagem(ns).`;
       }
 
       function selectedSkus() {
@@ -795,7 +894,8 @@
       }
 
       async function buildPreview() {
-        const files = [...folderInput.files];
+        const groups = selectedBatchGroups();
+        const files = groups.flatMap((group) => group.files);
         const csv = csvInput.files[0];
 
         if (!files.length) {
@@ -814,7 +914,7 @@
         form.append('manifest', JSON.stringify(manifest));
         if (csv) form.append('csv', csv, csv.name);
 
-        setBusy(true, 'Enviando arquivos e consultando produtos na Nuvemshop...');
+        setBusy(true, `Enviando lote com ${groups.length} subpasta(s) e consultando produtos na Nuvemshop...`);
         lastSimulationOk = false;
 
         try {
@@ -882,9 +982,11 @@
       folderInput.addEventListener('change', () => {
         const files = [...folderInput.files];
         const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+        const folderCount = getFolderGroups().length;
         folderMeta.textContent = files.length
-          ? `${imageFiles.length} imagem(ns) selecionada(s) em ${files.length} arquivo(s).`
+          ? `${folderCount} subpasta(s), ${imageFiles.length} imagem(ns) e ${files.length} arquivo(s) selecionado(s).`
           : 'A pasta deve conter subpastas que comecem pelo SKU.';
+        updateBatchControls();
       });
 
       csvInput.addEventListener('change', () => {
@@ -914,6 +1016,8 @@
       searchInput.addEventListener('input', applyFilters);
       statusFilter.addEventListener('change', applyFilters);
       modeSelect.addEventListener('change', updateModeWarning);
+      batchSizeSelect.addEventListener('change', updateBatchControls);
+      batchPageSelect.addEventListener('change', updateBatchControls);
       document.querySelector('#selectAllBtn').addEventListener('click', () => {
         document.querySelectorAll('.product input[type="checkbox"]:not(:disabled)').forEach((checkbox) => {
           checkbox.checked = true;
