@@ -20,6 +20,8 @@ services:
         value: ./Fotos
       - key: NUVEMSHOP_API_VERSION
         value: 2025-03
+      - key: NUVEMSHOP_REQUEST_DELAY_MS
+        value: 900
       - key: NUVEMSHOP_CLIENT_ID
         value: "33268"
       - key: NUVEMSHOP_CLIENT_SECRET

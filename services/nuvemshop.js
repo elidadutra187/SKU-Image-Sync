@@ -3,8 +3,11 @@ import { readStoredToken } from './oauthStore.js';
 
 const DEFAULT_API_VERSION = '2025-03';
 const MAX_RETRIES = 5;
-const RETRY_BASE_MS = 1000;
+const RETRY_BASE_MS = 2000;
+const DEFAULT_REQUEST_INTERVAL_MS = 900;
 const OAUTH_TOKEN_URL = 'https://www.nuvemshop.com.br/apps/authorize/token';
+let requestQueue = Promise.resolve();
+let lastRequestAt = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,6 +22,35 @@ function parseResponseBody(text) {
   }
 }
 
+async function throttleRequest(intervalMs) {
+  const previous = requestQueue;
+  let release;
+  requestQueue = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+
+  const elapsed = Date.now() - lastRequestAt;
+  if (elapsed < intervalMs) {
+    await sleep(intervalMs - elapsed);
+  }
+
+  lastRequestAt = Date.now();
+  release();
+}
+
+function retryAfterMs(response, attempt) {
+  const retryAfter = response.headers.get('retry-after');
+  const retryAfterSeconds = Number(retryAfter);
+
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return retryAfterSeconds * 1000;
+  }
+
+  return Math.min(RETRY_BASE_MS * 2 ** (attempt - 1), 30000);
+}
+
 export class NuvemshopClient {
   constructor(config) {
     this.storeId = config.storeId;
@@ -26,7 +58,7 @@ export class NuvemshopClient {
     this.userAgent = config.userAgent;
     this.apiVersion = config.apiVersion || DEFAULT_API_VERSION;
     this.baseUrl = `https://api.nuvemshop.com.br/${this.apiVersion}/${this.storeId}`;
-    this.requestDelay = Number(config.requestDelay || 250);
+    this.requestDelay = Number(config.requestDelay || DEFAULT_REQUEST_INTERVAL_MS);
   }
 
   static fromEnv() {
@@ -97,6 +129,8 @@ export class NuvemshopClient {
   }
 
   async request(endpoint, options = {}, attempt = 1) {
+    await throttleRequest(this.requestDelay);
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
@@ -110,7 +144,7 @@ export class NuvemshopClient {
     const data = parseResponseBody(await response.text());
 
     if ((response.status === 429 || response.status >= 500) && attempt <= MAX_RETRIES) {
-      const waitMs = Math.min(RETRY_BASE_MS * 2 ** (attempt - 1), 15000);
+      const waitMs = retryAfterMs(response, attempt);
       logger.warn(`Nuvemshop API returned ${response.status}. Retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms.`);
       await sleep(waitMs);
       return this.request(endpoint, options, attempt + 1);

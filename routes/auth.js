@@ -76,29 +76,7 @@ router.get('/callback', async (req, res) => {
       installedAt: new Date().toISOString(),
     });
 
-    res.send(`
-      <!doctype html>
-      <html lang="pt-BR">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>SKU Image Sync instalado</title>
-          <style>
-            body { font-family: Arial, Helvetica, sans-serif; margin: 40px; color: #17202a; }
-            main { max-width: 720px; }
-            code { background: #edf2f7; border-radius: 4px; padding: 2px 6px; }
-          </style>
-        </head>
-        <body>
-          <main>
-            <h1>SKU Image Sync instalado</h1>
-            <p>O aplicativo foi autorizado e o token da loja foi salvo com sucesso.</p>
-            <p>Store ID: <code>${exchanged.storeId}</code></p>
-            <p>Agora voce pode usar as rotas de sincronizacao do backend.</p>
-          </main>
-        </body>
-      </html>
-    `);
+    res.redirect('/?connected=1');
   } catch (exchangeError) {
     res.status(500).json({
       success: false,

@@ -48,15 +48,16 @@ function normalizeSelectedSkus(value) {
 
 async function previewSession(session) {
   const client = NuvemshopClient.fromEnv();
+  const items = [];
 
-  return Promise.all(session.groups.map(async (group) => {
+  for (const group of session.groups) {
     try {
       const product = await client.getProductBySku(group.sku);
       await client.delay();
       const remoteImages = await client.getProductImages(product.id);
       await client.delay();
 
-      return {
+      items.push({
         sku: group.sku,
         sourceFolder: group.sourceFolder,
         selected: true,
@@ -71,9 +72,9 @@ async function previewSession(session) {
           src: image.src,
           position: image.position,
         })),
-      };
+      });
     } catch (error) {
-      return {
+      items.push({
         sku: group.sku,
         sourceFolder: group.sourceFolder,
         selected: false,
@@ -82,9 +83,11 @@ async function previewSession(session) {
         product: null,
         localImages: group.images,
         remoteImages: [],
-      };
+      });
     }
-  }));
+  }
+
+  return items;
 }
 
 async function runSync(req, res, mode, dryRun = false) {
@@ -210,7 +213,7 @@ router.post('/session/:sessionId/run', async (req, res) => {
       mode,
       dryRun,
       folders,
-      concurrency: normalizePositiveInteger(req.body?.concurrency, 2),
+      concurrency: normalizePositiveInteger(req.body?.concurrency, 1),
       reportPath: `reports/sku-image-sync-${Date.now()}.csv`,
     });
     const result = await service.run();
