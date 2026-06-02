@@ -44,6 +44,7 @@ export class ImageSyncService {
     this.onlySku = options.onlySku || null;
     this.maxSkus = options.maxSkus ? Number(options.maxSkus) : null;
     this.folders = Array.isArray(options.folders) ? options.folders : null;
+    this.storeId = options.storeId || null;
     this.batch = options.batch || null;
     this.statePath = path.resolve(options.stateFile || DEFAULT_STATE_FILE);
     this.reportPath = options.reportPath || `reports/sku-image-sync-${Date.now()}.csv`;
@@ -70,7 +71,7 @@ export class ImageSyncService {
       throw new Error(`Images root folder not found: ${this.imagesRoot}`);
     }
 
-    this.client = NuvemshopClient.fromEnv();
+    this.client = await NuvemshopClient.fromStore(this.storeId);
     this.report = new CsvReport(this.reportPath, {
       batchLabel: this.batch?.label,
       batchStart: this.batch?.start,

@@ -22,6 +22,12 @@ services:
         value: 2025-03
       - key: NUVEMSHOP_REQUEST_DELAY_MS
         value: 900
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: SESSION_SECRET
+        sync: false
       - key: NUVEMSHOP_CLIENT_ID
         value: "33268"
       - key: NUVEMSHOP_CLIENT_SECRET

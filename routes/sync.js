@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import ImageSyncService from '../services/imageSync.js';
 import NuvemshopClient from '../services/nuvemshop.js';
+import { readStoreSession } from '../services/session.js';
 import {
   createUploadSession,
   foldersForSession,
@@ -15,6 +16,10 @@ import {
 const router = Router();
 const upload = multer({ dest: 'uploads/tmp', limits: { fileSize: 12 * 1024 * 1024, files: 2000 } });
 let currentSync = null;
+
+function hasManualToken() {
+  return Boolean(process.env.NUVEMSHOP_STORE_ID && process.env.NUVEMSHOP_ACCESS_TOKEN);
+}
 
 function normalizePositiveInteger(value, fallback) {
   const number = Number(value);
@@ -66,7 +71,7 @@ function normalizeBatch(value) {
 }
 
 async function previewSession(session) {
-  const client = NuvemshopClient.fromEnv();
+  const client = await NuvemshopClient.fromStore(session.storeId);
   const items = [];
 
   for (const group of session.groups) {
@@ -121,7 +126,10 @@ async function runSync(req, res, mode, dryRun = false) {
 
   try {
     currentSync = dryRun ? `dry-run:${mode}` : mode;
-    const service = new ImageSyncService(syncOptions(req, mode, dryRun));
+    const service = new ImageSyncService({
+      ...syncOptions(req, mode, dryRun),
+      storeId: readStoreSession(req),
+    });
     const result = await service.run();
     res.json({
       success: true,
@@ -153,6 +161,7 @@ router.post('/preview', upload.fields([
   try {
     const manifest = JSON.parse(req.body?.manifest || '[]');
     const batch = normalizeBatch(JSON.parse(req.body?.batch || 'null'));
+    const storeId = readStoreSession(req);
     const imageFiles = req.files?.images || [];
     const csvFile = req.files?.csv?.[0] || null;
     const csvText = csvFile ? await fs.readFile(csvFile.path, 'utf8') : '';
@@ -171,6 +180,7 @@ router.post('/preview', upload.fields([
       manifest,
       csvText,
       batch,
+      storeId,
     });
     const items = await previewSession(session);
 
@@ -191,6 +201,12 @@ router.post('/preview', upload.fields([
 });
 
 router.get('/session/:sessionId/image/:sku/:filename', async (req, res) => {
+  const session = getUploadSession(req.params.sessionId);
+  const storeId = readStoreSession(req);
+  if (session?.storeId && session.storeId !== storeId && !hasManualToken()) {
+    return res.status(403).json({ success: false, error: 'Session does not belong to this store.' });
+  }
+
   const filePath = getSessionImagePath(req.params.sessionId, req.params.sku, req.params.filename);
   if (!filePath) {
     return res.status(404).json({ success: false, error: 'Image not found.' });
@@ -217,6 +233,14 @@ router.post('/session/:sessionId/run', async (req, res) => {
     });
   }
 
+  const storeId = readStoreSession(req);
+  if (session.storeId && session.storeId !== storeId && !hasManualToken()) {
+    return res.status(403).json({
+      success: false,
+      error: 'Session does not belong to this store.',
+    });
+  }
+
   const mode = ['add', 'sync', 'replace'].includes(req.body?.mode) ? req.body.mode : 'add';
   const dryRun = Boolean(req.body?.dryRun);
   const selectedSkus = normalizeSelectedSkus(req.body?.selectedSkus);
@@ -238,6 +262,7 @@ router.post('/session/:sessionId/run', async (req, res) => {
       batch: session.batch,
       concurrency: normalizePositiveInteger(req.body?.concurrency, 1),
       reportPath: `reports/sku-image-sync-${Date.now()}.csv`,
+      storeId: session.storeId,
     });
     const result = await service.run();
     res.json({

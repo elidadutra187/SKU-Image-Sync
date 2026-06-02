@@ -1,7 +1,8 @@
 import { Router } from 'express';
 
 import NuvemshopClient from '../services/nuvemshop.js';
-import { saveStoredToken, tokenStatus } from '../services/oauthStore.js';
+import { saveStoredToken, tokenStatusAsync } from '../services/oauthStore.js';
+import { readStoreSession, setStoreSession } from '../services/session.js';
 
 const router = Router();
 
@@ -13,16 +14,18 @@ function appBaseUrl(req) {
 
 router.get('/status', async (req, res) => {
   try {
-    const client = NuvemshopClient.fromEnv();
+    const storeId = readStoreSession(req);
+    const client = await NuvemshopClient.fromStore(storeId);
     const result = await client.testConnection();
     res.json({
       ...result,
-      token: tokenStatus(),
+      token: await tokenStatusAsync(result.storeId),
     });
   } catch (error) {
+    const storeId = readStoreSession(req);
     res.json({
       connected: false,
-      token: tokenStatus(),
+      token: await tokenStatusAsync(storeId),
       message: error.message,
     });
   }
@@ -75,6 +78,7 @@ router.get('/callback', async (req, res) => {
       scopes: exchanged.scopes,
       installedAt: new Date().toISOString(),
     });
+    setStoreSession(res, exchanged.storeId);
 
     res.redirect(303, `${appBaseUrl(req)}/?connected=1`);
   } catch (exchangeError) {

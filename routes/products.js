@@ -1,12 +1,13 @@
 import { Router } from 'express';
 
 import NuvemshopClient from '../services/nuvemshop.js';
+import { readStoreSession } from '../services/session.js';
 
 const router = Router();
 
 router.get('/sku/:sku', async (req, res) => {
   try {
-    const client = NuvemshopClient.fromEnv();
+    const client = await NuvemshopClient.fromStore(readStoreSession(req));
     const product = await client.getProductBySku(req.params.sku);
     res.json({
       success: true,
@@ -22,7 +23,7 @@ router.get('/sku/:sku', async (req, res) => {
 
 router.get('/:id/images', async (req, res) => {
   try {
-    const client = NuvemshopClient.fromEnv();
+    const client = await NuvemshopClient.fromStore(readStoreSession(req));
     const images = await client.getProductImages(req.params.id);
     res.json({
       success: true,
@@ -40,7 +41,7 @@ router.get('/:id/images', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const client = NuvemshopClient.fromEnv();
+    const client = await NuvemshopClient.fromStore(readStoreSession(req));
     const product = await client.getProduct(req.params.id);
     res.json({
       success: true,

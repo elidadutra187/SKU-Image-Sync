@@ -1,5 +1,5 @@
 import logger from '../utils/logger.js';
-import { readStoredToken } from './oauthStore.js';
+import { readStoredToken, readStoredTokenAsync } from './oauthStore.js';
 
 const DEFAULT_API_VERSION = '2025-03';
 const MAX_RETRIES = 5;
@@ -77,6 +77,30 @@ export class NuvemshopClient {
     return new NuvemshopClient({
       storeId,
       accessToken,
+      userAgent: process.env.NUVEMSHOP_USER_AGENT,
+      apiVersion: process.env.NUVEMSHOP_API_VERSION || DEFAULT_API_VERSION,
+      requestDelay: process.env.NUVEMSHOP_REQUEST_DELAY_MS,
+    });
+  }
+
+  static async fromStore(storeId = null) {
+    if (process.env.NUVEMSHOP_STORE_ID && process.env.NUVEMSHOP_ACCESS_TOKEN) {
+      return NuvemshopClient.fromEnv();
+    }
+
+    const storedToken = await readStoredTokenAsync(storeId);
+    const missing = [];
+    if (!storedToken?.storeId) missing.push('OAuth store_id');
+    if (!storedToken?.accessToken) missing.push('OAuth access_token');
+    if (!process.env.NUVEMSHOP_USER_AGENT) missing.push('NUVEMSHOP_USER_AGENT');
+
+    if (missing.length) {
+      throw new Error(`Missing environment variables: ${missing.join(', ')}`);
+    }
+
+    return new NuvemshopClient({
+      storeId: storedToken.storeId,
+      accessToken: storedToken.accessToken,
       userAgent: process.env.NUVEMSHOP_USER_AGENT,
       apiVersion: process.env.NUVEMSHOP_API_VERSION || DEFAULT_API_VERSION,
       requestDelay: process.env.NUVEMSHOP_REQUEST_DELAY_MS,
