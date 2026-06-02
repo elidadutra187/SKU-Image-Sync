@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const SUPPORTED_EXTENSIONS = new Set(['.gif', '.jpg', '.jpeg', '.png', '.webp']);
 const UPLOAD_ROOT = path.resolve('uploads');
+const DEFAULT_SESSION_TTL_MS = 6 * 60 * 60 * 1000;
 const sessions = new Map();
 
 function naturalSort(a, b) {
@@ -87,6 +88,8 @@ export function parseCsvSkus(text) {
 }
 
 export async function createUploadSession({ files, manifest, csvText, batch, storeId }) {
+  await cleanupExpiredUploadSessions();
+
   const sessionId = crypto.randomUUID();
   const sessionDir = path.join(UPLOAD_ROOT, sessionId);
   const csvSkus = csvText ? parseCsvSkus(csvText) : new Set();
@@ -153,7 +156,15 @@ export async function createUploadSession({ files, manifest, csvText, batch, sto
 }
 
 export function getUploadSession(sessionId) {
-  return sessions.get(sessionId) || null;
+  const session = sessions.get(sessionId) || null;
+  if (!session) return null;
+
+  if (isExpired(session)) {
+    deleteUploadSession(sessionId);
+    return null;
+  }
+
+  return session;
 }
 
 export function getSessionImagePath(sessionId, sku, filename) {
@@ -177,4 +188,42 @@ export function foldersForSession(session, selectedSkus = []) {
       dir: group.dir,
       sourceFolder: group.sourceFolder,
     }));
+}
+
+function sessionTtlMs() {
+  const value = Number(process.env.UPLOAD_SESSION_TTL_MS || DEFAULT_SESSION_TTL_MS);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SESSION_TTL_MS;
+}
+
+function isExpired(session) {
+  return Date.now() - new Date(session.createdAt).getTime() > sessionTtlMs();
+}
+
+export async function deleteUploadSession(sessionId) {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+
+  sessions.delete(sessionId);
+  await fs.rm(session.dir, { recursive: true, force: true });
+  return true;
+}
+
+export async function cleanupExpiredUploadSessions() {
+  const removed = [];
+  for (const session of sessions.values()) {
+    if (isExpired(session)) {
+      await deleteUploadSession(session.id);
+      removed.push(session.id);
+    }
+  }
+  return removed;
+}
+
+export function startUploadSessionCleanup() {
+  const intervalMs = Math.min(sessionTtlMs(), 30 * 60 * 1000);
+  const timer = setInterval(() => {
+    cleanupExpiredUploadSessions().catch(() => {});
+  }, intervalMs);
+  timer.unref?.();
+  return timer;
 }

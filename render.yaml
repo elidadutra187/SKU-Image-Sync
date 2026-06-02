@@ -28,6 +28,8 @@ services:
         value: "true"
       - key: SESSION_SECRET
         sync: false
+      - key: UPLOAD_SESSION_TTL_MS
+        value: "21600000"
       - key: NUVEMSHOP_CLIENT_ID
         value: "33268"
       - key: NUVEMSHOP_CLIENT_SECRET

@@ -8,6 +8,7 @@ import NuvemshopClient from '../services/nuvemshop.js';
 import { readStoreSession } from '../services/session.js';
 import {
   createUploadSession,
+  deleteUploadSession,
   foldersForSession,
   getSessionImagePath,
   getUploadSession,
@@ -131,6 +132,9 @@ async function runSync(req, res, mode, dryRun = false) {
       storeId: readStoreSession(req),
     });
     const result = await service.run();
+    if (!dryRun) {
+      await deleteUploadSession(session.id);
+    }
     res.json({
       success: true,
       mode,
