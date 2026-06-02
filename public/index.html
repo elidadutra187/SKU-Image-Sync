@@ -622,6 +622,7 @@
     <script>
       let currentSessionId = null;
       let currentItems = [];
+      let currentBatch = null;
       let lastSimulationOk = false;
       let isConnected = false;
 
@@ -719,6 +720,21 @@
         const batchSize = Number(batchSizeSelect.value || 20);
         const page = Number(batchPageSelect.value || 0);
         return groups.slice(page * batchSize, page * batchSize + batchSize);
+      }
+
+      function selectedBatchInfo() {
+        const groups = getFolderGroups();
+        const batchSize = Number(batchSizeSelect.value || 20);
+        const page = Number(batchPageSelect.value || 0);
+        const start = groups.length ? page * batchSize + 1 : 0;
+        const end = groups.length ? Math.min((page + 1) * batchSize, groups.length) : 0;
+        return {
+          label: groups.length ? `${start}-${end}` : '',
+          start,
+          end,
+          size: batchSize,
+          total: groups.length,
+        };
       }
 
       function updateBatchControls() {
@@ -904,6 +920,7 @@
         }
 
         const form = new FormData();
+        const batchInfo = selectedBatchInfo();
         const manifest = files.map((file) => ({
           name: file.name,
           path: file.webkitRelativePath || file.name,
@@ -912,6 +929,7 @@
 
         files.forEach((file) => form.append('images', file, file.name));
         form.append('manifest', JSON.stringify(manifest));
+        form.append('batch', JSON.stringify(batchInfo));
         if (csv) form.append('csv', csv, csv.name);
 
         setBusy(true, `Enviando lote com ${groups.length} subpasta(s) e consultando produtos na Nuvemshop...`);
@@ -922,10 +940,12 @@
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.error || 'Falha na previa.');
           currentSessionId = data.sessionId;
+          currentBatch = data.batch || batchInfo;
           renderItems(data.items);
-          setMessage(`${data.count} SKU(s) na previa. Confira as fotos, desmarque erros e simule antes de sincronizar.`);
+          setMessage(`Lote ${currentBatch.label}: ${data.count} SKU(s) na previa. Confira as fotos, desmarque erros e simule antes de sincronizar.`);
         } catch (error) {
           currentSessionId = null;
+          currentBatch = null;
           setMessage(`Erro: ${error.message}`);
         } finally {
           setBusy(false);
@@ -962,9 +982,11 @@
           const data = await response.json();
           if (!response.ok || !data.success) throw new Error(data.error || 'Falha na sincronizacao.');
           const stats = data.stats || {};
+          const batch = data.batch || currentBatch;
           if (dryRun) lastSimulationOk = true;
           setMessage(
             `${dryRun ? 'Simulacao concluida' : 'Sincronizacao concluida'}.\n` +
+            `${batch?.label ? `Lote utilizado: ${batch.label} de ${batch.total || '?'} subpasta(s)\n` : ''}` +
             `SKUs processados: ${stats.processed ?? 0}\n` +
             `Imagens enviadas: ${stats.uploaded ?? 0}\n` +
             `Imagens removidas: ${stats.deleted ?? 0}\n` +

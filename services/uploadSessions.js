@@ -86,7 +86,7 @@ export function parseCsvSkus(text) {
   );
 }
 
-export async function createUploadSession({ files, manifest, csvText }) {
+export async function createUploadSession({ files, manifest, csvText, batch }) {
   const sessionId = crypto.randomUUID();
   const sessionDir = path.join(UPLOAD_ROOT, sessionId);
   const csvSkus = csvText ? parseCsvSkus(csvText) : new Set();
@@ -139,6 +139,7 @@ export async function createUploadSession({ files, manifest, csvText }) {
     id: sessionId,
     dir: sessionDir,
     createdAt: new Date().toISOString(),
+    batch: batch || null,
     csvSkus: [...csvSkus],
     groups: [...groups.values()].map((group) => ({
       ...group,

@@ -44,6 +44,7 @@ export class ImageSyncService {
     this.onlySku = options.onlySku || null;
     this.maxSkus = options.maxSkus ? Number(options.maxSkus) : null;
     this.folders = Array.isArray(options.folders) ? options.folders : null;
+    this.batch = options.batch || null;
     this.statePath = path.resolve(options.stateFile || DEFAULT_STATE_FILE);
     this.reportPath = options.reportPath || `reports/sku-image-sync-${Date.now()}.csv`;
 
@@ -70,7 +71,13 @@ export class ImageSyncService {
     }
 
     this.client = NuvemshopClient.fromEnv();
-    this.report = new CsvReport(this.reportPath);
+    this.report = new CsvReport(this.reportPath, {
+      batchLabel: this.batch?.label,
+      batchStart: this.batch?.start,
+      batchEnd: this.batch?.end,
+      batchSize: this.batch?.size,
+      batchTotal: this.batch?.total,
+    });
     this.state = await readJsonFile(this.statePath, { skus: {} });
   }
 
@@ -284,6 +291,9 @@ export class ImageSyncService {
     logger.header('SKU Image Sync');
     logger.info(`Images root: ${this.imagesRoot}`);
     logger.info(`Mode: ${this.mode}${this.dryRun ? ' (dry-run)' : ''}`);
+    if (this.batch?.label) {
+      logger.info(`Batch: ${this.batch.label}`);
+    }
     logger.info(`SKU folders: ${folders.length}`);
     logger.info(`Concurrency: ${this.concurrency}`);
     logger.info(`Report: ${path.resolve(this.reportPath)}`);
@@ -311,6 +321,7 @@ export class ImageSyncService {
 
     return {
       stats: this.stats,
+      batch: this.batch,
       report: this.report.getSummary(),
     };
   }

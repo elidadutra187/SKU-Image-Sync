@@ -1,7 +1,20 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const HEADERS = ['date', 'sku', 'product_id', 'file', 'action', 'status', 'message'];
+const HEADERS = [
+  'date',
+  'batch_label',
+  'batch_start',
+  'batch_end',
+  'batch_size',
+  'batch_total',
+  'sku',
+  'product_id',
+  'file',
+  'action',
+  'status',
+  'message',
+];
 
 function csvEscape(value) {
   const text = String(value ?? '');
@@ -13,8 +26,9 @@ async function ensureDir(filePath) {
 }
 
 export class CsvReport {
-  constructor(reportPath = 'reports/sku-image-sync.csv') {
+  constructor(reportPath = 'reports/sku-image-sync.csv', metadata = {}) {
     this.reportPath = path.resolve(reportPath);
+    this.metadata = metadata;
     this.rows = [];
     this.initialized = false;
   }
@@ -31,6 +45,11 @@ export class CsvReport {
 
     const record = {
       date: row.date || new Date().toISOString(),
+      batch_label: row.batch_label || this.metadata.batchLabel || '',
+      batch_start: row.batch_start || this.metadata.batchStart || '',
+      batch_end: row.batch_end || this.metadata.batchEnd || '',
+      batch_size: row.batch_size || this.metadata.batchSize || '',
+      batch_total: row.batch_total || this.metadata.batchTotal || '',
       sku: row.sku || '',
       product_id: row.product_id || '',
       file: row.file || '',

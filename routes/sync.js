@@ -46,6 +46,25 @@ function normalizeSelectedSkus(value) {
   return [];
 }
 
+function normalizeBatch(value) {
+  if (!value || typeof value !== 'object') return null;
+  const start = normalizePositiveInteger(value.start, null);
+  const end = normalizePositiveInteger(value.end, null);
+  const size = normalizePositiveInteger(value.size, null);
+  const total = normalizePositiveInteger(value.total, null);
+  const label = String(value.label || '').trim();
+
+  if (!label && !start && !end && !size && !total) return null;
+
+  return {
+    label: label || (start && end ? `${start}-${end}` : ''),
+    start,
+    end,
+    size,
+    total,
+  };
+}
+
 async function previewSession(session) {
   const client = NuvemshopClient.fromEnv();
   const items = [];
@@ -133,6 +152,7 @@ router.post('/preview', upload.fields([
 ]), async (req, res) => {
   try {
     const manifest = JSON.parse(req.body?.manifest || '[]');
+    const batch = normalizeBatch(JSON.parse(req.body?.batch || 'null'));
     const imageFiles = req.files?.images || [];
     const csvFile = req.files?.csv?.[0] || null;
     const csvText = csvFile ? await fs.readFile(csvFile.path, 'utf8') : '';
@@ -150,12 +170,14 @@ router.post('/preview', upload.fields([
       files: imageFiles,
       manifest,
       csvText,
+      batch,
     });
     const items = await previewSession(session);
 
     res.json({
       success: true,
       sessionId: session.id,
+      batch: session.batch,
       csvSkus: session.csvSkus,
       count: items.length,
       items,
@@ -213,6 +235,7 @@ router.post('/session/:sessionId/run', async (req, res) => {
       mode,
       dryRun,
       folders,
+      batch: session.batch,
       concurrency: normalizePositiveInteger(req.body?.concurrency, 1),
       reportPath: `reports/sku-image-sync-${Date.now()}.csv`,
     });
