@@ -26,15 +26,19 @@ Nesses casos o app usa `1001` ou `ABC-123` para buscar o produto na Nuvemshop.
 
 1. Acesse `https://sku-image-sync.onrender.com`.
 2. Selecione a pasta `Fotos`.
-3. Opcionalmente envie um CSV para filtrar os SKUs que entram na previa.
-4. Clique em `Gerar previa`.
-5. Confira produto, fotos locais e fotos atuais da Nuvemshop.
-6. Desmarque qualquer produto incorreto.
-7. Escolha `ADD`, `SYNC` ou `REPLACE`.
-8. Use `Simular selecionados` antes de sincronizar.
-9. Clique em `Sincronizar selecionados`.
+3. Escolha o tamanho da previa por lote: `20 subpastas` ou `50 subpastas`.
+4. Escolha o intervalo do lote, por exemplo `1-20`, `21-40` ou `51-100`.
+5. Opcionalmente envie um CSV para filtrar os SKUs que entram na previa.
+6. Clique em `Gerar previa`.
+7. Confira produto, fotos locais e fotos atuais da Nuvemshop.
+8. Desmarque qualquer produto incorreto.
+9. Escolha `ADD`, `SYNC` ou `REPLACE`.
+10. Use `Simular selecionados` antes de sincronizar.
+11. Clique em `Sincronizar selecionados`.
 
 O CSV pode usar virgula ou ponto e virgula. A coluna pode se chamar `sku`, `codigo`, `pasta`, `folder` ou ser a primeira coluna do arquivo.
+
+Para pastas grandes, use `20 subpastas` como padrao. Esse lote e mais estavel porque cada SKU precisa consultar produto e imagens atuais na API da Nuvemshop. Use `50 subpastas` quando houver poucas imagens por SKU ou quando a previa estiver respondendo rapido.
 
 ## Modos
 
@@ -73,13 +77,13 @@ Paginas:
 - `GET /privacy`
 - `GET /support`
 
-OAuth scaffold:
+Estrutura OAuth:
 
 - `GET /auth/install`
 - `GET /auth/callback`
 - `GET /auth/status`
 
-When `NUVEMSHOP_CLIENT_ID` and `NUVEMSHOP_CLIENT_SECRET` are configured, `/auth/callback` exchanges the OAuth `code` for an `access_token` and stores it locally in `.nuvemshop-oauth-token.json`. The token is not printed in responses.
+Quando `NUVEMSHOP_CLIENT_ID` e `NUVEMSHOP_CLIENT_SECRET` estao configurados, `/auth/callback` troca o `code` do OAuth por um `access_token` e salva esse token localmente em `.nuvemshop-oauth-token.json`. O token nao e exibido nas respostas da API.
 
 Sincronizacao:
 
@@ -131,9 +135,9 @@ node sync-images.js --images-root ./Fotos --mode replace --only-sku 1001
 
 Configure um Web Service com:
 
-- Language: `Node.js`
-- Build Command: `npm install`
-- Start Command: `npm start`
+- Linguagem: `Node.js`
+- Comando de build: `npm install`
+- Comando de inicio: `npm start`
 
 Variaveis de ambiente no Render:
 
@@ -146,17 +150,17 @@ NUVEMSHOP_APP_SCOPES=read_products,write_products
 PORT=3000
 ```
 
-`NUVEMSHOP_STORE_ID` and `NUVEMSHOP_ACCESS_TOKEN` can still be used for manual-token mode. After OAuth installation, the callback stores `user_id` as the store ID and uses the generated access token automatically.
+`NUVEMSHOP_STORE_ID` e `NUVEMSHOP_ACCESS_TOKEN` ainda podem ser usados no modo de token manual. Depois da instalacao via OAuth, o callback salva `user_id` como ID da loja e usa automaticamente o token de acesso gerado.
 
 Depois do deploy, use a URL do Render na Nuvemshop Partners:
 
 - URL do aplicativo: `https://sku-image-sync.onrender.com`
 - Callback: `https://sku-image-sync.onrender.com/auth/callback`
-- Privacy: `https://sku-image-sync.onrender.com/privacy`
-- Support: `https://sku-image-sync.onrender.com/support`
-- LGPD store redact: `https://sku-image-sync.onrender.com/webhooks/store-redact`
-- LGPD customers redact: `https://sku-image-sync.onrender.com/webhooks/customers-redact`
-- LGPD customers data request: `https://sku-image-sync.onrender.com/webhooks/customers-data-request`
+- Privacidade: `https://sku-image-sync.onrender.com/privacy`
+- Suporte: `https://sku-image-sync.onrender.com/support`
+- LGPD remocao de dados da loja: `https://sku-image-sync.onrender.com/webhooks/store-redact`
+- LGPD remocao de dados de clientes: `https://sku-image-sync.onrender.com/webhooks/customers-redact`
+- LGPD solicitacao de dados de clientes: `https://sku-image-sync.onrender.com/webhooks/customers-data-request`
 
 ## API Nuvemshop usada
 
