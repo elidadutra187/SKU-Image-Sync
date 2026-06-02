@@ -76,7 +76,7 @@ router.get('/callback', async (req, res) => {
       installedAt: new Date().toISOString(),
     });
 
-    res.redirect('/?connected=1');
+    res.redirect(303, `${appBaseUrl(req)}/?connected=1`);
   } catch (exchangeError) {
     res.status(500).json({
       success: false,

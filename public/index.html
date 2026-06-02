@@ -930,6 +930,10 @@
       });
 
       updateModeWarning();
+      if (new URLSearchParams(window.location.search).get('connected') === '1') {
+        setMessage('Conexao com a Nuvemshop concluida. Voce ja pode gerar a previa dos produtos.');
+        window.history.replaceState({}, '', '/');
+      }
       checkStatus();
     </script>
   </body>
