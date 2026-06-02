@@ -1,4 +1,22 @@
-# SKU Image Sync
+<div align="center">
+  <strong>φ</strong>
+  <h1>SKU Image Sync</h1>
+  <p><em>Backend Node.js para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave.</em></p>
+  <p>
+    <a href="https://github.com/elidadutra187/SKU-Image-Sync">Repository</a> ·
+    <a href="https://github.com/elidadutra187">GitHub Profile</a>
+  </p>
+</div>
+
+
+## Positioning
+
+This repository is part of the `φ` portfolio by [Élida Dutra](https://github.com/elidadutra187), focused on practical systems for e-commerce, automation, analytics, content generation and growth operations.
+
+**Repository:** [elidadutra187/SKU-Image-Sync](https://github.com/elidadutra187/SKU-Image-Sync)  
+**GitHub:** [https://github.com/elidadutra187](https://github.com/elidadutra187)  
+**Purpose:** Backend Node.js para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave.
+
 
 Backend Node.js para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave.
 
@@ -170,3 +188,10 @@ Depois do deploy, use a URL do Render na Nuvemshop Partners:
 - `DELETE /products/{product_id}/images/{image_id}`
 
 As requisicoes usam o header `Authentication: bearer <token>` e `User-Agent`.
+
+<div align="center">
+  <strong>φ</strong>
+  <br />
+  <sub>Built and maintained by <a href="https://github.com/elidadutra187">Élida Dutra</a>.</sub>
+</div>
+
