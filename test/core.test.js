@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+
+import CsvReport from '../utils/csvReport.js';
+import { extractSkuFromFolder, parseCsvSkus } from '../services/uploadSessions.js';
+import { getJob, startSyncJob } from '../services/syncJobs.js';
+
+test('extractSkuFromFolder uses the first SKU-like token', () => {
+  assert.equal(extractSkuFromFolder('1001 Produto Azul'), '1001');
+  assert.equal(extractSkuFromFolder('ABC-123 - Camiseta'), 'ABC-123');
+  assert.equal(extractSkuFromFolder('MEGA-1094077 - Carregador'), 'MEGA-1094077');
+});
+
+test('parseCsvSkus accepts semicolon CSV and known headers', () => {
+  const skus = parseCsvSkus('codigo;nome\n1001 Produto Azul;Produto A\nABC-123 - Camiseta;Produto B\n');
+  assert.deepEqual([...skus], ['1001', 'ABC-123']);
+});
+
+test('CsvReport writes batch metadata columns', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sku-report-'));
+  const reportPath = path.join(dir, 'report.csv');
+  const report = new CsvReport(reportPath, {
+    batchLabel: '21-40',
+    batchStart: 21,
+    batchEnd: 40,
+    batchSize: 20,
+    batchTotal: 300,
+  });
+
+  await report.addSuccess('MEGA-1001', '123', '1.jpg', 'upload', 'Image uploaded.');
+
+  const csv = await fs.readFile(reportPath, 'utf8');
+  assert.match(csv, /batch_label;batch_start;batch_end;batch_size;batch_total/);
+  assert.match(csv, /"21-40";"21";"40";"20";"300"/);
+});
+
+test('startSyncJob tracks progress and completion', async () => {
+  const job = startSyncJob({
+    mode: 'add',
+    dryRun: true,
+    run: async (progress) => {
+      progress({ total: 2, completed: 1, currentSku: '1001' });
+      return { stats: { processed: 1 } };
+    },
+  });
+
+  assert.equal(job.status, 'running');
+
+  let completed = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    completed = getJob(job.id);
+    if (completed?.status === 'completed') break;
+  }
+
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.progress.completed, 1);
+  assert.equal(completed.result.stats.processed, 1);
+});

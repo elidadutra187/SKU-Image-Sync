@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "test": "node --test",
     "sync:dry-run": "node sync-images.js --images-root ./Fotos --dry-run",
     "sync:add": "node sync-images.js --images-root ./Fotos --mode add",
     "sync:sync": "node sync-images.js --images-root ./Fotos --mode sync",
