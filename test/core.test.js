@@ -60,3 +60,14 @@ test('startSyncJob tracks progress and completion', async () => {
   assert.equal(completed.progress.completed, 1);
   assert.equal(completed.result.stats.processed, 1);
 });
+
+test('NubeSDK script exports App without legacy browser APIs', async () => {
+  const scriptPath = path.resolve('public/nube/main.min.js');
+  const script = await fs.readFile(scriptPath, 'utf8');
+
+  assert.match(script, /export function App\(nube\)/);
+  assert.doesNotMatch(script, /\bwindow\b/);
+  assert.doesNotMatch(script, /\bdocument\b/);
+  assert.doesNotMatch(script, /\binnerHTML\b/);
+  assert.doesNotMatch(script, /\blocalStorage\b/);
+});

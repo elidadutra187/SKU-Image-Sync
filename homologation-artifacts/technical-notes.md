@@ -44,6 +44,16 @@ Justificativa:
 - Nao ha GET continuo ou polling para monitorar alteracoes.
 - O app so consulta a API quando o lojista gera previa, simula ou confirma sincronizacao.
 
+## Adequacao NubeSDK
+
+O SKU Image Sync e um aplicativo administrativo para uso pelo lojista dentro da pagina do app. Ele nao adiciona botao, banner, modal, tag, validacao de carrinho ou qualquer componente na vitrine/checkout da loja.
+
+Para cumprir a validacao tecnica de homologacao quando a Nuvemshop exigir um script NubeSDK vinculado ao aplicativo, o projeto disponibiliza o script:
+
+`https://sku-image-sync.onrender.com/nube/main.min.js`
+
+Esse script exporta `App(nube)`, nao acessa `window`, `document`, `localStorage`, `innerHTML`, jQuery ou APIs de DOM, e nao injeta interface visual no storefront. No Partner Portal, ele deve ser cadastrado com a opcao `Uses Nube SDK` ativada.
+
 ## Privacidade e LGPD
 
 O app nao armazena dados de clientes.
@@ -64,4 +74,3 @@ Rotas LGPD implementadas:
 ## Conta demo
 
 Para a equipe de homologacao, utilizar uma loja de teste Nuvemshop e instalar o aplicativo pela URL OAuth. Nao existe cadastro interno separado no app.
-

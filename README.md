@@ -94,6 +94,7 @@ Paginas:
 - `GET /`
 - `GET /privacy`
 - `GET /support`
+- `GET /nube/main.min.js`
 
 Estrutura OAuth:
 
@@ -125,6 +126,12 @@ LGPD webhooks:
 - `POST /webhooks/customers-redact`
 - `POST /webhooks/customers-data-request`
 - `GET /webhooks/status`
+
+NubeSDK:
+
+- Script publico: `https://sku-image-sync.onrender.com/nube/main.min.js`
+- Uso no Partner Portal: cadastrar esse script com a opcao `Uses Nube SDK` ativada.
+- Comportamento: o SKU Image Sync e um app administrativo para o lojista, sem componente de vitrine. O script NubeSDK e neutro, nao injeta interface no storefront, nao manipula DOM e existe apenas para compatibilidade tecnica de homologacao quando a Nuvemshop exigir um script SDK vinculado ao app.
 
 Exemplo de dry-run:
 
@@ -179,6 +186,7 @@ Depois do deploy, use a URL do Render na Nuvemshop Partners:
 - LGPD remocao de dados da loja: `https://sku-image-sync.onrender.com/webhooks/store-redact`
 - LGPD remocao de dados de clientes: `https://sku-image-sync.onrender.com/webhooks/customers-redact`
 - LGPD solicitacao de dados de clientes: `https://sku-image-sync.onrender.com/webhooks/customers-data-request`
+- Script NubeSDK: `https://sku-image-sync.onrender.com/nube/main.min.js`
 
 ## API Nuvemshop usada
 
