@@ -78,6 +78,8 @@ PORT=3000
 
 O arquivo tambem inclui variaveis opcionais para pasta de imagens, versao da API e estrutura futura de OAuth.
 
+Nunca publique `.env`, `NUVEMSHOP_ACCESS_TOKEN`, `NUVEMSHOP_CLIENT_SECRET`, `DATABASE_URL`, `SESSION_SECRET` ou arquivos `.nuvemshop-oauth-token.json` no GitHub. Esses valores devem ficar apenas no Render ou no ambiente local.
+
 ## Rodar localmente
 
 ```bash
@@ -195,7 +197,14 @@ Depois do deploy, use a URL do Render na Nuvemshop Partners:
 - `POST /products/{product_id}/images`
 - `DELETE /products/{product_id}/images/{image_id}`
 
-As requisicoes usam o header `Authentication: bearer <token>` e `User-Agent`.
+As requisicoes usam os headers `Authorization: Bearer <token>` e `User-Agent`. O header legado `Authentication: bearer <token>` tambem e enviado por compatibilidade.
+
+## Seguranca
+
+- Segredos reais ficam fora do repositorio.
+- O `.env.example` deve conter apenas nomes de variaveis e valores vazios ou exemplos sem validade.
+- O arquivo `.gitignore` bloqueia `.env`, `.env.*`, relatorios, uploads e tokens OAuth locais.
+- Caso uma credencial real seja exposta por engano, revogue a credencial no provedor antes de remover o arquivo do Git.
 
 <div align="center">
   <strong>φ</strong>
