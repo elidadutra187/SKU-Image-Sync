@@ -3,6 +3,7 @@ import { Router } from 'express';
 import NuvemshopClient from '../services/nuvemshop.js';
 import { saveStoredToken, tokenStatusAsync } from '../services/oauthStore.js';
 import { readStoreSession, setStoreSession } from '../services/session.js';
+import logger from '../utils/logger.js';
 
 const router = Router();
 
@@ -10,6 +11,20 @@ function appBaseUrl(req) {
   const configured = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
   if (configured) return configured.replace(/\/$/, '');
   return `${req.protocol}://${req.get('host')}`;
+}
+
+function redirectToApp(req, res, params = {}) {
+  const url = new URL(appBaseUrl(req));
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, value);
+    }
+  });
+  res.redirect(303, url.toString());
+}
+
+export function buildAuthorizeUrl(clientId) {
+  return `https://www.nuvemshop.com.br/apps/${encodeURIComponent(clientId)}/authorize`;
 }
 
 router.get('/status', async (req, res) => {
@@ -33,40 +48,28 @@ router.get('/status', async (req, res) => {
 
 router.get('/install', (req, res) => {
   const clientId = process.env.NUVEMSHOP_CLIENT_ID;
-  const scopes = process.env.NUVEMSHOP_APP_SCOPES || 'read_products,write_products';
-  const callbackUrl = `${appBaseUrl(req)}/auth/callback`;
 
   if (!clientId) {
-    return res.json({
-      success: true,
-      oauthReady: false,
-      message: 'OAuth scaffold is available, but NUVEMSHOP_CLIENT_ID is not configured yet. Use the manual token env vars for now.',
-      callbackUrl,
-      requiredEnv: ['NUVEMSHOP_CLIENT_ID', 'NUVEMSHOP_CLIENT_SECRET', 'NUVEMSHOP_APP_SCOPES'],
+    return redirectToApp(req, res, {
+      oauth_error: 'oauth_not_configured',
     });
   }
 
-  const authUrl = new URL(`https://www.nuvemshop.com.br/apps/${clientId}/authorize`);
-  authUrl.searchParams.set('scope', scopes);
-  authUrl.searchParams.set('redirect_uri', callbackUrl);
-
-  res.redirect(authUrl.toString());
+  res.redirect(buildAuthorizeUrl(clientId));
 });
 
 router.get('/callback', async (req, res) => {
   const { code, error } = req.query;
 
   if (error) {
-    return res.status(400).json({
-      success: false,
-      error,
+    return redirectToApp(req, res, {
+      oauth_error: String(error),
     });
   }
 
   if (!code) {
-    return res.status(400).json({
-      success: false,
-      error: 'Missing OAuth code.',
+    return redirectToApp(req, res, {
+      oauth_error: 'missing_code',
     });
   }
 
@@ -82,9 +85,9 @@ router.get('/callback', async (req, res) => {
 
     res.redirect(303, `${appBaseUrl(req)}/?connected=1`);
   } catch (exchangeError) {
-    res.status(500).json({
-      success: false,
-      error: exchangeError.message,
+    logger.error(`OAuth callback failed: ${exchangeError.message}`);
+    return redirectToApp(req, res, {
+      oauth_error: 'token_exchange_failed',
     });
   }
 });

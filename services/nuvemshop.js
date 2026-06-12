@@ -5,7 +5,7 @@ const DEFAULT_API_VERSION = '2025-03';
 const MAX_RETRIES = 5;
 const RETRY_BASE_MS = 2000;
 const DEFAULT_REQUEST_INTERVAL_MS = 900;
-const OAUTH_TOKEN_URL = 'https://www.nuvemshop.com.br/apps/authorize/token';
+const OAUTH_TOKEN_URL = process.env.NUVEMSHOP_OAUTH_TOKEN_URL || 'https://www.nuvemshop.com.br/apps/authorize/token';
 let requestQueue = Promise.resolve();
 let lastRequestAt = 0;
 
@@ -123,6 +123,7 @@ export class NuvemshopClient {
     const response = await fetch(OAUTH_TOKEN_URL, {
       method: 'POST',
       headers: {
+        Accept: 'application/json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -134,6 +135,10 @@ export class NuvemshopClient {
     });
 
     const data = parseResponseBody(await response.text());
+
+    if (data?.error) {
+      throw new Error(`OAuth token exchange failed: ${data.error_description || data.error}`);
+    }
 
     if (!response.ok) {
       const detail = typeof data === 'string' ? data : JSON.stringify(data);

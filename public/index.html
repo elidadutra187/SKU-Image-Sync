@@ -682,6 +682,15 @@
         messageEl.textContent = text;
       }
 
+      function oauthErrorMessage(code) {
+        const messages = {
+          oauth_not_configured: 'OAuth ainda nao esta configurado no servidor. Confira NUVEMSHOP_CLIENT_ID e NUVEMSHOP_CLIENT_SECRET no Render.',
+          missing_code: 'A Nuvemshop nao retornou o codigo de autorizacao. Abra o app pelo painel da Nuvemshop ou clique em Conectar novamente.',
+          token_exchange_failed: 'Nao foi possivel concluir a autenticacao com a Nuvemshop. Tente conectar novamente. Se persistir, confira o Client Secret no Render e no Partner Portal.',
+        };
+        return messages[code] || `Autenticacao nao concluida: ${code}`;
+      }
+
       function setBusy(isBusy, text) {
         previewBtn.disabled = isBusy || !isConnected;
         dryRunBtn.disabled = isBusy || !currentSessionId;
@@ -1120,8 +1129,13 @@
       });
 
       updateModeWarning();
-      if (new URLSearchParams(window.location.search).get('connected') === '1') {
+      const params = new URLSearchParams(window.location.search);
+      const oauthError = params.get('oauth_error');
+      if (params.get('connected') === '1') {
         setMessage('Conexao com a Nuvemshop concluida. Voce ja pode gerar a previa dos produtos.');
+        window.history.replaceState({}, '', '/');
+      } else if (oauthError) {
+        setMessage(oauthErrorMessage(oauthError));
         window.history.replaceState({}, '', '/');
       }
       checkStatus();

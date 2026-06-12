@@ -5,8 +5,10 @@ import path from 'node:path';
 import test from 'node:test';
 
 import CsvReport from '../utils/csvReport.js';
+import NuvemshopClient from '../services/nuvemshop.js';
 import { extractSkuFromFolder, parseCsvSkus } from '../services/uploadSessions.js';
 import { getJob, startSyncJob } from '../services/syncJobs.js';
+import { buildAuthorizeUrl } from '../routes/auth.js';
 
 test('extractSkuFromFolder uses the first SKU-like token', () => {
   assert.equal(extractSkuFromFolder('1001 Produto Azul'), '1001');
@@ -70,4 +72,58 @@ test('NubeSDK script exports App without legacy browser APIs', async () => {
   assert.doesNotMatch(script, /\bdocument\b/);
   assert.doesNotMatch(script, /\binnerHTML\b/);
   assert.doesNotMatch(script, /\blocalStorage\b/);
+});
+
+test('buildAuthorizeUrl uses the official app authorization URL only', () => {
+  const url = new URL(buildAuthorizeUrl('33268'));
+
+  assert.equal(url.origin, 'https://www.nuvemshop.com.br');
+  assert.equal(url.pathname, '/apps/33268/authorize');
+  assert.equal(url.search, '');
+});
+
+test('exchangeAuthorizationCode reports OAuth JSON errors returned with HTTP 200', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalClientId = process.env.NUVEMSHOP_CLIENT_ID;
+  const originalClientSecret = process.env.NUVEMSHOP_CLIENT_SECRET;
+  let requestBody = null;
+
+  process.env.NUVEMSHOP_CLIENT_ID = '33268';
+  process.env.NUVEMSHOP_CLIENT_SECRET = 'secret';
+  globalThis.fetch = async (url, options) => {
+    requestBody = JSON.parse(options.body);
+    return new Response(
+      JSON.stringify({
+        error: 'invalid_request',
+        error_description: 'The grant type was not specified in the request',
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  };
+
+  try {
+    await assert.rejects(
+      () => NuvemshopClient.exchangeAuthorizationCode('oauth-code'),
+      /The grant type was not specified/
+    );
+    assert.equal(requestBody.client_id, '33268');
+    assert.equal(requestBody.client_secret, 'secret');
+    assert.equal(requestBody.grant_type, 'authorization_code');
+    assert.equal(requestBody.code, 'oauth-code');
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalClientId === undefined) {
+      delete process.env.NUVEMSHOP_CLIENT_ID;
+    } else {
+      process.env.NUVEMSHOP_CLIENT_ID = originalClientId;
+    }
+    if (originalClientSecret === undefined) {
+      delete process.env.NUVEMSHOP_CLIENT_SECRET;
+    } else {
+      process.env.NUVEMSHOP_CLIENT_SECRET = originalClientSecret;
+    }
+  }
 });
