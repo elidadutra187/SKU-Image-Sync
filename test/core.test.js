@@ -127,3 +127,32 @@ test('exchangeAuthorizationCode reports OAuth JSON errors returned with HTTP 200
     }
   }
 });
+
+test('Nuvemshop API requests include the standard Authorization bearer header', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestHeaders = null;
+
+  globalThis.fetch = async (url, options) => {
+    requestHeaders = options.headers;
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  try {
+    const client = new NuvemshopClient({
+      storeId: '123',
+      accessToken: 'token-abc',
+      userAgent: 'SKU Image Sync (test@example.com)',
+      requestDelay: 0,
+    });
+
+    await client.request('/products?per_page=1');
+
+    assert.equal(requestHeaders.Authorization, 'Bearer token-abc');
+    assert.equal(requestHeaders.Authentication, 'bearer token-abc');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

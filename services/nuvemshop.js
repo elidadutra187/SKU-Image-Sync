@@ -163,6 +163,7 @@ export class NuvemshopClient {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
+        Authorization: `Bearer ${this.accessToken}`,
         Authentication: `bearer ${this.accessToken}`,
         'User-Agent': this.userAgent,
         'Content-Type': 'application/json',
