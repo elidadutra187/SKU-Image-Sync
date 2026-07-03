@@ -156,3 +156,57 @@ test('Nuvemshop API requests include the standard Authorization bearer header', 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('fromStore falls back to the only stored OAuth token when there is no session store id', async () => {
+  const originalStoreId = process.env.NUVEMSHOP_STORE_ID;
+  const originalAccessToken = process.env.NUVEMSHOP_ACCESS_TOKEN;
+  const originalUserAgent = process.env.NUVEMSHOP_USER_AGENT;
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalOauthTokenFile = process.env.OAUTH_TOKEN_FILE;
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sku-oauth-'));
+  const tokenFile = path.join(dir, 'oauth-token.json');
+
+  delete process.env.NUVEMSHOP_STORE_ID;
+  delete process.env.NUVEMSHOP_ACCESS_TOKEN;
+  delete process.env.DATABASE_URL;
+  process.env.NUVEMSHOP_USER_AGENT = 'SKU Image Sync (test@example.com)';
+  process.env.OAUTH_TOKEN_FILE = tokenFile;
+
+  await fs.writeFile(tokenFile, JSON.stringify({
+    storeId: '7793322',
+    accessToken: 'oauth-token',
+    scopes: 'read_products,write_products',
+  }), 'utf8');
+
+  try {
+    const client = await NuvemshopClient.fromStore();
+    assert.equal(client.storeId, '7793322');
+    assert.equal(client.accessToken, 'oauth-token');
+  } finally {
+    if (originalStoreId === undefined) {
+      delete process.env.NUVEMSHOP_STORE_ID;
+    } else {
+      process.env.NUVEMSHOP_STORE_ID = originalStoreId;
+    }
+    if (originalAccessToken === undefined) {
+      delete process.env.NUVEMSHOP_ACCESS_TOKEN;
+    } else {
+      process.env.NUVEMSHOP_ACCESS_TOKEN = originalAccessToken;
+    }
+    if (originalUserAgent === undefined) {
+      delete process.env.NUVEMSHOP_USER_AGENT;
+    } else {
+      process.env.NUVEMSHOP_USER_AGENT = originalUserAgent;
+    }
+    if (originalDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+    if (originalOauthTokenFile === undefined) {
+      delete process.env.OAUTH_TOKEN_FILE;
+    } else {
+      process.env.OAUTH_TOKEN_FILE = originalOauthTokenFile;
+    }
+  }
+});

@@ -70,6 +70,33 @@ export async function readStoredTokenAsync(storeId = null) {
   return token;
 }
 
+export async function readSingleStoredTokenAsync() {
+  if (hasDatabase()) {
+    await initializeDatabase();
+    const result = await getPool().query(
+      `
+        select store_id, access_token, scopes, installed_at, updated_at
+        from stores
+        order by updated_at desc
+        limit 2
+      `
+    );
+
+    if (result.rows.length !== 1) return null;
+
+    const row = result.rows[0];
+    return {
+      storeId: row.store_id,
+      accessToken: row.access_token,
+      scopes: row.scopes,
+      installedAt: row.installed_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  return readStoredToken();
+}
+
 export function tokenStatus() {
   const token = readStoredToken();
   if (!token) {
@@ -90,7 +117,7 @@ export function tokenStatus() {
 }
 
 export async function tokenStatusAsync(storeId = null) {
-  const token = await readStoredTokenAsync(storeId);
+  const token = storeId ? await readStoredTokenAsync(storeId) : await readSingleStoredTokenAsync();
   if (!token) {
     return {
       configured: false,

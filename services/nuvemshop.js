@@ -1,5 +1,5 @@
 import logger from '../utils/logger.js';
-import { readStoredToken, readStoredTokenAsync } from './oauthStore.js';
+import { readSingleStoredTokenAsync, readStoredToken, readStoredTokenAsync } from './oauthStore.js';
 
 const DEFAULT_API_VERSION = '2025-03';
 const MAX_RETRIES = 5;
@@ -88,7 +88,7 @@ export class NuvemshopClient {
       return NuvemshopClient.fromEnv();
     }
 
-    const storedToken = await readStoredTokenAsync(storeId);
+    const storedToken = storeId ? await readStoredTokenAsync(storeId) : await readSingleStoredTokenAsync();
     const missing = [];
     if (!storedToken?.storeId) missing.push('OAuth store_id');
     if (!storedToken?.accessToken) missing.push('OAuth access_token');
