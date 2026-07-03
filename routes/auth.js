@@ -23,6 +23,19 @@ function redirectToApp(req, res, params = {}) {
   res.redirect(303, url.toString());
 }
 
+export function sanitizeStatusResponse(payload, hasSession = false) {
+  if (hasSession) return payload;
+
+  const next = { ...payload };
+  delete next.storeId;
+
+  if (next.token) {
+    next.token = { ...next.token, storeId: null };
+  }
+
+  return next;
+}
+
 export function buildAuthorizeUrl(clientId) {
   return `https://www.nuvemshop.com.br/apps/${encodeURIComponent(clientId)}/authorize`;
 }
@@ -32,17 +45,17 @@ router.get('/status', async (req, res) => {
     const storeId = readStoreSession(req);
     const client = await NuvemshopClient.fromStore(storeId);
     const result = await client.testConnection();
-    res.json({
+    res.json(sanitizeStatusResponse({
       ...result,
       token: await tokenStatusAsync(result.storeId),
-    });
+    }, Boolean(storeId)));
   } catch (error) {
     const storeId = readStoreSession(req);
-    res.json({
+    res.json(sanitizeStatusResponse({
       connected: false,
       token: await tokenStatusAsync(storeId),
       message: error.message,
-    });
+    }, Boolean(storeId)));
   }
 });
 

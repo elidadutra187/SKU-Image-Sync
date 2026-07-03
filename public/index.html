@@ -894,7 +894,7 @@
           const response = await fetch('/auth/status');
           const data = await response.json();
           isConnected = Boolean(data.connected);
-          statusEl.textContent = data.connected ? `Conectado na loja ${data.storeId}` : `Nao conectado: ${data.message}`;
+          statusEl.textContent = data.connected ? 'Conectado com a Nuvemshop' : `Nao conectado: ${data.message}`;
           statusActions.hidden = data.connected;
           connectPanel.hidden = data.connected;
           previewBtn.disabled = !isConnected;

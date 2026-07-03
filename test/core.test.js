@@ -8,7 +8,7 @@ import CsvReport from '../utils/csvReport.js';
 import NuvemshopClient from '../services/nuvemshop.js';
 import { extractSkuFromFolder, parseCsvSkus } from '../services/uploadSessions.js';
 import { getJob, startSyncJob } from '../services/syncJobs.js';
-import { buildAuthorizeUrl } from '../routes/auth.js';
+import { buildAuthorizeUrl, sanitizeStatusResponse } from '../routes/auth.js';
 
 test('extractSkuFromFolder uses the first SKU-like token', () => {
   assert.equal(extractSkuFromFolder('1001 Produto Azul'), '1001');
@@ -80,6 +80,21 @@ test('buildAuthorizeUrl uses the official app authorization URL only', () => {
   assert.equal(url.origin, 'https://www.nuvemshop.com.br');
   assert.equal(url.pathname, '/apps/33268/authorize');
   assert.equal(url.search, '');
+});
+
+test('sanitizeStatusResponse hides store identifiers when there is no store session', () => {
+  const sanitized = sanitizeStatusResponse({
+    connected: true,
+    storeId: '7793322',
+    token: {
+      configured: true,
+      source: 'database',
+      storeId: '7793322',
+    },
+  });
+
+  assert.equal(sanitized.storeId, undefined);
+  assert.equal(sanitized.token.storeId, null);
 });
 
 test('exchangeAuthorizationCode reports OAuth JSON errors returned with HTTP 200', async () => {
@@ -173,14 +188,14 @@ test('fromStore falls back to the only stored OAuth token when there is no sessi
   process.env.OAUTH_TOKEN_FILE = tokenFile;
 
   await fs.writeFile(tokenFile, JSON.stringify({
-    storeId: '7793322',
+    storeId: '1234567',
     accessToken: 'oauth-token',
     scopes: 'read_products,write_products',
   }), 'utf8');
 
   try {
     const client = await NuvemshopClient.fromStore();
-    assert.equal(client.storeId, '7793322');
+    assert.equal(client.storeId, '1234567');
     assert.equal(client.accessToken, 'oauth-token');
   } finally {
     if (originalStoreId === undefined) {
