@@ -9,6 +9,7 @@ import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import logger from './utils/logger.js';
+import {createBillingWebhook} from './services/nativeBilling.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -16,6 +17,7 @@ const port = Number(process.env.PORT || 3000);
 startUploadSessionCleanup();
 
 app.disable('x-powered-by');
+app.post('/webhooks/billing', express.raw({type:'application/json',limit:'64kb'}), createBillingWebhook());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
