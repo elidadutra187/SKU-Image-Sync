@@ -4,6 +4,7 @@ import NuvemshopClient from '../services/nuvemshop.js';
 import { saveStoredToken, tokenStatusAsync } from '../services/oauthStore.js';
 import { readStoreSession, setStoreSession } from '../services/session.js';
 import logger from '../utils/logger.js';
+import {registerBillingWebhooks} from '../services/nativeBilling.js';
 
 const router = Router();
 
@@ -95,6 +96,11 @@ router.get('/callback', async (req, res) => {
       installedAt: new Date().toISOString(),
     });
     setStoreSession(res, exchanged.storeId);
+    try {
+      await registerBillingWebhooks(await NuvemshopClient.fromStore(exchanged.storeId));
+    } catch {
+      logger.warn('Registro dos eventos de pagamento pendente; o acesso pago permanece bloqueado até confirmação.');
+    }
 
     res.redirect(303, `${appBaseUrl(req)}/?connected=1`);
   } catch (exchangeError) {
