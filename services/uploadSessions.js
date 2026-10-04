@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { imageGroupName, normalizeName, matchProduct, displayProductName } from './productMatching.js';
 
 const SUPPORTED_EXTENSIONS = new Set(['.gif', '.jpg', '.jpeg', '.png', '.webp']);
 const UPLOAD_ROOT = path.resolve('uploads');
@@ -87,7 +88,7 @@ export function parseCsvSkus(text) {
   );
 }
 
-export async function createUploadSession({ files, manifest, csvText, batch, storeId }) {
+export async function createUploadSession({ files, manifest = [], csvText, batch, storeId, catalog = [] }) {
   await cleanupExpiredUploadSessions();
 
   const sessionId = crypto.randomUUID();
@@ -102,7 +103,9 @@ export async function createUploadSession({ files, manifest, csvText, batch, sto
     const meta = manifest[index] || {};
     const relativePath = String(meta.path || file.originalname || '').replaceAll('\\', '/');
     const parts = relativePath.split('/').filter(Boolean);
-    const folderName = parts.length > 1 ? parts[parts.length - 2] : path.parse(file.originalname).name;
+    const exactProduct=parts.length===1 ? matchProduct(file.originalname,catalog).product : null;
+    const folderName = parts.length > 1 ? parts[parts.length - 2]
+      : exactProduct ? displayProductName(exactProduct) : imageGroupName(file.originalname);
     const filename = safeName(parts.at(-1) || file.originalname);
     const ext = path.extname(filename).toLowerCase();
 
@@ -111,30 +114,27 @@ export async function createUploadSession({ files, manifest, csvText, batch, sto
       continue;
     }
 
-    const sku = extractSkuFromFolder(folderName);
-    if (csvSkus.size && !csvSkus.has(sku)) {
-      await fs.rm(file.path, { force: true });
-      continue;
+    const groupKey = exactProduct ? `product:${exactProduct.id}` : normalizeName(folderName);
+    if (!groups.has(groupKey)) {
+      const id = crypto.randomUUID();
+      groups.set(groupKey, { sku: id, sourceFolder: folderName,
+        dir: path.join(sessionDir, id), images: [] });
     }
-
-    const groupDir = path.join(sessionDir, sku);
+    const group = groups.get(groupKey);
+    const sku = group.sku;
+    const groupDir = group.dir;
     await fs.mkdir(groupDir, { recursive: true });
-    const destination = path.join(groupDir, filename);
-    await fs.rename(file.path, destination);
-
-    if (!groups.has(sku)) {
-      groups.set(sku, {
-        sku,
-        sourceFolder: folderName,
-        dir: groupDir,
-        images: [],
-      });
+    let storedFilename = filename;
+    if (group.images.some(image => image.filename === storedFilename)) {
+      storedFilename = `${path.parse(filename).name}-${crypto.randomUUID()}${ext}`;
     }
-
-    groups.get(sku).images.push({
-      filename,
+    const destination = path.join(groupDir, storedFilename);
+    await fs.rename(file.path, destination);
+    group.images.push({
+      filename: storedFilename,
+      originalName: parts.at(-1) || file.originalname,
       size: file.size,
-      previewUrl: `/sync/session/${sessionId}/image/${encodeURIComponent(sku)}/${encodeURIComponent(filename)}`,
+      previewUrl: `/sync/session/${sessionId}/image/${encodeURIComponent(sku)}/${encodeURIComponent(storedFilename)}`,
     });
   }
 
@@ -148,7 +148,7 @@ export async function createUploadSession({ files, manifest, csvText, batch, sto
     groups: [...groups.values()].map((group) => ({
       ...group,
       images: group.images.sort((a, b) => naturalSort(a.filename, b.filename)),
-    })).sort((a, b) => naturalSort(a.sku, b.sku)),
+    })).sort((a, b) => naturalSort(a.sourceFolder, b.sourceFolder)),
   };
 
   sessions.set(sessionId, session);
@@ -173,6 +173,7 @@ export function getSessionImagePath(sessionId, sku, filename) {
 
   const group = session.groups.find((item) => item.sku === sku);
   if (!group) return null;
+  if (!group.images.some(image => image.filename === filename)) return null;
 
   const resolved = path.resolve(group.dir, filename);
   if (!resolved.startsWith(path.resolve(group.dir))) return null;
@@ -187,6 +188,7 @@ export function foldersForSession(session, selectedSkus = []) {
       sku: group.sku,
       dir: group.dir,
       sourceFolder: group.sourceFolder,
+      productId: group.productId,
     }));
 }
 
