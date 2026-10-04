@@ -35,6 +35,10 @@ function renderAccess(access) {
     ?'Seu lote grátis já foi utilizado. O pagamento único libera os próximos lotes e reutilizações.'
     :'Experimente grátis: envie um único lote de até 10 produtos. Você pode conferir e simular antes de enviar.';
   $('purchasePending').hidden=access.paid || !access.demoUsed;
+  $('purchasePending').textContent=access.purchaseConfigured
+    ?'A cobrança única é pela Nuvemshop. No administrador da loja, abra Aplicativos e o pagamento do SKU Image Sync. O acesso será liberado após a confirmação do pagamento.'
+    :'A cobrança será pela Nuvemshop. A configuração do pagamento único ainda está em preparação.';
+  $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
   if(!access.paid)$('batchSize').value='10';
   updateBatches();updateActions();
@@ -146,6 +150,13 @@ for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=
   event.preventDefault();if(name==='drop')selectFiles(event.dataTransfer.files);
 });
 $('preview').addEventListener('click',preview);
+$('refreshAccess').addEventListener('click',async()=>{
+  busy(true,'Verificando a confirmação do pagamento...');
+  try {
+    const access=await request('/sync/access');renderAccess(access);
+    message(access.paid?'Pagamento confirmado. Seu acesso está liberado.':'A Nuvemshop ainda não confirmou o pagamento. Aguarde a compensação e tente novamente.');
+  }catch(error){message(error.message,true);}finally{busy(false);}
+});
 $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener('click',()=>run(false));
 $('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateActions();});
 $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';});
