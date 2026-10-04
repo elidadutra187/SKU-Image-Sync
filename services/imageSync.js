@@ -89,13 +89,13 @@ export class ImageSyncService {
 
   async listSkuFolders() {
     if (this.folders) {
-      return this.folders
-        .map((folder) => ({
-          sku: folder.sku,
-          dir: folder.dir,
-          sourceFolder: folder.sourceFolder || folder.sku,
-        }))
-        .sort((a, b) => naturalSort(a.sku, b.sku));
+      const grouped=new Map();
+      for(const folder of this.folders) {
+        const key=folder.productId ? `product:${folder.productId}` : folder.sku;
+        if(!grouped.has(key))grouped.set(key,{...folder,sku:key,dirs:[]});
+        grouped.get(key).dirs.push(folder.dir);
+      }
+      return [...grouped.values()].sort((a,b)=>naturalSort(a.sku,b.sku));
     }
 
     const entries = await fs.readdir(this.imagesRoot, { withFileTypes: true });
@@ -194,7 +194,18 @@ export class ImageSyncService {
   async processSku(folder) {
     const { sku, dir } = folder;
     const stateForSku = this.state.skus[sku] || { productId: null, files: {} };
-    const localImages = await this.listLocalImages(dir);
+    const localImages=[];
+    const hashes=new Set();
+    for(const directory of folder.dirs || [dir]) {
+      for(const image of await this.listLocalImages(directory)) {
+        if(hashes.has(image.hash))continue;
+        hashes.add(image.hash);
+        if(localImages.some(existing=>existing.filename===image.filename)) {
+          image.filename=`${path.parse(image.filename).name}-${image.hash.slice(0,12)}${path.extname(image.filename)}`;
+        }
+        localImages.push(image);
+      }
+    }
 
     logger.sku(sku, `Found ${localImages.length} local image(s).`);
 
@@ -206,7 +217,7 @@ export class ImageSyncService {
 
     let product;
     try {
-      product = await this.findProduct(sku);
+      product = folder.productId ? await this.client.getProduct(folder.productId) : await this.findProduct(sku);
     } catch (error) {
       await this.report.addError(sku, '', '', 'find_product', error.message);
       logger.sku(sku, `Product not found: ${error.message}`);
