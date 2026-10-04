@@ -1,4 +1,5 @@
 import {getPool, initializeDatabase} from './database.js';
+import {nativeBillingConfigured} from './nativeBilling.js';
 export const DEMO_PRODUCTS = 10;
 
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
@@ -39,7 +40,8 @@ export function createCommercialAccess(repository=postgresRepository) {
   return {
     async status(storeId) {
       if (!storeId) throw denied('Conecte sua loja para continuar.',401);
-      return {...await repository.status(storeId),demoProducts:DEMO_PRODUCTS,purchaseConfigured:false};
+      return {...await repository.status(storeId),demoProducts:DEMO_PRODUCTS,
+        purchaseConfigured:nativeBillingConfigured(),paymentProvider:'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false}={}) {
       const access=await this.status(storeId);
