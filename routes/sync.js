@@ -1,361 +1,150 @@
-import { Router } from 'express';
+import {Router} from 'express';
 import multer from 'multer';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-
+import crypto from 'node:crypto';
 import ImageSyncService from '../services/imageSync.js';
 import NuvemshopClient from '../services/nuvemshop.js';
-import { readStoreSession } from '../services/session.js';
-import { getCurrentJob, getJob, hasRunningJob, startSyncJob } from '../services/syncJobs.js';
-import {
-  createUploadSession,
-  deleteUploadSession,
-  foldersForSession,
-  getSessionImagePath,
-  getUploadSession,
-} from '../services/uploadSessions.js';
+import {readStoreSession} from '../services/session.js';
+import commercialAccess from '../services/commercialAccess.js';
+import {displayProductName,matchProduct} from '../services/productMatching.js';
+import {getCurrentJob,getJob,hasRunningJob,startSyncJob} from '../services/syncJobs.js';
+import {createUploadSession,deleteUploadSession,foldersForSession,getSessionImagePath,getUploadSession} from '../services/uploadSessions.js';
 
-const router = Router();
-const upload = multer({ dest: 'uploads/tmp', limits: { fileSize: 12 * 1024 * 1024, files: 2000 } });
-let currentSync = null;
+const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,fields:3,fieldSize:256*1024,parts:503}});
+const fail=(message,status=400)=>Object.assign(new Error(message),{status,public:true});
+const publicProduct=product=>({id:product.id,name:displayProductName(product)});
 
-function hasManualToken() {
-  return Boolean(process.env.NUVEMSHOP_STORE_ID && process.env.NUVEMSHOP_ACCESS_TOKEN);
-}
-
-function reportDownloadUrl(result) {
-  const reportPath = result?.report?.reportPath;
-  if (!reportPath) return null;
-  return `/sync/report/${encodeURIComponent(path.basename(reportPath))}`;
-}
-
-function normalizePositiveInteger(value, fallback) {
-  const number = Number(value);
-  if (!Number.isInteger(number) || number < 1) return fallback;
-  return number;
-}
-
-function syncOptions(req, mode, dryRun = false) {
-  return {
-    imagesRoot: req.body?.imagesRoot || process.env.IMAGES_ROOT || './Fotos',
-    mode,
-    dryRun,
-    onlySku: req.body?.sku || req.body?.onlySku || null,
-    maxSkus: req.body?.maxSkus ? normalizePositiveInteger(req.body.maxSkus, null) : null,
-    concurrency: normalizePositiveInteger(req.body?.concurrency, 2),
-    reportPath: req.body?.reportPath || `reports/sku-image-sync-${Date.now()}.csv`,
-  };
-}
-
-function productName(product) {
-  if (!product?.name) return '';
-  if (typeof product.name === 'string') return product.name;
-  return product.name.pt || product.name.es || product.name.en || Object.values(product.name)[0] || '';
-}
-
-function normalizeSelectedSkus(value) {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === 'string') return value.split(',').map((item) => item.trim()).filter(Boolean);
-  return [];
-}
-
-function normalizeBatch(value) {
-  if (!value || typeof value !== 'object') return null;
-  const start = normalizePositiveInteger(value.start, null);
-  const end = normalizePositiveInteger(value.end, null);
-  const size = normalizePositiveInteger(value.size, null);
-  const total = normalizePositiveInteger(value.total, null);
-  const label = String(value.label || '').trim();
-
-  if (!label && !start && !end && !size && !total) return null;
-
-  return {
-    label: label || (start && end ? `${start}-${end}` : ''),
-    start,
-    end,
-    size,
-    total,
-  };
-}
-
-async function previewSession(session) {
-  const client = await NuvemshopClient.fromStore(session.storeId);
-  const items = [];
-
-  for (const group of session.groups) {
+export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromStore(storeId),
+  access=commercialAccess,serviceFactory=options=>new ImageSyncService(options)}={}) {
+  const router=Router(),reports=new Map(),jobOwners=new Map();
+  const wrap=handler=>(req,res,next)=>Promise.resolve(handler(req,res)).catch(next);
+  router.use((req,res,next)=>{
+    req.storeId=readStoreSession(req);
+    if(!req.storeId)return res.status(401).json({success:false,error:'Conecte sua loja para continuar.'});
+    if(req.method!=='GET' && req.headers.origin) {
+      const expected=process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || req.protocol+'://'+req.get('host');
+      if(new URL(expected).origin!==req.headers.origin)return res.status(403).json({success:false,error:'Origem não autorizada.'});
+    }
+    res.setHeader('Cache-Control','no-store');next();
+  });
+  function ownedSession(req) {
+    const session=getUploadSession(req.params.sessionId);
+    if(!session)throw fail('A prévia expirou. Selecione as fotos e gere uma nova prévia.',404);
+    if(session.storeId!==req.storeId)throw fail('Esta prévia pertence a outra loja.',403);
+    if(session.running)throw fail('Este lote já está sendo processado.',409);
+    return session;
+  }
+  async function itemPreview(group,client) {
+    const product=group.productId ? await client.getProduct(group.productId) : null;
+    const remoteImages=product ? await client.getProductImages(product.id) : [];
+    return {sku:group.sku,sourceFolder:group.sourceFolder,selected:Boolean(product),
+      status:product?'ok':'error',matchReason:group.matchReason,
+      error:group.matchStatus==='ambiguous'?'Há mais de um produto com esse nome. Escolha o correto.':'Escolha o produto que deve receber estas fotos.',
+      product:product?publicProduct(product):null,localImages:group.images,
+      remoteImages:remoteImages.map(image=>({id:image.id,src:image.src,position:image.position})),
+      suggestions:group.suggestions || []};
+  }
+  router.get('/access',wrap(async(req,res)=>res.json({success:true,...await access.status(req.storeId)})));
+  for(const endpoint of ['/dry-run','/add','/sync','/replace']) {
+    router.post(endpoint,(req,res)=>res.status(410).json({success:false,error:'Selecione as imagens e use a prévia para enviar seu lote.'}));
+  }
+  router.post('/preview',upload.fields([{name:'images',maxCount:500},{name:'csv',maxCount:1}]),wrap(async(req,res)=>{
+    let session;
     try {
-      const product = await client.getProductBySku(group.sku);
-      await client.delay();
-      const remoteImages = await client.getProductImages(product.id);
-      await client.delay();
-
-      items.push({
-        sku: group.sku,
-        sourceFolder: group.sourceFolder,
-        selected: true,
-        status: 'ok',
-        product: {
-          id: product.id,
-          name: productName(product),
-        },
-        localImages: group.images,
-        remoteImages: remoteImages.map((image) => ({
-          id: image.id,
-          src: image.src,
-          position: image.position,
-        })),
-      });
-    } catch (error) {
-      items.push({
-        sku: group.sku,
-        sourceFolder: group.sourceFolder,
-        selected: false,
-        status: 'error',
-        error: error.message,
-        product: null,
-        localImages: group.images,
-        remoteImages: [],
-      });
-    }
-  }
-
-  return items;
-}
-
-async function runSync(req, res, mode, dryRun = false) {
-  if (currentSync || hasRunningJob()) {
-    return res.status(409).json({
-      success: false,
-      status: 'busy',
-      currentSync,
-      error: 'A sync process is already running.',
-    });
-  }
-
-  try {
-    currentSync = dryRun ? `dry-run:${mode}` : mode;
-    const service = new ImageSyncService({
-      ...syncOptions(req, mode, dryRun),
-      storeId: readStoreSession(req),
-    });
-    const result = await service.run();
-    res.json({
-      success: true,
-      mode,
-      dryRun,
-      reportDownloadUrl: reportDownloadUrl(result),
-      ...result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      mode,
-      dryRun,
-      error: error.message,
-    });
-  } finally {
-    currentSync = null;
-  }
-}
-
-router.post('/dry-run', (req, res) => {
-  const mode = ['add', 'sync', 'replace'].includes(req.body?.mode) ? req.body.mode : 'sync';
-  return runSync(req, res, mode, true);
-});
-
-router.post('/preview', upload.fields([
-  { name: 'images', maxCount: 2000 },
-  { name: 'csv', maxCount: 1 },
-]), async (req, res) => {
-  try {
-    const manifest = JSON.parse(req.body?.manifest || '[]');
-    const batch = normalizeBatch(JSON.parse(req.body?.batch || 'null'));
-    const storeId = readStoreSession(req);
-    const imageFiles = req.files?.images || [];
-    const csvFile = req.files?.csv?.[0] || null;
-    const csvText = csvFile ? await fs.readFile(csvFile.path, 'utf8') : '';
-
-    if (csvFile) await fs.rm(csvFile.path, { force: true });
-
-    if (!imageFiles.length) {
-      return res.status(400).json({
-        success: false,
-        error: 'Send at least one image file.',
-      });
-    }
-
-    const session = await createUploadSession({
-      files: imageFiles,
-      manifest,
-      csvText,
-      batch,
-      storeId,
-    });
-    const items = await previewSession(session);
-
-    res.json({
-      success: true,
-      sessionId: session.id,
-      batch: session.batch,
-      csvSkus: session.csvSkus,
-      count: items.length,
-      items,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-router.get('/session/:sessionId/image/:sku/:filename', async (req, res) => {
-  const session = getUploadSession(req.params.sessionId);
-  const storeId = readStoreSession(req);
-  if (session?.storeId && session.storeId !== storeId && !hasManualToken()) {
-    return res.status(403).json({ success: false, error: 'Session does not belong to this store.' });
-  }
-
-  const filePath = getSessionImagePath(req.params.sessionId, req.params.sku, req.params.filename);
-  if (!filePath) {
-    return res.status(404).json({ success: false, error: 'Image not found.' });
-  }
-
-  res.sendFile(path.resolve(filePath));
-});
-
-router.post('/session/:sessionId/run', async (req, res) => {
-  if (currentSync || hasRunningJob()) {
-    return res.status(409).json({
-      success: false,
-      status: 'busy',
-      currentSync,
-      error: 'A sync process is already running.',
-    });
-  }
-
-  const session = getUploadSession(req.params.sessionId);
-  if (!session) {
-    return res.status(404).json({
-      success: false,
-      error: 'Upload session not found.',
-    });
-  }
-
-  const storeId = readStoreSession(req);
-  if (session.storeId && session.storeId !== storeId && !hasManualToken()) {
-    return res.status(403).json({
-      success: false,
-      error: 'Session does not belong to this store.',
-    });
-  }
-
-  const mode = ['add', 'sync', 'replace'].includes(req.body?.mode) ? req.body.mode : 'add';
-  const dryRun = Boolean(req.body?.dryRun);
-  const selectedSkus = normalizeSelectedSkus(req.body?.selectedSkus);
-  const folders = foldersForSession(session, selectedSkus);
-
-  if (!folders.length) {
-    return res.status(400).json({
-      success: false,
-      error: 'No selected SKUs to sync.',
-    });
-  }
-
-  try {
-    const job = startSyncJob({
-      mode,
-      dryRun,
-      run: async (onProgress) => {
-        const service = new ImageSyncService({
-          mode,
-          dryRun,
-          folders,
-          batch: session.batch,
-          concurrency: normalizePositiveInteger(req.body?.concurrency, 1),
-          reportPath: `reports/sku-image-sync-${Date.now()}.csv`,
-          storeId: session.storeId,
-          onProgress,
-        });
-        const result = await service.run();
-        if (!dryRun) {
-          await deleteUploadSession(session.id);
-        }
-
-        return {
-          success: true,
-          mode,
-          dryRun,
-          selectedSkus: folders.map((folder) => folder.sku),
-          reportDownloadUrl: reportDownloadUrl(result),
-          ...result,
-        };
-      },
-    });
-
-    res.status(202).json({
-      success: true,
-      status: 'running',
-      jobId: job.id,
-      statusUrl: `/sync/job/${job.id}`,
-      job,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      mode,
-      dryRun,
-      error: error.message,
-    });
-  }
-});
-
-router.post('/add', (req, res) => runSync(req, res, 'add', false));
-router.post('/sync', (req, res) => runSync(req, res, 'sync', false));
-router.post('/replace', (req, res) => runSync(req, res, 'replace', false));
-
-router.get('/report/:filename', async (req, res) => {
-  const filename = path.basename(req.params.filename);
-  if (!/^sku-image-sync-\d+\.csv$/.test(filename)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid report filename.',
-    });
-  }
-
-  const reportPath = path.resolve('reports', filename);
-  try {
-    await fs.access(reportPath);
-    res.download(reportPath, filename);
-  } catch {
-    res.status(404).json({
-      success: false,
-      error: 'Report not found.',
-    });
-  }
-});
-
-router.get('/job/:jobId', (req, res) => {
-  const job = getJob(req.params.jobId);
-  if (!job) {
-    return res.status(404).json({
-      success: false,
-      error: 'Job not found.',
-    });
-  }
-
-  res.json({
-    success: true,
-    job,
+      const manifest=JSON.parse(req.body?.manifest || '[]');
+      if(!Array.isArray(manifest))throw fail('A lista de fotos é inválida. Selecione os arquivos novamente.');
+      const files=req.files?.images || [];
+      if(!files.length)throw fail('Selecione ao menos uma foto.');
+      const client=await clientForStore(req.storeId),catalog=await client.getProducts();
+      session=await createUploadSession({files,manifest,storeId:req.storeId,catalog,
+        csvText:req.files?.csv?.[0] ? await fs.readFile(req.files.csv[0].path,'utf8') : ''});
+      session.catalog=catalog;
+      for(const group of session.groups) {
+        const matches=[group.sourceFolder,...group.images.map(image=>image.originalName)].map(source=>matchProduct(source,catalog));
+        const skuMatches=matches.filter(match=>match.reason==='sku');
+        const pool=skuMatches.length?skuMatches:matches;
+        const matched=[...new Map(pool.filter(match=>match.product).map(match=>[String(match.product.id),match])).values()];
+        const ambiguous=pool.some(match=>match.status==='ambiguous') || matched.length>1;
+        const chosen=!ambiguous && matched.length===1?matched[0]:null;
+        group.productId=chosen?.product.id || null;group.matchReason=chosen?.reason || null;
+        group.matchStatus=ambiguous?'ambiguous':chosen?'matched':'unmatched';
+        group.suggestions=[...new Map(pool.flatMap(match=>match.product?[match.product]:match.suggestions)
+          .map(product=>[String(product.id),publicProduct(product)])).values()].slice(0,10);
+      }
+      if(session.csvSkus.length)session.groups=session.groups.filter(group=>catalog.some(product=>String(product.id)===String(group.productId)
+        && (product.variants || []).some(variant=>session.csvSkus.includes(String(variant.sku)))));
+      if(session.groups.length>50)throw fail('Selecione até 50 grupos de fotos por prévia.');
+      const items=[];for(const group of session.groups)items.push(await itemPreview(group,client));
+      res.json({success:true,sessionId:session.id,items,count:items.length,catalog:catalog.map(publicProduct),
+        access:await access.status(req.storeId)});
+    } catch(error) {if(session)await deleteUploadSession(session.id);throw error;}
+    finally {for(const file of Object.values(req.files || {}).flat())await fs.rm(file.path,{force:true});}
+  }));
+  router.post('/session/:sessionId/match',wrap(async(req,res)=>{
+    const session=ownedSession(req),group=session.groups.find(item=>item.sku===req.body?.groupId);
+    const product=session.catalog.find(item=>String(item.id)===String(req.body?.productId));
+    if(!group || !product)throw fail('Escolha um produto válido desta loja.');
+    const client=await clientForStore(req.storeId);await client.getProduct(product.id);
+    group.productId=product.id;group.matchReason='manual';group.matchStatus='matched';
+    res.json({success:true,item:await itemPreview(group,client)});
+  }));
+  router.get('/session/:sessionId/image/:sku/:filename',wrap(async(req,res)=>{
+    const session=getUploadSession(req.params.sessionId);
+    if(!session || session.storeId!==req.storeId)throw fail('Foto não encontrada.',404);
+    const filePath=getSessionImagePath(session.id,req.params.sku,req.params.filename);
+    if(!filePath)throw fail('Foto não encontrada.',404);
+    res.sendFile(path.resolve(filePath));
+  }));
+  router.post('/session/:sessionId/run',wrap(async(req,res)=>{
+    if(hasRunningJob())throw fail('Um lote está em processamento. Aguarde a conclusão.',409);
+    const session=ownedSession(req);
+    if(req.body?.dryRun!==undefined && typeof req.body.dryRun!=='boolean')throw fail('A opção de simulação é inválida.');
+    const dryRun=req.body?.dryRun===true,mode=req.body?.mode || 'add',selected=req.body?.selectedSkus;
+    if(!['add','sync','replace'].includes(mode))throw fail('Selecione um modo válido.');
+    if(!Array.isArray(selected) || !selected.length)throw fail('Selecione ao menos um produto na prévia.');
+    const folders=foldersForSession(session,selected.map(String));
+    if(!folders.length || folders.some(folder=>!folder.productId))throw fail('Escolha o produto de cada grupo selecionado.');
+    const client=await clientForStore(req.storeId);
+    for(const id of new Set(folders.map(folder=>folder.productId)))await client.getProduct(id);
+    session.running=true;
+    try {
+      await access.authorize(req.storeId,folders.map(folder=>folder.productId),{dryRun});
+      const reportName='sku-image-sync-'+crypto.randomUUID()+'.csv';
+      const job=startSyncJob({mode,dryRun,run:async(onProgress)=>{
+        try {
+          const result=await serviceFactory({mode,dryRun,folders,concurrency:1,storeId:req.storeId,onProgress,
+            reportPath:'reports/'+reportName,
+            stateFile:'uploads/state-'+crypto.createHash('sha256').update(req.storeId).digest('hex')+'.json'}).run();
+          if(result.report?.reportPath)reports.set(reportName,req.storeId);
+          if(!dryRun)await deleteUploadSession(session.id);
+          return {success:true,mode,dryRun,...result,reportDownloadUrl:result.report?.reportPath?'/sync/report/'+reportName:null};
+        } finally {session.running=false;}
+      }});
+      jobOwners.set(job.id,req.storeId);res.status(202).json({success:true,status:'running',jobId:job.id,job});
+    } catch(error) {session.running=false;throw error;}
+  }));
+  router.get('/report/:filename',wrap(async(req,res)=>{
+    const filename=req.params.filename;
+    if(reports.get(filename)!==req.storeId)throw fail('Relatório não encontrado.',404);
+    res.download(path.resolve('reports',filename),filename);
+  }));
+  router.get('/job/:jobId',(req,res)=>{
+    const job=jobOwners.get(req.params.jobId)===req.storeId?getJob(req.params.jobId):null;
+    if(!job)return res.status(404).json({success:false,error:'Processamento não encontrado.'});
+    res.json({success:true,job});
   });
-});
-
-router.get('/status', (req, res) => {
-  res.json({
-    running: Boolean(currentSync) || hasRunningJob(),
-    mode: currentSync,
-    job: getCurrentJob(),
+  router.get('/status',(req,res)=>{
+    const current=getCurrentJob();
+    res.json({running:hasRunningJob(),job:current && jobOwners.get(current.id)===req.storeId?current:null});
   });
-});
-
-export default router;
+  router.use(async(error,req,res,next)=>{
+    for(const file of Object.values(req.files || {}).flat())await fs.rm(file.path,{force:true}).catch(()=>{});
+    const status=error instanceof multer.MulterError?400:error.status || 500;
+    res.status(status).json({success:false,error:error instanceof multer.MulterError
+      ?'Envie até 500 fotos, com no máximo 10 MB por foto.'
+      :error.public || (error.status && error.status<500)?error.message:'Não foi possível concluir. Tente novamente ou fale com o suporte.'});
+  });
+  return router;
+}
+export default createSyncRouter();
