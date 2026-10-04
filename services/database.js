@@ -35,6 +35,13 @@ export async function initializeDatabase() {
     )
   `);
 
+  await client.query(`
+    create table if not exists image_sync_access (
+      store_id text primary key,
+      demo_used_at timestamptz,
+      paid_at timestamptz,
+      payment_reference text unique
+    )
+  `);
   initialized = true;
 }
-
