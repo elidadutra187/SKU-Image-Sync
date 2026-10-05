@@ -32,3 +32,13 @@ O fluxo anterior exigia pastas por SKU e expunha termos técnicos. O novo fluxo 
 6. Revisar casos de falha do demo. A reserva ocorre antes do início do envio e permanece utilizada em falhas; pré-validação rejeita seleção inválida sem consumir. Não vender isso como cobrança nem como processamento garantido.
 
 Render existente: `sku-image-sync`, serviço `srv-d8f18h8g4nts738dgdkg`, origem GitHub main. Esta revisão deve permanecer em PR rascunho até resolver as pendências essenciais. Não foi implantada.
+
+## Marca e domínio — 04/10/2026
+
+Nome público atualizado para **Imagem em Lote**, por solicitação da usuária. URL principal: https://imagememlote.onrender.com. Repositório continua elidadutra187/SKU-Image-Sync e app Nuvemshop continua #33268.
+
+PR #2 integrado à main (c4954b9656d7ad589629744256721e8d71b0a723), exclusivamente para marca e domínio. Render srv-db1ejulg1s2s739r08v0 publicado no plano gratuito com o banco, segredo de sessão e credenciais OAuth existentes. APP_URL usa o novo endereço. Deploy dep-db1ejv5g1s2s739r0b20 confirmado como live; /, /health, /privacy, /support e /nube/main.min.js retornam HTTP 200. Sem erros nos logs consultados após a publicação. A atualização maior de envio por nome/demo continua no PR #1 em preparação.
+
+Serviço anterior srv-d8f18h8g4nts738dgdkg identificado como sku-image-sync-legacy e mantido em https://sku-image-sync.onrender.com durante a transição. Não apagar antes de terminar a alteração do Partners e validar reconexão.
+
+**Pendente no Partners:** sessão está na tela de login. Ainda não foi possível salvar o nome nem as URLs do cadastro. Ao recuperar a sessão, verificar todas as abas e substituir o host antigo pelo novo, preservando os caminhos: página principal, callback /auth/callback, suporte /support, privacidade /privacy, SDK /nube/main.min.js e webhooks /webhooks/store-redact, /webhooks/customers-redact, /webhooks/customers-data-request. Conferir URLs e textos de cada idioma presente no cadastro. Não apontar o guia para /how-to antes de publicar essa rota (disponível apenas na atualização em preparação).
