@@ -51,3 +51,13 @@ O fluxo anterior exigia pastas por SKU e expunha termos técnicos. O novo fluxo 
 6. Revisar casos de falha do demo. A reserva ocorre antes do início do envio e permanece utilizada em falhas; pré-validação rejeita seleção inválida sem consumir. Não vender isso como cobrança nem como processamento garantido.
 
 Render principal: `imagememlote`, serviço `srv-db1ejulg1s2s739r08v0`, origem GitHub main. A mudança de marca/domínio foi implantada; a revisão maior de demo e envio por nome deve permanecer em PR rascunho até resolver as pendências essenciais.
+
+## Teste ampliado do demo e layout — 04/10/2026
+
+27 testes passaram. Novo teste de integração HTTP executa upload multipart, associação e o ImageSyncService real, com API Nuvemshop e repositório de acesso simulados. Casos separados para nome completo da imagem e pasta iniciada por SKU: 11 produtos rejeitados sem consumir, 10 produtos simulados sem consumir, envio dos 10 aceito, segundo envio bloqueado mesmo com nova sessão da mesma loja, acesso de outra loja negado e acesso pago permitindo mais produtos. Isso não comprova upload em loja real nem concorrência no PostgreSQL real.
+
+Encontrado e corrigido: modo adicionar enviava novas imagens começando na posição 1 e podia trocar a capa. A nova versão usa a próxima posição depois das imagens existentes. Teste confere foto atual preservada e novas imagens na posição 2 quando existe uma foto inicial.
+
+Revisão visual local: desktop e celular; sem overflow horizontal no celular. Três etapas, exemplos de nomes, comparação entre fotos novas/atuais e SKU/CSV nas opções avançadas. Interface reconheceu 10/10 produtos e simulação mostrou 10 produtos, zero uploads e zero erros. Confirmação de envio no navegador integrado ficou pendente do clique da usuária: a janela JavaScript bloqueou o controle. Servidor isolado de teste em localhost:3135; nenhuma loja real foi alterada. scripts/visual-preview.mjs permite repetir a revisão com catálogo fictício, sem OAuth, banco ou cobrança reais.
+
+Limite ainda segue a definição anterior de um único lote de até 10 produtos. A pergunta sobre a expressão “10 lotes” está pendente; não alterar para dez lotes sem a resposta.

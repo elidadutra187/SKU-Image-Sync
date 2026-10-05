@@ -247,7 +247,10 @@ export class ImageSyncService {
       stateForSku.files = {};
     }
 
-    let position = 1;
+    // Adding photos must preserve the current cover and image order.
+    let position = this.mode === 'add'
+      ? Math.max(remoteImages.length, ...remoteImages.map(image => Number(image.position) || 0)) + 1
+      : 1;
     for (const localImage of localImages) {
       const previous = stateForSku.files[localImage.filename];
       const unchanged = previous?.hash === localImage.hash && previous?.imageId;
