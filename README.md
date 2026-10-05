@@ -1,4 +1,4 @@
-# SKU Image Sync
+# Imagem em Lote
 
 **Node.js application to synchronize product images in Nuvemshop using SKU as the operational key.**
 
@@ -18,7 +18,7 @@ The goal of this project is to reduce manual upload work and create a safer work
 
 ## What it does
 
-SKU Image Sync reads local image folders, identifies the SKU from each folder name, searches the matching product in Nuvemshop and prepares a controlled image synchronization process.
+Imagem em Lote reads local image folders, identifies the SKU from each folder name, searches the matching product in Nuvemshop and prepares a controlled image synchronization process.
 
 The system supports:
 
