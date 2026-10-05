@@ -35,7 +35,7 @@ app.get('/support', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    name: 'SKU Image Sync',
+    name: 'Imagem em Lote',
     version: '1.0.0',
     time: new Date().toISOString(),
   });
@@ -43,7 +43,7 @@ app.get('/health', (req, res) => {
 
 app.get('/api', (req, res) => {
   res.json({
-    name: 'SKU Image Sync',
+    name: 'Imagem em Lote',
     routes: {
       pages: ['GET /', 'GET /privacy', 'GET /support'],
       auth: ['GET /auth/install', 'GET /auth/callback', 'GET /auth/status'],
@@ -76,7 +76,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => {
-  logger.header('SKU Image Sync');
+  logger.header('Imagem em Lote');
   logger.info(`Server running on port ${port}`);
   logger.info(`Local URL: http://localhost:${port}`);
 });

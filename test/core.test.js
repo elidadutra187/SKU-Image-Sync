@@ -159,7 +159,7 @@ test('Nuvemshop API requests include the standard Authorization bearer header', 
     const client = new NuvemshopClient({
       storeId: '123',
       accessToken: 'token-abc',
-      userAgent: 'SKU Image Sync (test@example.com)',
+      userAgent: 'Imagem em Lote (test@example.com)',
       requestDelay: 0,
     });
 
@@ -184,7 +184,7 @@ test('fromStore falls back to the only stored OAuth token when there is no sessi
   delete process.env.NUVEMSHOP_STORE_ID;
   delete process.env.NUVEMSHOP_ACCESS_TOKEN;
   delete process.env.DATABASE_URL;
-  process.env.NUVEMSHOP_USER_AGENT = 'SKU Image Sync (test@example.com)';
+  process.env.NUVEMSHOP_USER_AGENT = 'Imagem em Lote (test@example.com)';
   process.env.OAUTH_TOKEN_FILE = tokenFile;
 
   await fs.writeFile(tokenFile, JSON.stringify({

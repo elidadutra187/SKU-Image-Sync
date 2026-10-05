@@ -1,8 +1,8 @@
-# FAQ - SKU Image Sync
+# FAQ - Imagem em Lote
 
-## O que e o SKU Image Sync?
+## O que e o Imagem em Lote?
 
-O SKU Image Sync e um aplicativo para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave. Ele ajuda lojas com muitos produtos a enviar fotos em massa com previa visual e controle por produto.
+O Imagem em Lote e um aplicativo para sincronizar imagens de produtos da Nuvemshop usando o SKU como chave. Ele ajuda lojas com muitos produtos a enviar fotos em massa com previa visual e controle por produto.
 
 ## Para quem o app e indicado?
 
@@ -14,7 +14,7 @@ Para e-commerces que trabalham com catalogos grandes, recebem imagens de fornece
    `https://www.tiendanube.com/apps/33268/authorize`
 2. Autorize os escopos solicitados.
 3. Aguarde o redirecionamento para:
-   `https://sku-image-sync.onrender.com`
+   `https://imagememlote.onrender.com`
 4. Verifique se aparece `Conectado na loja`.
 
 ## Quais permissoes o app usa?
@@ -78,7 +78,7 @@ Nao. O app nao usa dados de clientes. Ele trabalha com produtos, imagens e SKUs.
 
 Use a pagina de suporte:
 
-`https://sku-image-sync.onrender.com/support`
+`https://imagememlote.onrender.com/support`
 
 Ou envie mensagem para o e-mail de suporte configurado no painel de parceiros.
 

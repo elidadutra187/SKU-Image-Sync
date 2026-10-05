@@ -1,6 +1,6 @@
 # Artefatos para homologacao Nuvemshop
 
-Este pacote organiza os documentos solicitados pela equipe da Nuvemshop para iniciar a homologacao do aplicativo SKU Image Sync.
+Este pacote organiza os documentos solicitados pela equipe da Nuvemshop para iniciar a homologacao do aplicativo Imagem em Lote.
 
 ## Arquivos deste pacote
 
@@ -11,11 +11,11 @@ Este pacote organiza os documentos solicitados pela equipe da Nuvemshop para ini
 
 ## Links do aplicativo
 
-- App publicado no Render: `https://sku-image-sync.onrender.com`
+- App publicado no Render: `https://imagememlote.onrender.com`
 - Instalacao OAuth: `https://www.tiendanube.com/apps/33268/authorize`
-- Callback OAuth: `https://sku-image-sync.onrender.com/auth/callback`
-- Politica de privacidade: `https://sku-image-sync.onrender.com/privacy`
-- Suporte: `https://sku-image-sync.onrender.com/support`
+- Callback OAuth: `https://imagememlote.onrender.com/auth/callback`
+- Politica de privacidade: `https://imagememlote.onrender.com/privacy`
+- Suporte: `https://imagememlote.onrender.com/support`
 
 ## Escopos usados
 

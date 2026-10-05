@@ -6,7 +6,7 @@ import logger from './utils/logger.js';
 
 function printHelp() {
   console.log(`
-SKU Image Sync CLI
+Imagem em Lote CLI
 
 Usage:
   node sync-images.js [options]
