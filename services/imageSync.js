@@ -302,7 +302,7 @@ export class ImageSyncService {
       throw new Error('No SKU folders found.');
     }
 
-    logger.header('SKU Image Sync');
+    logger.header('Imagem em Lote');
     logger.info(`Images root: ${this.imagesRoot}`);
     logger.info(`Mode: ${this.mode}${this.dryRun ? ' (dry-run)' : ''}`);
     if (this.batch?.label) {
