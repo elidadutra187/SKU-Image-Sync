@@ -15,9 +15,12 @@ export async function sendSupportRequest({ request, attachment }, { env = proces
   if (!supportConfigured(env)) throw new Error('support_not_configured');
   const ticketId = randomUUID();
   async function deliver(message) {
+    // ContentService returns a single-use response URL; each delivery must be independent.
+    const deliveryUrl=new URL(env.SUPPORT_WEBHOOK_URL);
+    deliveryUrl.searchParams.set('request_id',randomUUID());
     let response;
-    try { response = await fetchImpl(env.SUPPORT_WEBHOOK_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000),
+    try { response = await fetchImpl(deliveryUrl.href, {
+      method: 'POST', headers: { 'Content-Type': 'application/json','Cache-Control':'no-store' }, signal: AbortSignal.timeout(15000),
       body: JSON.stringify({ ...message, secret: env.SUPPORT_WEBHOOK_SECRET })
     }); } catch {logger.warn('support_provider_network_failure');throw new Error('support_delivery_failed');}
     let result;try{result=await response.json();}catch{logger.warn(`support_provider_non_json_${response.status || 0}`);throw new Error('support_delivery_failed');}
