@@ -1,4 +1,4 @@
-# Diagrama de sequencia - SKU Image Sync
+# Diagrama de sequencia - Imagem em Lote
 
 Este documento representa os fluxos tecnicos do aplicativo e como os escopos da API Nuvemshop sao utilizados.
 
@@ -15,7 +15,7 @@ Este documento representa os fluxos tecnicos do aplicativo e como os escopos da 
 sequenceDiagram
     actor Lojista
     participant NS as Nuvemshop
-    participant App as SKU Image Sync
+    participant App as Imagem em Lote
     participant Store as Arquivo seguro do Render
 
     Lojista->>NS: Acessa URL de instalacao /apps/33268/authorize
@@ -36,7 +36,7 @@ Resultado: o aplicativo fica conectado a loja autorizada e pode consultar produt
 sequenceDiagram
     actor Lojista
     participant Browser as Navegador
-    participant App as SKU Image Sync
+    participant App as Imagem em Lote
     participant NS as API Nuvemshop
 
     Lojista->>Browser: Seleciona pasta Fotos e lote 20 ou 50
@@ -60,7 +60,7 @@ Escopo utilizado: `read_products`.
 sequenceDiagram
     actor Lojista
     participant Browser as Navegador
-    participant App as SKU Image Sync
+    participant App as Imagem em Lote
     participant NS as API Nuvemshop
     participant Report as Relatorio CSV
 
@@ -80,7 +80,7 @@ Escopo utilizado: `read_products`.
 sequenceDiagram
     actor Lojista
     participant Browser as Navegador
-    participant App as SKU Image Sync
+    participant App as Imagem em Lote
     participant NS as API Nuvemshop
 
     Lojista->>Browser: Confirma modo ADD
@@ -100,7 +100,7 @@ Escopos utilizados: `read_products` e `write_products`.
 sequenceDiagram
     actor Lojista
     participant Browser as Navegador
-    participant App as SKU Image Sync
+    participant App as Imagem em Lote
     participant NS as API Nuvemshop
 
     Lojista->>Browser: Escolhe REPLACE
@@ -124,7 +124,7 @@ Escopos utilizados: `read_products` e `write_products`.
 ```mermaid
 sequenceDiagram
     participant NS as Nuvemshop
-    participant App as SKU Image Sync
+    participant App as Imagem em Lote
 
     NS->>App: POST /webhooks/store-redact
     App-->>NS: 200 OK
