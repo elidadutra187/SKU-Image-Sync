@@ -36,7 +36,7 @@ function renderAccess(access) {
     :'Experimente grátis: envie um único lote de até 10 produtos. Você pode conferir e simular antes de enviar.';
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.purchaseConfigured
-    ?'A cobrança única é pela Nuvemshop. No administrador da loja, abra Aplicativos e o pagamento do SKU Image Sync. O acesso será liberado após a confirmação do pagamento.'
+    ?'A cobrança única é pela Nuvemshop. No administrador da loja, abra Aplicativos e o pagamento do Imagem em Lote. O acesso será liberado após a confirmação do pagamento.'
     :'A cobrança será pela Nuvemshop. A configuração do pagamento único ainda está em preparação.';
   $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
