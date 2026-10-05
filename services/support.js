@@ -29,13 +29,18 @@ export async function sendSupportRequest({ request, attachment }, { env = proces
       logger.warn(`support_provider_rejected_${response.status || 0}_${known.includes(result.error)?result.error:'unknown'}`);
       throw new Error('support_delivery_failed');
     }
+    return result;
   }
-  await deliver({
+  const receipt={to:request.email,replyTo:SUPPORT_EMAIL,
+    subject:`[Imagem em Lote] Chamado recebido - ${ticketId}`,
+    text:`Recebemos seu chamado no Imagem em Lote.\n\nProtocolo: ${ticketId}\nAssunto: ${request.subject}\nLoja: ${request.storeUrl}\n\nA equipe responderá pelo e-mail elunalab@gmail.com. Guarde este protocolo para acompanhar o atendimento.`,attachments:[]};
+  const delivery=await deliver({
     to: SUPPORT_EMAIL, replyTo: request.email,
     subject: `[Suporte] Imagem em Lote — ${request.subject}`,
     text: `Protocolo: ${ticketId}\nAplicativo: Imagem em Lote\nNome: ${request.name}\nE-mail: ${request.email}\nLoja: ${request.storeUrl}\n\n${request.message}`,
-    attachments: attachment ? [{ filename: attachment.originalname.replace(/[\r\n\\/]/g, '_').slice(0, 150), contentType: attachment.mimetype, content: attachment.buffer.toString('base64') }] : []
+    attachments: attachment ? [{ filename: attachment.originalname.replace(/[\r\n\\/]/g, '_').slice(0, 150), contentType: attachment.mimetype, content: attachment.buffer.toString('base64') }] : [],receipt
   });
+  if(typeof delivery.receiptSent==='boolean')return {ticketId,receiptSent:delivery.receiptSent};
   let receiptSent = true;
   try {
     await deliver({ to: request.email, replyTo: SUPPORT_EMAIL,

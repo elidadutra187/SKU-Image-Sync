@@ -61,3 +61,11 @@ test('configuração ausente falha explicitamente e falha de comprovante preserv
   });
   assert.equal(result.receiptSent, false); assert.ok(result.ticketId);
 });
+test('combined provider confirms support and receipt with one response and no duplicate delivery',async()=>{
+  const calls=[];
+  const result=await sendSupportRequest({request:{name:'Pessoa',email:'pessoa@example.com',storeUrl:'https://loja.example.com',subject:'Ajuda',message:'Teste'}},{
+    env:{SUPPORT_WEBHOOK_URL:'https://script.google.com/macros/s/EXEMPLO/exec',SUPPORT_WEBHOOK_SECRET:'segredo'},
+    fetchImpl:async(url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,receiptSent:true})};}
+  });
+  assert.equal(calls.length,1);assert.equal(calls[0].to,'elunalab@gmail.com');assert.equal(calls[0].receipt.to,'pessoa@example.com');assert.equal(result.receiptSent,true);
+});

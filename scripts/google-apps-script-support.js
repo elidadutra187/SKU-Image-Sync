@@ -34,7 +34,18 @@ function doPost(e) {
     if (replyTo) options.replyTo = replyTo;
     if (attachments.length) options.attachments = attachments;
     MailApp.sendEmail(options);
-    return supportJson({ok:true,messageId:Utilities.getUuid()});
+    var receiptSent;
+    if (inbox && payload.receipt) {
+      receiptSent=false;
+      var confirmation=payload.receipt;
+      if (confirmation.to === replyTo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo)
+          && typeof confirmation.subject==='string' && confirmation.subject.indexOf('[Imagem em Lote] Chamado recebido - ')===0
+          && typeof confirmation.text==='string' && confirmation.text.length>0 && confirmation.text.length<=10000) {
+        try {MailApp.sendEmail({to:replyTo,replyTo:recipient,subject:confirmation.subject,body:confirmation.text,name:'Imagem em Lote'});receiptSent=true;}
+        catch (receiptError) {receiptSent=false;}
+      }
+    }
+    return supportJson({ok:true,messageId:Utilities.getUuid(),receiptSent:receiptSent});
   } catch (error) {
     return supportJson({ok:false,error:'send_failed'});
   }
