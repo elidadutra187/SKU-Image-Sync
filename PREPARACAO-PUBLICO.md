@@ -31,7 +31,7 @@ O fluxo anterior exigia pastas por SKU e expunha termos técnicos. O novo fluxo 
 5. Persistir histórico de imagens sincronizadas no banco para preservar deduplicação/atualização após reinício do Render, cujo disco é temporário. Estado atual é separado por loja em arquivos locais; jobs e associações de relatórios são temporários.
 6. Revisar casos de falha do demo. A reserva ocorre antes do início do envio e permanece utilizada em falhas; pré-validação rejeita seleção inválida sem consumir. Não vender isso como cobrança nem como processamento garantido.
 
-Render existente: `sku-image-sync`, serviço `srv-d8f18h8g4nts738dgdkg`, origem GitHub main. Esta revisão deve permanecer em PR rascunho até resolver as pendências essenciais. Não foi implantada.
+Render principal: `imagememlote`, serviço `srv-db1ejulg1s2s739r08v0`, origem GitHub main. A mudança de marca/domínio foi implantada; a revisão maior de demo e envio por nome deve permanecer em PR rascunho até resolver as pendências essenciais.
 
 ## Marca e domínio — 04/10/2026
 
