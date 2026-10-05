@@ -126,3 +126,12 @@ Real secrets must never be committed to the repository. Keep credentials such as
 E-commerce Ops · Automation · Catalog Management · Node.js · Nuvemshop
 
 [LinkedIn](https://www.linkedin.com/in/elidadutra) · [GitHub](https://github.com/elidadutra187)
+
+## Suporte e privacidade
+
+- Páginas públicas: https://imagememlote.onrender.com/support e https://imagememlote.onrender.com/privacy.
+- Destinatário fixo dos chamados: elunalab@gmail.com. Formulário com cinco campos e um anexo de até 5 MB; confirmação somente quando o provedor aceita o chamado. Falha do comprovante é indicada separadamente. Não há persistência do chamado no banco; o histórico fica no e-mail.
+- Envio por webhook exclusivo Google Apps Script, executado pela conta autorizada elidadutra182@gmail.com. Nunca reutilizar a implantação nem o segredo de outro aplicativo; nunca usar InfoxHub.
+- Projeto próprio: https://script.google.com/u/1/home/projects/1SwAkwmyEuxK9aOWEiBn1gfXl9Nfk55P-2EltP7qxynJXPZZdyK58bOBa/edit . Código em scripts/google-apps-script-support.js. Executar configurarSuporte com autorização da proprietária, publicar como aplicativo web e configurar SUPPORT_WEBHOOK_URL e SUPPORT_WEBHOOK_SECRET no Render. A publicação sem login Google exige confirmação por criar novo acesso; o segredo deve permanecer somente nas propriedades do script e no Render.
+- GET /support/status mostra somente disponibilidade e e-mail público. Enquanto não configurado, o formulário fica indisponível e oferece contato direto por e-mail. Não afirmar que houve entrega sem confirmar o provedor.
+- Testes em test/support.test.js cobrem anexos, validação, origem, limites de tentativas, destinatário fixo, erros sem segredos e comprovante. Mensagens não devem expor configurações internas ao lojista.

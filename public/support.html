@@ -1,46 +1,16 @@
 <!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Suporte - Imagem em Lote</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: Arial, Helvetica, sans-serif;
-        color: #17202a;
-        background: #f6f8fb;
-      }
-      main {
-        width: min(860px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 48px 0;
-      }
-      p, li {
-        font-size: 17px;
-        line-height: 1.65;
-      }
-      code {
-        background: #e8edf5;
-        border-radius: 4px;
-        padding: 2px 6px;
-      }
-      a {
-        color: #0b6bcb;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>Suporte</h1>
-      <p>Para suporte do Imagem em Lote, verifique primeiro os endpoints <code>/health</code> e <code>/auth/status</code>.</p>
-      <ul>
-        <li>Confirme as variaveis <code>NUVEMSHOP_STORE_ID</code>, <code>NUVEMSHOP_ACCESS_TOKEN</code> e <code>NUVEMSHOP_USER_AGENT</code>.</li>
-        <li>Confira se a pasta <code>Fotos</code> contem subpastas com o SKU exato do produto.</li>
-        <li>Use <code>POST /sync/dry-run</code> antes dos modos que alteram imagens.</li>
-      </ul>
-      <p>Contato: configure seu email de suporte no cadastro do aplicativo na Nuvemshop Partners.</p>
-      <p><a href="/">Voltar</a></p>
-    </main>
-  </body>
-</html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Suporte — Imagem em Lote</title><link rel="stylesheet" href="/support.css"></head>
+<body><main class="shell shell-narrow"><header class="topbar"><div class="brand"><div><h1>Imagem em Lote</h1><p>Estamos aqui para ajudar.</p></div></div><nav class="nav" aria-label="Links principais"><a href="/">Início</a><a href="/privacy">Privacidade</a><a href="/support" aria-current="page">Suporte</a></nav></header>
+<section class="support-layout"><article class="panel"><span class="eyebrow">Suporte</span><h2>Abra um chamado</h2><p class="muted">Conte o que aconteceu e, se precisar, anexe uma captura de tela ou um arquivo. A confirmação aparecerá aqui após o envio.</p>
+<form id="supportForm" class="form support-form" enctype="multipart/form-data">
+<div class="field"><label for="name">Nome</label><input id="name" name="name" autocomplete="name" maxlength="120" required placeholder="Seu nome"></div>
+<div class="field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="voce@exemplo.com"><span>Usaremos esse endereço para responder seu chamado.</span></div>
+<div class="field"><label for="storeUrl">Endereço da loja</label><input id="storeUrl" name="storeUrl" type="url" maxlength="2048" required placeholder="https://sualoja.lojavirtualnuvem.com.br"></div>
+<div class="field"><label for="subject">Assunto</label><input id="subject" name="subject" maxlength="160" required placeholder="Resumo do problema"></div>
+<div class="field"><label for="attachment">Anexo <span>(opcional)</span></label><input id="attachment" name="attachment" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.doc,.docx"><span>Um arquivo de até 5 MB: imagem, PDF, texto ou documento.</span></div>
+<div class="field"><label for="message">Mensagem</label><textarea id="message" name="message" maxlength="2500" required placeholder="Em qual etapa parou? Qual mensagem apareceu? O que você esperava que acontecesse?"></textarea></div>
+<p class="muted small">Ao enviar, seus dados e anexo serão usados para atender ao chamado, conforme nossa <a href="/privacy">política de privacidade</a>. Não envie senhas nem credenciais da loja.</p>
+<div id="supportStatus" class="status" role="status" aria-live="polite" tabindex="-1" hidden></div>
+<div class="support-actions"><button id="supportSubmit" class="button primary" type="submit">Enviar chamado</button></div>
+</form></article>
+<aside class="panel support-side"><h2>Contato direto</h2><p>Você também pode escrever para:</p><p><a href="mailto:elunalab@gmail.com?subject=Suporte%20Imagem%20em%20Lote">elunalab@gmail.com</a></p><h3>Para facilitar o atendimento</h3><ul class="check-list"><li>Informe o endereço da loja.</li><li>Descreva em qual etapa parou.</li><li>Anexe uma captura de tela da mensagem ou o relatório, se tiver.</li></ul><p class="muted">O chamado não altera produtos nem imagens da sua loja.</p></aside></section></main><script src="/support.js" defer></script></body></html>
