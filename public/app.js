@@ -69,7 +69,7 @@ function selectFiles(files) {
   message('Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.');
 }
 function images(list,local) {
-  return list.length?`<div class="photos">${list.map(image=>`<figure><img loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption ${local?'data-no-translate':''}>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
+  return list.length?`<div class="photos">${list.map(image=>`<figure><img ${local?'data-no-translate':''} loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption ${local?'data-no-translate':''}>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
 }
 function renderItems() {
   $('review').hidden=false;$('products').replaceChildren();
