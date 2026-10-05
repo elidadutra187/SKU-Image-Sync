@@ -1,5 +1,25 @@
 # Preparação para reabertura — 04/10/2026
 
+## Suporte e privacidade — 04/10/2026
+
+Páginas adaptadas ao Imagem em Lote com a mesma família visual dos demais apps. Formulário recebe nome, e-mail, endereço da loja, assunto, mensagem e um anexo de até 5 MB. Destino fixo: elunalab@gmail.com. Não há armazenamento de chamados no banco: protocolo e histórico ficam no e-mail. Só confirmar envio quando o provedor aceitar; falha do comprovante é indicada separadamente.
+
+Projeto Google próprio na conta elidadutra182@gmail.com: https://script.google.com/u/1/home/projects/1SwAkwmyEuxK9aOWEiBn1gfXl9Nfk55P-2EltP7qxynJXPZZdyK58bOBa/edit . Código salvo; configurarSuporte selecionada. Aguardando confirmação da proprietária para autorização de envio e publicação do webhook. Em seguida, obter segredo nas propriedades do projeto e URL da implantação e configurar SUPPORT_WEBHOOK_URL/SUPPORT_WEBHOOK_SECRET no Render. Não publicar valores secretos no GitHub ou na conversa. Enquanto isso, formulário informa indisponibilidade e contato direto abre mailto:elunalab@gmail.com.
+
+PR #3 integrado à main para páginas e backend de suporte. Dependências de uploads e parsing atualizadas em c36e05acf44650aeaada34af458c5ebf60874534: npm audit --omit=dev não encontrou vulnerabilidades. 15 testes da produção e 25 da atualização em preparação passaram. Envio real de e-mail e recebimento de anexo ainda dependem de concluir a autorização/configuração Google; não afirmar que foram verificados.
++
+
+## Marca e domínio — 04/10/2026
+
+Nome público atualizado para **Imagem em Lote**, por solicitação da usuária. URL principal: https://imagememlote.onrender.com. Repositório continua elidadutra187/SKU-Image-Sync e app Nuvemshop continua #33268.
+
+PR #2 integrado à main (c4954b9656d7ad589629744256721e8d71b0a723), exclusivamente para marca e domínio. Render srv-db1ejulg1s2s739r08v0 publicado no plano gratuito com o banco, segredo de sessão e credenciais OAuth existentes. APP_URL usa o novo endereço. Deploy dep-db1ejv5g1s2s739r0b20 confirmado como live; /, /health, /privacy, /support e /nube/main.min.js retornam HTTP 200. Sem erros nos logs consultados após a publicação. A atualização maior de envio por nome/demo continua no PR #1 em preparação.
+
+Serviço anterior srv-d8f18h8g4nts738dgdkg identificado como sku-image-sync-legacy e mantido em https://sku-image-sync.onrender.com durante a transição. Não apagar antes de terminar a alteração do Partners e validar reconexão.
+
+**Pendente no Partners:** sessão está na tela de login. Ainda não foi possível salvar o nome nem as URLs do cadastro. Ao recuperar a sessão, verificar todas as abas e substituir o host antigo pelo novo, preservando os caminhos: página principal, callback /auth/callback, suporte /support, privacidade /privacy, SDK /nube/main.min.js e webhooks /webhooks/store-redact, /webhooks/customers-redact, /webhooks/customers-data-request. Conferir URLs e textos de cada idioma presente no cadastro. Não apontar o guia para /how-to antes de publicar essa rota (disponível apenas na atualização em preparação).
+
+
 O fluxo anterior exigia pastas por SKU e expunha termos técnicos. O novo fluxo permite selecionar várias imagens pelo nome do arquivo, conferir as associações e enviar apenas os grupos selecionados.
 
 ## Implementado nesta revisão
@@ -32,13 +52,3 @@ O fluxo anterior exigia pastas por SKU e expunha termos técnicos. O novo fluxo 
 6. Revisar casos de falha do demo. A reserva ocorre antes do início do envio e permanece utilizada em falhas; pré-validação rejeita seleção inválida sem consumir. Não vender isso como cobrança nem como processamento garantido.
 
 Render principal: `imagememlote`, serviço `srv-db1ejulg1s2s739r08v0`, origem GitHub main. A mudança de marca/domínio foi implantada; a revisão maior de demo e envio por nome deve permanecer em PR rascunho até resolver as pendências essenciais.
-
-## Marca e domínio — 04/10/2026
-
-Nome público atualizado para **Imagem em Lote**, por solicitação da usuária. URL principal: https://imagememlote.onrender.com. Repositório continua elidadutra187/SKU-Image-Sync e app Nuvemshop continua #33268.
-
-PR #2 integrado à main (c4954b9656d7ad589629744256721e8d71b0a723), exclusivamente para marca e domínio. Render srv-db1ejulg1s2s739r08v0 publicado no plano gratuito com o banco, segredo de sessão e credenciais OAuth existentes. APP_URL usa o novo endereço. Deploy dep-db1ejv5g1s2s739r0b20 confirmado como live; /, /health, /privacy, /support e /nube/main.min.js retornam HTTP 200. Sem erros nos logs consultados após a publicação. A atualização maior de envio por nome/demo continua no PR #1 em preparação.
-
-Serviço anterior srv-d8f18h8g4nts738dgdkg identificado como sku-image-sync-legacy e mantido em https://sku-image-sync.onrender.com durante a transição. Não apagar antes de terminar a alteração do Partners e validar reconexão.
-
-**Pendente no Partners:** sessão está na tela de login. Ainda não foi possível salvar o nome nem as URLs do cadastro. Ao recuperar a sessão, verificar todas as abas e substituir o host antigo pelo novo, preservando os caminhos: página principal, callback /auth/callback, suporte /support, privacidade /privacy, SDK /nube/main.min.js e webhooks /webhooks/store-redact, /webhooks/customers-redact, /webhooks/customers-data-request. Conferir URLs e textos de cada idioma presente no cadastro. Não apontar o guia para /how-to antes de publicar essa rota (disponível apenas na atualização em preparação).

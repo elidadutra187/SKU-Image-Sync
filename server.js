@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js';
 import productsRoutes from './routes/products.js';
 import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
+import supportRoutes from './routes/support.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import logger from './utils/logger.js';
 import {createBillingWebhook} from './services/nativeBilling.js';
@@ -17,6 +18,7 @@ const port = Number(process.env.PORT || 3000);
 startUploadSessionCleanup();
 
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 app.post('/webhooks/billing', express.raw({type:'application/json',limit:'64kb'}), createBillingWebhook());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -62,6 +64,7 @@ app.use('/auth', authRoutes);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
 app.use('/webhooks', webhookRoutes);
+app.use('/support', supportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
