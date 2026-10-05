@@ -84,7 +84,8 @@ export class NuvemshopClient {
   }
 
   static async fromStore(storeId = null) {
-    if (process.env.NUVEMSHOP_STORE_ID && process.env.NUVEMSHOP_ACCESS_TOKEN) {
+    if (process.env.NUVEMSHOP_STORE_ID && process.env.NUVEMSHOP_ACCESS_TOKEN
+      && (!storeId || String(storeId) === String(process.env.NUVEMSHOP_STORE_ID))) {
       return NuvemshopClient.fromEnv();
     }
 
@@ -192,6 +193,17 @@ export class NuvemshopClient {
     if (this.requestDelay > 0) {
       await sleep(this.requestDelay);
     }
+  }
+
+  async getProducts() {
+    const products=[];
+    for(let page=1; page<=500; page++) {
+      const items=await this.request(`/products?per_page=200&page=${page}`);
+      if(!Array.isArray(items))throw new Error('Invalid product catalog response.');
+      products.push(...items);
+      if(items.length<200)return products;
+    }
+    throw new Error('Catalog is too large for one lookup.');
   }
 
   getProductBySku(sku) {

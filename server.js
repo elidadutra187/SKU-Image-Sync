@@ -10,6 +10,7 @@ import webhookRoutes from './routes/webhooks.js';
 import supportRoutes from './routes/support.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import logger from './utils/logger.js';
+import {createBillingWebhook} from './services/nativeBilling.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -18,9 +19,13 @@ startUploadSessionCleanup();
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+app.post('/webhooks/billing', express.raw({type:'application/json',limit:'64kb'}), createBillingWebhook());
+app.use('/webhooks', express.raw({type:'application/json',limit:'64kb'}), webhookRoutes);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/product-matching.js', (req, res) => res.sendFile(path.join(__dirname, 'services', 'productMatching.js')));
+app.get('/how-to', (req, res) => res.sendFile(path.join(__dirname, 'public', 'how-to.html')));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -59,7 +64,6 @@ app.get('/api', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
-app.use('/webhooks', webhookRoutes);
 app.use('/support', supportRoutes);
 
 app.use((req, res) => {

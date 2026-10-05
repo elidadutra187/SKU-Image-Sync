@@ -5,6 +5,8 @@ import path from 'node:path';
 import CsvReport from '../utils/csvReport.js';
 import logger from '../utils/logger.js';
 import NuvemshopClient from './nuvemshop.js';
+import {hasDatabase} from './database.js';
+import imageHistory from './imageHistory.js';
 
 const SUPPORTED_EXTENSIONS = new Set(['.gif', '.jpg', '.jpeg', '.png', '.webp']);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -45,6 +47,8 @@ export class ImageSyncService {
     this.maxSkus = options.maxSkus ? Number(options.maxSkus) : null;
     this.folders = Array.isArray(options.folders) ? options.folders : null;
     this.storeId = options.storeId || null;
+    this.history = options.history || (this.storeId && hasDatabase() ? imageHistory : null);
+    this.assertProcessing = options.assertProcessing || (()=>{});
     this.batch = options.batch || null;
     this.statePath = path.resolve(options.stateFile || DEFAULT_STATE_FILE);
     this.reportPath = options.reportPath || `reports/sku-image-sync-${Date.now()}.csv`;
@@ -80,22 +84,23 @@ export class ImageSyncService {
       batchSize: this.batch?.size,
       batchTotal: this.batch?.total,
     });
-    this.state = await readJsonFile(this.statePath, { skus: {} });
+    this.state = this.history ? await this.history.load(this.storeId) : await readJsonFile(this.statePath, { skus: {} });
   }
 
   async saveState() {
+    if(this.history){await this.history.save(this.storeId,this.state);return;}
     await fs.writeFile(this.statePath, JSON.stringify(this.state, null, 2), 'utf8');
   }
 
   async listSkuFolders() {
     if (this.folders) {
-      return this.folders
-        .map((folder) => ({
-          sku: folder.sku,
-          dir: folder.dir,
-          sourceFolder: folder.sourceFolder || folder.sku,
-        }))
-        .sort((a, b) => naturalSort(a.sku, b.sku));
+      const grouped=new Map();
+      for(const folder of this.folders) {
+        const key=folder.productId ? `product:${folder.productId}` : folder.sku;
+        if(!grouped.has(key))grouped.set(key,{...folder,sku:key,dirs:[]});
+        grouped.get(key).dirs.push(folder.dir);
+      }
+      return [...grouped.values()].sort((a,b)=>naturalSort(a.sku,b.sku));
     }
 
     const entries = await fs.readdir(this.imagesRoot, { withFileTypes: true });
@@ -156,6 +161,7 @@ export class ImageSyncService {
   async deleteImages(productId, images, sku, action = 'delete') {
     for (const image of images) {
       try {
+        this.assertProcessing();
         await this.client.deleteProductImage(productId, image.id);
         await this.client.delay();
         await this.report.addSuccess(sku, productId, image.id, action, 'Image deleted.');
@@ -173,6 +179,7 @@ export class ImageSyncService {
     }
 
     const attachment = (await fs.readFile(localImage.filePath)).toString('base64');
+    this.assertProcessing();
     const uploaded = await this.client.uploadProductImage(productId, {
       attachment,
       filename: localImage.filename,
@@ -187,14 +194,27 @@ export class ImageSyncService {
       uploadedAt: new Date().toISOString(),
     };
 
+    if(this.history)await this.history.save(this.storeId,{skus:{[sku]:stateForSku}});
     await this.report.addSuccess(sku, productId, localImage.filename, 'upload', `Image uploaded. ID: ${uploaded?.id || 'N/A'}`);
     this.stats.uploaded++;
   }
 
   async processSku(folder) {
+    this.assertProcessing();
     const { sku, dir } = folder;
     const stateForSku = this.state.skus[sku] || { productId: null, files: {} };
-    const localImages = await this.listLocalImages(dir);
+    const localImages=[];
+    const hashes=new Set();
+    for(const directory of folder.dirs || [dir]) {
+      for(const image of await this.listLocalImages(directory)) {
+        if(hashes.has(image.hash))continue;
+        hashes.add(image.hash);
+        if(localImages.some(existing=>existing.filename===image.filename)) {
+          image.filename=`${path.parse(image.filename).name}-${image.hash.slice(0,12)}${path.extname(image.filename)}`;
+        }
+        localImages.push(image);
+      }
+    }
 
     logger.sku(sku, `Found ${localImages.length} local image(s).`);
 
@@ -206,7 +226,7 @@ export class ImageSyncService {
 
     let product;
     try {
-      product = await this.findProduct(sku);
+      product = folder.productId ? await this.client.getProduct(folder.productId) : await this.findProduct(sku);
     } catch (error) {
       await this.report.addError(sku, '', '', 'find_product', error.message);
       logger.sku(sku, `Product not found: ${error.message}`);
@@ -236,7 +256,10 @@ export class ImageSyncService {
       stateForSku.files = {};
     }
 
-    let position = 1;
+    // Adding photos must preserve the current cover and image order.
+    let position = this.mode === 'add'
+      ? Math.max(remoteImages.length, ...remoteImages.map(image => Number(image.position) || 0)) + 1
+      : 1;
     for (const localImage of localImages) {
       const previous = stateForSku.files[localImage.filename];
       const unchanged = previous?.hash === localImage.hash && previous?.imageId;
@@ -268,6 +291,7 @@ export class ImageSyncService {
     stateForSku.updatedAt = new Date().toISOString();
     this.state.skus[sku] = stateForSku;
     this.stats.processed++;
+    if(this.history && !this.dryRun)await this.history.save(this.storeId,{skus:{[sku]:stateForSku}});
   }
 
   async runWithConcurrency(items, limit, worker) {

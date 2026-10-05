@@ -1,131 +1,48 @@
 # Imagem em Lote
 
-**Node.js application to synchronize product images in Nuvemshop using SKU as the operational key.**
+Sincronize fotos de produtos na Nuvemshop pelo nome do arquivo ou pelo SKU, com conferência antes de alterar a loja.
 
-This project solves a practical e-commerce operations problem: keeping product images organized and synchronized when each SKU has its own image folder.
+## Para o lojista
 
-Repository: [elidadutra187/SKU-Image-Sync](https://github.com/elidadutra187/SKU-Image-Sync)
+1. Conecte a loja e selecione as imagens. Não é necessário criar pastas por SKU.
+2. Para o produto “Camiseta Azul”, use `Camiseta Azul_01.jpg` e `Camiseta Azul_02.jpg`.
+3. Clique em **Encontrar produtos**. Confira o produto associado e as fotos atuais.
+4. Para arquivos sem correspondência ou nomes repetidos, escolha o produto manualmente.
+5. Envie apenas os produtos conferidos. O padrão mantém as fotos existentes. Uma simulação pode ser feita antes do envio.
 
----
+Pastas com SKU e filtro CSV continuam em opções avançadas. A associação é por texto; não há IA visual.
 
-## Business problem
+## Demo e acesso
 
-Product image management becomes messy when an e-commerce catalog grows. Teams often have local folders, repeated images, inconsistent naming and no easy way to check whether the store already has the correct product photos.
+10 lotes grátis por loja, cada um com até 10 produtos distintos. Várias fotos do mesmo produto contam uma vez. Prévia e simulação não consomem lotes. O início de cada envio real reserva um lote; falhas parciais não devolvem o lote. O 11º envio exige acesso pago. A interface mostra quantos lotes restam; reconectar não zera a contagem.
 
-The goal of this project is to reduce manual upload work and create a safer workflow to preview, compare and synchronize product images by SKU.
+Depois do demo, pagamento único de **R$79,90 por loja**, pela **Nuvemshop**, deve liberar novos lotes e reutilizações na mesma loja. O receptor de confirmação nativa está implementado em `/webhooks/billing`, validando HMAC, aplicativo, loja, valor, moeda e conceito. **Preço aprovado pela usuária; configuração da cobrança no Partners e validação do fluxo pendentes.** O bloqueio é feito no servidor e persistido no PostgreSQL, independente da autorização OAuth. Sem DATABASE_URL, o processamento fica bloqueado. Não há checkout externo.
 
----
+Veja [PREPARACAO-PUBLICO.md](PREPARACAO-PUBLICO.md) para as pendências antes da reabertura. Esta revisão está em preparação, sem implantação pública.
 
-## What it does
+## Desenvolvimento
 
-Imagem em Lote reads local image folders, identifies the SKU from each folder name, searches the matching product in Nuvemshop and prepares a controlled image synchronization process.
+Node.js 18+, Express, PostgreSQL e API Nuvemshop. Configure o servidor usando `.env.example`; não publique segredos.
 
-The system supports:
-
-- SKU-based folder reading;
-- product lookup in Nuvemshop;
-- local image preview;
-- comparison with current store images;
-- dry-run before sync;
-- add, sync and replace modes;
-- batch processing for large folders;
-- Render deployment;
-- basic OAuth structure for Nuvemshop app usage.
-
----
-
-## Stack
-
-- **Node.js** for backend logic
-- **Nuvemshop API** for product and image operations
-- **Render** for deployment
-- **HTML/CSS/JS** for administrative interface
-- **CSV support** for SKU filtering
-- **OAuth / API tokens** for authentication flow
-
----
-
-## Expected folder structure
-
-```text
-Fotos/
-  1001 Produto Azul/
-    1.jpg
-    2.jpg
-  ABC-123 - Camiseta/
-    1.jpg
-    2.jpg
+```sh
+npm ci
+npm test
+npm start
 ```
 
-The application extracts the SKU from the folder name and uses it to find the matching product in Nuvemshop.
+A interface está em `/`; guia em `/how-to`, suporte em `/support` e privacidade em `/privacy`.
 
----
+A CLI administrativa mantém os comandos `sync:add`, `sync:sync`, `sync:replace` e `sync:dry-run`, com pastas por SKU. Esses comandos são do operador, não etapas para o cliente. Envios HTTP usam sessões autenticadas e prévia; as antigas rotas de processamento por caminhos locais retornam 410.
 
-## Sync modes
+## Modos de envio
 
-- **Dry-run** — simulates the operation without changing store images.
-- **Add** — adds local images that are not yet synchronized.
-- **Sync** — adds new images and updates changed local files.
-- **Replace** — removes current product images and uploads the full local folder set.
+- Adicionar: mantém as fotos atuais e envia as novas.
+- Atualizar: usa o histórico do app para substituir imagens alteradas. Persistência desse histórico no banco ainda pendente.
+- Substituir: remove as fotos atuais e envia o conjunto selecionado; exige confirmação.
 
----
+Suporte: [elunalab@gmail.com](mailto:elunalab@gmail.com). O link abre o aplicativo de e-mail do cliente.
 
-## How it works
-
-```text
-Local image folder
-→ Extract SKU
-→ Find product in Nuvemshop
-→ Fetch current product images
-→ Generate preview
-→ Select products
-→ Simulate or sync
-→ Log result
-```
-
----
-
-## Use cases
-
-- E-commerce image migration
-- Catalog image cleanup
-- SKU-based product organization
-- Nuvemshop catalog maintenance
-- Internal tooling for product teams
-- Operational support for stores with many SKUs
-
----
-
-## Expected impact
-
-- Less manual image upload work
-- Fewer product/image mismatches
-- More reliable catalog maintenance
-- Safer synchronization with preview and dry-run
-- Better operational control for e-commerce teams
-
----
-
-## Status
-
-Portfolio case / working operational tool.
-
-This project represents practical **e-commerce operations engineering**, connecting catalog organization, product data and API workflows.
-
----
-
-## Security notes
-
-Real secrets must never be committed to the repository. Keep credentials such as access tokens, client secrets, database URLs and session secrets only in environment variables or deployment settings.
-
----
-
-## Author
-
-**Élida Dutra**  
-E-commerce Ops · Automation · Catalog Management · Node.js · Nuvemshop
-
-[LinkedIn](https://www.linkedin.com/in/elidadutra) · [GitHub](https://github.com/elidadutra187)
+Autora: Elida Dutra. Repositório: [SKU-Image-Sync](https://github.com/elidadutra187/SKU-Image-Sync).
 
 ## Suporte e privacidade
 
