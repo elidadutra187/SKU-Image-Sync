@@ -20,6 +20,7 @@ startUploadSessionCleanup();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.post('/webhooks/billing', express.raw({type:'application/json',limit:'64kb'}), createBillingWebhook());
+app.use('/webhooks', express.raw({type:'application/json',limit:'64kb'}), webhookRoutes);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -63,7 +64,6 @@ app.get('/api', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
-app.use('/webhooks', webhookRoutes);
 app.use('/support', supportRoutes);
 
 app.use((req, res) => {

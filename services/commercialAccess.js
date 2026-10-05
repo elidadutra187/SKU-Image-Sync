@@ -13,11 +13,11 @@ export function validateBatchAccess(access,count) {
 }
 
 // Separate from OAuth records: reconnecting does not grant another free batch.
-const postgresRepository = {
+export function createPostgresAccessRepository(poolProvider=getPool,initialize=initializeDatabase) { return {
   async pool() {
-    const pool=getPool();
+    const pool=poolProvider();
     if (!pool) throw denied('Não foi possível verificar seu acesso. Tente novamente mais tarde.',503);
-    await initializeDatabase();
+    await initialize();
     return pool;
   },
   async status(storeId) {
@@ -37,7 +37,8 @@ const postgresRepository = {
       returning store_id`,[storeId,DEMO_BATCHES]);
     return rows.length === 1;
   }
-};
+}; }
+const postgresRepository=createPostgresAccessRepository();
 
 export function createCommercialAccess(repository=postgresRepository) {
   return {

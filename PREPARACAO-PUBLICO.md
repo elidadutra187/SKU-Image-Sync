@@ -1,5 +1,13 @@
 # Preparação para reabertura — 04/10/2026
 
+## Atualização de idioma e validação — 05/10/2026
+
+Por solicitação da proprietária, preparar publicação do painel em pt-BR, inglês e espanhol no domínio existente. Seletor compartilhado em início, guia, suporte e privacidade. Preferência em localStorage, propagada entre páginas e abas; mensagens dinâmicas e confirmações traduzidas. Nomes reais de produtos e arquivos preservados. Valores continuam em BRL; selecionar espanhol ou inglês não configura preço de outro país. Todos os arquivos desta revisão estão em D:\Users\elida\Documents\Codex\2026-06-01\continue-o-projeto-sku-image-sync\work\SKU-Image-Sync. Não usar C: como diretório de trabalho.
+
+31 testes passaram, incluindo cobertura de textos das quatro páginas e preservação dos dados do lojista na troca de idioma. Teste adicional opt-in executado no PostgreSQL Neon real, em esquema aleatório exclusivo com registros fictícios: migração repetida, conservação do demo anterior, 20 reservas concorrentes permitindo exatamente 10, bloqueio do 11º após reconexão, trava por loja, persistência do histórico, acesso pago fictício e exclusão idempotente da loja sem alterar outra loja. O esquema de teste foi removido ao terminar. Não houve cobrança nem alteração de registros reais das lojas.
+
+Histórico implementado no banco, salvo após cada upload para preservar deduplicação após reinícios. Trava transacional compatível com o pool Neon. Webhooks LGPD validam assinatura do corpo original e exclusão de loja apaga credenciais, acesso, histórico e sessões temporárias. Exclusão LGPD completa é diferente de reconectar: ela remove os registros da loja. Não armazenamos clientes nem pedidos. Produção continua na distribuição privada existente; pagamento nativo após dez lotes, envio em loja demo real e autorização do suporte Google continuam pendentes antes da reabertura para vendas. Publicar idiomas não implica reabrir vendas nem ativar cobrança.
+
 ## Suporte e privacidade — 04/10/2026
 
 Páginas adaptadas ao Imagem em Lote com a mesma família visual dos demais apps. Formulário recebe nome, e-mail, endereço da loja, assunto, mensagem e um anexo de até 5 MB. Destino fixo: elunalab@gmail.com. Não há armazenamento de chamados no banco: protocolo e histórico ficam no e-mail. Só confirmar envio quando o provedor aceitar; falha do comprovante é indicada separadamente.

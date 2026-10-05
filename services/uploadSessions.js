@@ -221,6 +221,10 @@ export async function cleanupExpiredUploadSessions() {
   return removed;
 }
 
+export async function deleteStoreUploadSessions(storeId) {
+  for(const session of sessions.values())if(session.storeId===String(storeId))await deleteUploadSession(session.id);
+}
+
 export function startUploadSessionCleanup() {
   const intervalMs = Math.min(sessionTtlMs(), 30 * 60 * 1000);
   const timer = setInterval(() => {

@@ -10,6 +10,7 @@ import commercialAccess from '../services/commercialAccess.js';
 import {displayProductName,matchProduct} from '../services/productMatching.js';
 import {getCurrentJob,getJob,hasRunningJob,startSyncJob} from '../services/syncJobs.js';
 import {createUploadSession,deleteUploadSession,foldersForSession,getSessionImagePath,getUploadSession} from '../services/uploadSessions.js';
+import {acquireStoreLock} from '../services/storeLock.js';
 
 const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,fields:3,fieldSize:256*1024,parts:503}});
 const fail=(message,status=400)=>Object.assign(new Error(message),{status,public:true});
@@ -107,22 +108,23 @@ export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromSt
     if(!folders.length || folders.some(folder=>!folder.productId))throw fail('Escolha o produto de cada grupo selecionado.');
     const client=await clientForStore(req.storeId);
     for(const id of new Set(folders.map(folder=>folder.productId)))await client.getProduct(id);
+    const releaseStoreLock=await acquireStoreLock(req.storeId);
     session.running=true;
     try {
       await access.authorize(req.storeId,folders.map(folder=>folder.productId),{dryRun});
       const reportName='sku-image-sync-'+crypto.randomUUID()+'.csv';
       const job=startSyncJob({mode,dryRun,run:async(onProgress)=>{
         try {
-          const result=await serviceFactory({mode,dryRun,folders,concurrency:1,storeId:req.storeId,onProgress,
+          const result=await serviceFactory({mode,dryRun,folders,concurrency:1,storeId:req.storeId,onProgress,assertProcessing:releaseStoreLock.assertActive,
             reportPath:'reports/'+reportName,
             stateFile:'uploads/state-'+crypto.createHash('sha256').update(req.storeId).digest('hex')+'.json'}).run();
           if(result.report?.reportPath)reports.set(reportName,req.storeId);
           if(!dryRun)await deleteUploadSession(session.id);
           return {success:true,mode,dryRun,...result,reportDownloadUrl:result.report?.reportPath?'/sync/report/'+reportName:null};
-        } finally {session.running=false;}
+        } finally {session.running=false;await releaseStoreLock();}
       }});
       jobOwners.set(job.id,req.storeId);res.status(202).json({success:true,status:'running',jobId:job.id,job});
-    } catch(error) {session.running=false;throw error;}
+    } catch(error) {session.running=false;await releaseStoreLock();throw error;}
   }));
   router.get('/report/:filename',wrap(async(req,res)=>{
     const filename=req.params.filename;

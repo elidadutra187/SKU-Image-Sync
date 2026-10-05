@@ -1,3 +1,4 @@
+import {t} from '/i18n.js';
 import {imageGroupName,normalizeName} from '/product-matching.js';
 
 const $=id=>document.getElementById(id);
@@ -68,19 +69,19 @@ function selectFiles(files) {
   message('Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.');
 }
 function images(list,local) {
-  return list.length?`<div class="photos">${list.map(image=>`<figure><img loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
+  return list.length?`<div class="photos">${list.map(image=>`<figure><img loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption ${local?'data-no-translate':''}>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
 }
 function renderItems() {
   $('review').hidden=false;$('products').replaceChildren();
   for(const item of state.items) {
     const card=document.createElement('article');card.className='product';
     const options=[...new Map([...(item.suggestions || []),...state.catalog].map(product=>[String(product.id),product])).values()];
-    card.innerHTML=`<div class="product-heading"><label class="selection"><input data-select type="checkbox" value="${escape(item.sku)}" ${item.status==='ok'?'checked':'disabled'}><span>${escape(item.product?.name || item.sourceFolder)}</span></label><span class="badge ${item.status==='ok'?'':'attention'}">${item.status==='ok'?'Pronto para conferir':'Escolha o produto'}</span></div>
+    card.innerHTML=`<div class="product-heading"><label class="selection"><input data-select type="checkbox" value="${escape(item.sku)}" ${item.status==='ok'?'checked':'disabled'}><span data-no-translate>${escape(item.product?.name || item.sourceFolder)}</span></label><span class="badge ${item.status==='ok'?'':'attention'}">${item.status==='ok'?'Pronto para conferir':'Escolha o produto'}</span></div>
       <p class="muted">Arquivos: ${escape(item.sourceFolder)} · ${item.localImages.length} foto(s)</p>
       <p>${item.status==='ok'?`Identificado ${item.matchReason==='sku'?'pelo SKU':item.matchReason==='manual'?'por sua escolha':'pelo nome'}. Confira antes de enviar.`:escape(item.error)}</p>
       <details ${item.status==='ok'?'':'open'}><summary>${item.status==='ok'?'Trocar o produto associado':'Associar estas fotos a um produto'}</summary>
         <label>Buscar produto pelo nome<input data-product-search type="search" placeholder="Digite parte do nome"></label>
-        <label>Produto que receberá as fotos<select data-product-choice><option value="">Selecione um produto</option>${options.map(product=>`<option value="${escape(product.id)}">${escape(product.name)} (#${escape(product.id)})</option>`).join('')}</select></label><button type="button" class="secondary" data-match>Confirmar produto</button>
+        <label>Produto que receberá as fotos<select data-product-choice><option value="">Selecione um produto</option>${options.map(product=>`<option data-no-translate value="${escape(product.id)}">${escape(product.name)} (#${escape(product.id)})</option>`).join('')}</select></label><button type="button" class="secondary" data-match>Confirmar produto</button>
       </details><div class="photo-columns"><section><h3>Fotos que você selecionou</h3>${images(item.localImages,true)}</section><section><h3>Fotos atuais na loja</h3>${images(item.remoteImages,false)}</section></div>`;
     card.querySelector('[data-select]').addEventListener('change',updateActions);
     const choice=card.querySelector('[data-product-choice]');
@@ -119,10 +120,10 @@ async function preview() {
 }
 async function run(dryRun) {
   const selectedSkus=selected(),mode=$('mode').value;
-  const demoNotice=state.access?.paid?'':' Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.';
+  const demoNotice=state.access?.paid?'':' '+t('Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.');
   if(!dryRun && !window.confirm(mode==='replace'
-    ?'Este modo vai remover as fotos atuais dos produtos selecionados e enviar as novas. Confirma?'
-    :'Você conferiu os produtos e as fotos? Enviar agora?'+demoNotice))return;
+    ?t('Este modo vai remover as fotos atuais dos produtos selecionados e enviar as novas. Confirma?')
+    :t('Você conferiu os produtos e as fotos? Enviar agora?')+demoNotice))return;
   busy(true,dryRun?'Simulando o envio, sem alterar a loja...':'Enviando as fotos para a loja...');
   try {
     const data=await request(`/sync/session/${state.session}/run`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dryRun,mode,selectedSkus})});

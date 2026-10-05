@@ -1,5 +1,8 @@
 # Instruções do projeto
 
+- Trabalhar e salvar artefatos em D:\Users\elida\Documents\Codex. Sempre informar esse diretório nos comandos; o diretório inicial de uma conversa pode estar em C: e não deve ser usado para este projeto.
+- Interface em pt-BR, en e es. Usar o seletor compartilhado em todas as páginas e conservar a escolha entre páginas. Traduzir mensagens dinâmicas e confirmações; nunca traduzir nomes reais de produtos ou arquivos enviados. Preço BRL não implica conversão de moeda pelo idioma.
+
 - Nome público: Imagem em Lote. URL de produção: https://imagememlote.onrender.com. Manter o identificador técnico do repositório SKU-Image-Sync.
 - Serviço Render principal: srv-db1ejulg1s2s739r08v0. O serviço srv-d8f18h8g4nts738dgdkg mantém o endereço antigo durante a transição; não apagar antes de confirmar as URLs do Partners.
 
