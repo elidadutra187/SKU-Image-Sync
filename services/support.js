@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import logger from '../utils/logger.js';
 
 export const SUPPORT_EMAIL = 'elunalab@gmail.com';
 export const SUPPORT_MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -14,11 +15,17 @@ export async function sendSupportRequest({ request, attachment }, { env = proces
   if (!supportConfigured(env)) throw new Error('support_not_configured');
   const ticketId = randomUUID();
   async function deliver(message) {
-    const response = await fetchImpl(env.SUPPORT_WEBHOOK_URL, {
+    let response;
+    try { response = await fetchImpl(env.SUPPORT_WEBHOOK_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000),
       body: JSON.stringify({ ...message, secret: env.SUPPORT_WEBHOOK_SECRET })
-    });
-    if (!response.ok || (await response.json()).ok !== true) throw new Error('support_delivery_failed');
+    }); } catch {logger.warn('support_provider_network_failure');throw new Error('support_delivery_failed');}
+    let result;try{result=await response.json();}catch{logger.warn(`support_provider_non_json_${response.status || 0}`);throw new Error('support_delivery_failed');}
+    if (!response.ok || result.ok !== true) {
+      const known=['invalid_secret','missing_recipient','invalid_message','invalid_destination','invalid_attachment','send_failed'];
+      logger.warn(`support_provider_rejected_${response.status || 0}_${known.includes(result.error)?result.error:'unknown'}`);
+      throw new Error('support_delivery_failed');
+    }
   }
   await deliver({
     to: SUPPORT_EMAIL, replyTo: request.email,
