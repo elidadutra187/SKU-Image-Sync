@@ -11,7 +11,7 @@
 - O demo é um único lote de até 10 produtos distintos por loja; várias fotos contam como um produto.
 - Prévia e simulação não consomem o demo. O envio real reserva e utiliza o demo antes das operações. Não resetar por reconexão.
 - Persistir o acesso no banco e bloquear processamento quando ele não estiver disponível. Não confiar em flags de pagamento do navegador.
-- Pagamento único por loja, exclusivamente pela cobrança nativa da Nuvemshop, conforme decisão da usuária. R$99,90 é apenas proposta, não um preço aprovado. Não criar checkout externo.
+- Pagamento único de R$79,90 por loja, aprovado pela usuária em 04/10/2026, exclusivamente pela cobrança nativa da Nuvemshop. Não criar checkout externo.
 - Liberação paga exige webhook charge/paid com HMAC válido, app_id deste app, loja conhecida, valor, moeda e conceito esperados. Não liberar com charge/created, charge/failed ou simples acesso à API.
 - Não criar cobrança nem mudar preço para clientes antes de confirmar o valor e validar o comportamento do demo por lote na cobrança nativa.
 - Não reabrir para vendas antes de validar pagamento, reserva concorrente no PostgreSQL real e envio na loja demo.
