@@ -1,0 +1,30 @@
+.elunalab-credit {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 24px auto 0;
+  padding: 20px 16px;
+  border-top: 1px solid rgba(110, 125, 140, .16);
+  text-align: center;
+  font: inherit;
+}
+.elunalab-credit a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  color: #526174;
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.elunalab-credit img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.elunalab-credit strong { color: #164d98; font-weight: 600; }
+.elunalab-credit a:hover strong { text-decoration: underline; }
+.elunalab-credit a:focus-visible { outline: 2px solid #164d98; outline-offset: 5px; border-radius: 4px; }
