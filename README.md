@@ -1,4 +1,4 @@
-# SKU Image Sync
+# Imagem em Lote
 
 Sincronize fotos de produtos na Nuvemshop pelo nome do arquivo ou pelo SKU, com conferência antes de alterar a loja.
 
