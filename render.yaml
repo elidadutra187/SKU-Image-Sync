@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sku-image-sync
+    name: imagememlote
     runtime: node
     plan: free
     buildCommand: npm install
@@ -13,9 +13,9 @@ services:
       - key: NUVEMSHOP_ACCESS_TOKEN
         sync: false
       - key: NUVEMSHOP_USER_AGENT
-        value: SKU Image Sync (seu-email@exemplo.com)
+        value: Imagem em Lote (seu-email@exemplo.com)
       - key: APP_URL
-        value: https://sku-image-sync.onrender.com
+        value: https://imagememlote.onrender.com
       - key: IMAGES_ROOT
         value: ./Fotos
       - key: NUVEMSHOP_API_VERSION
