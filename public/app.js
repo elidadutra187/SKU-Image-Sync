@@ -32,12 +32,12 @@ function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?'Seu lote grátis já foi utilizado. O pagamento único libera os próximos lotes e reutilizações.'
+    ?'Seu lote grátis já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
     :'Experimente grátis: envie um único lote de até 10 produtos. Você pode conferir e simular antes de enviar.';
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.purchaseConfigured
-    ?'A cobrança única é pela Nuvemshop. No administrador da loja, abra Aplicativos e o pagamento do Imagem em Lote. O acesso será liberado após a confirmação do pagamento.'
-    :'A cobrança será pela Nuvemshop. A configuração do pagamento único ainda está em preparação.';
+    ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
+    :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
   if(!access.paid)$('batchSize').value='10';
