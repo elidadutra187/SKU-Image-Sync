@@ -9,11 +9,11 @@
     support_not_configured: 'O formulário está indisponível no momento. Escreva para elunalab@gmail.com.',
     support_delivery_unavailable: 'Não conseguimos confirmar o envio. Você pode escrever para elunalab@gmail.com.'
   };
-  function show(message, type) {
-    status.hidden = false; status.className = 'status ' + type; status.textContent = message; status.focus();
+  function show(message, type, focus = true) {
+    status.hidden = false; status.className = 'status ' + type; status.textContent = message; if (focus) status.focus();
   }
   fetch('/support/status').then(r => r.json()).then(data => {
-    if (!data.configured) { button.disabled = true; show(messages.support_not_configured, 'error'); }
+    if (!data.configured) { button.disabled = true; show(messages.support_not_configured, 'error', false); }
   }).catch(() => {});
   form.addEventListener('submit', async event => {
     event.preventDefault();
