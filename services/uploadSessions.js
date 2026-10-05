@@ -159,8 +159,8 @@ export function getUploadSession(sessionId) {
   const session = sessions.get(sessionId) || null;
   if (!session) return null;
 
-  if (isExpired(session)) {
-    deleteUploadSession(sessionId);
+  if (!session.running && isExpired(session)) {
+    deleteUploadSession(sessionId).catch(()=>{});
     return null;
   }
 
@@ -213,7 +213,7 @@ export async function deleteUploadSession(sessionId) {
 export async function cleanupExpiredUploadSessions() {
   const removed = [];
   for (const session of sessions.values()) {
-    if (isExpired(session)) {
+    if (!session.running && isExpired(session)) {
       await deleteUploadSession(session.id);
       removed.push(session.id);
     }

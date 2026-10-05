@@ -59,5 +59,9 @@ export async function migrateDatabase(client) {
     store_id text not null, product_key text not null, state jsonb not null,
     updated_at timestamptz not null default now(), primary key (store_id,product_key)
   )`);
+  await client.query(`create table if not exists image_sync_purchase (
+    store_id text primary key,status text not null,charge_id text unique,
+    created_at timestamptz not null default now(),updated_at timestamptz not null default now()
+  )`);
 }
 

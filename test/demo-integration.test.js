@@ -41,7 +41,7 @@ for(const mode of ['name','sku-folder']) {
     const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
     const base=`http://127.0.0.1:${server.address().port}/sync`;
     const cookieFor=store=>{let cookie;setStoreSession({setHeader(name,value){cookie=value.split(';')[0];}},store);return cookie;};
-    let headers={cookie:cookieFor(`test-${mode}`)};
+    let headers={cookie:cookieFor((mode==='name'?'111':'222'))};
     const preview=async(count)=>{
       const form=new FormData(),manifest=[];
       for(const product of products.slice(0,count)) {
@@ -77,12 +77,12 @@ for(const mode of ['name','sku-folder']) {
       const result=await completed(await run(first));assert.equal(consumed,1);assert.equal(result.stats.processed,10);assert.equal(uploaded.length,10);
       assert.deepEqual(uploaded.map(item=>Number(item.id)).sort((a,b)=>a-b),products.slice(0,10).map(p=>p.id));
       assert.ok(uploaded.every(item=>item.position===2));
-      headers={cookie:cookieFor(`test-${mode}`)};
+      headers={cookie:cookieFor((mode==='name'?'111':'222'))};
       for(let batch=2;batch<=10;batch++) {
         const free=await preview(1);await completed(await run(free));assert.equal(consumed,batch);
       }
       const next=await preview(1);assert.equal((await run(next)).status,402);assert.equal(uploaded.length,10);
-      const foreignHeaders={cookie:cookieFor('another-store'),'content-type':'application/json'};
+      const foreignHeaders={cookie:cookieFor('333'),'content-type':'application/json'};
       assert.equal((await fetch(`${base}/session/${next.sessionId}/run`,{method:'POST',headers:foreignHeaders,body:JSON.stringify({selectedSkus:next.items.map(i=>i.sku)})})).status,403);
       paid=true;await completed(await run(excessive));assert.equal(uploaded.length,11);
     } finally {

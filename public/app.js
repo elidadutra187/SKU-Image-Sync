@@ -22,6 +22,7 @@ function updateActions() {
   for(const checkbox of document.querySelectorAll('[data-select]')) {
     checkbox.disabled=state.busy || !state.items.find(item=>item.sku===checkbox.value)?.product || !state.session;
   }
+  if(state.access)$('purchase').disabled=state.busy || ['creating','pending'].includes(state.access.purchaseStatus);
   const count=selected().length;
   $('preview').disabled=state.busy || !state.connected || !state.files.length;
   $('simulate').disabled=state.busy || !count;
@@ -39,6 +40,8 @@ function renderAccess(access) {
   $('purchasePending').textContent=access.purchaseConfigured
     ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
+  $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
+  $('purchase').disabled=state.busy || ['creating','pending'].includes(access.purchaseStatus);
   $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
   if(!access.paid)$('batchSize').value='10';
@@ -151,6 +154,15 @@ for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=
   event.preventDefault();if(name==='drop')selectFiles(event.dataTransfer.files);
 });
 $('preview').addEventListener('click',preview);
+$('purchase').addEventListener('click',async()=>{
+  if(!confirm(t('Confirma a compra única de R$79,90 por loja, cobrada pela Nuvemshop, sem mensalidade?')))return;
+  busy(true,'Solicitando a compra pela Nuvemshop...');
+  try{
+    const purchase=await request('/sync/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmed:true})});
+    renderAccess(await request('/sync/access'));
+    message(purchase.status==='paid'?'Pagamento confirmado. Seu acesso está liberado.':purchase.status==='pending'?'Cobrança solicitada. Consulte os pagamentos no administrador da Nuvemshop. O acesso será liberado após a confirmação.':'A criação da cobrança está sendo verificada. Fale com o suporte antes de tentar novamente.');
+  }catch(error){message(error.message,true);}finally{busy(false);}
+});
 $('refreshAccess').addEventListener('click',async()=>{
   busy(true,'Verificando a confirmação do pagamento...');
   try {

@@ -1,4 +1,13 @@
 export const rows = [
+["Comprar acesso por R$79,90","Buy access for BRL 79.90","Comprar acceso por R$79,90"],
+["Confirma a compra única de R$79,90 por loja, cobrada pela Nuvemshop, sem mensalidade?","Confirm the one-time purchase of BRL 79.90 per store, billed by Nuvemshop, with no monthly fee?","¿Confirmas la compra única de R$79,90 por tienda, cobrada por Nuvemshop, sin mensualidad?"],
+["Solicitando a compra pela Nuvemshop...","Requesting the purchase through Nuvemshop...","Solicitando la compra mediante Nuvemshop..."],
+["Cobrança solicitada. Consulte os pagamentos no administrador da Nuvemshop. O acesso será liberado após a confirmação.","Charge requested. Check payments in your Nuvemshop admin. Access will be unlocked after confirmation.","Cobro solicitado. Consulta los pagos en el administrador de Nuvemshop. El acceso se habilitará después de la confirmación."],
+["A criação da cobrança está sendo verificada. Fale com o suporte antes de tentar novamente.","Charge creation is being checked. Contact support before trying again.","Se está verificando la creación del cobro. Contacta al soporte antes de intentarlo nuevamente."],
+["Confirme a compra única de R$79,90 por loja.","Confirm the one-time purchase of BRL 79.90 per store.","Confirma la compra única de R$79,90 por tienda."],
+["A compra pela Nuvemshop ainda não está disponível. Fale com o suporte.","Purchasing through Nuvemshop is not available yet. Contact support.","La compra mediante Nuvemshop aún no está disponible. Contacta al soporte."],
+["Utilize seus 10 lotes gratuitos antes de comprar.","Use your 10 free batches before purchasing.","Utiliza tus 10 lotes gratuitos antes de comprar."],
+["Não foi possível confirmar a criação da cobrança. Fale com o suporte antes de tentar novamente.","We could not confirm charge creation. Contact support before trying again.","No pudimos confirmar la creación del cobro. Contacta al soporte antes de intentarlo nuevamente."],
 ['https://sualoja.lojavirtualnuvem.com.br','https://yourstore.example.com','https://tutienda.mitiendanube.com'],
 ['Camiseta Azul_01.jpg','Blue T-shirt_01.jpg','Camiseta Azul_01.jpg'],['Camiseta Azul_02.jpg','Blue T-shirt_02.jpg','Camiseta Azul_02.jpg'],['Camiseta Azul_03.jpg','Blue T-shirt_03.jpg','Camiseta Azul_03.jpg'],['ABC-123 - Camiseta','ABC-123 - T-shirt','ABC-123 - Camiseta'],
 ['Feito pela','Made by','Creado por'],['Feito pela ElunaLab. Abrir site em uma nova aba.','Made by ElunaLab. Open website in a new tab.','Creado por ElunaLab. Abrir sitio en una nueva pestaña.'],

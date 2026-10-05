@@ -22,8 +22,9 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
   },
   async status(storeId) {
     const pool=await this.pool();
-    const {rows}=await pool.query('select paid_at, demo_batches_used from image_sync_access where store_id=$1',[storeId]);
-    return {paid:Boolean(rows[0]?.paid_at),demoBatchesUsed:rows[0]?.demo_batches_used ?? 0};
+    const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,p.status as purchase_status
+      from image_sync_access a left join image_sync_purchase p on p.store_id=a.store_id where a.store_id=$1`,[storeId]);
+    return {paid:Boolean(rows[0]?.paid_at),demoBatchesUsed:rows[0]?.demo_batches_used ?? 0,purchaseStatus:rows[0]?.purchase_status || null};
   },
   async reserve(storeId) {
     const pool=await this.pool();

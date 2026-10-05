@@ -11,11 +11,13 @@ import supportRoutes from './routes/support.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import logger from './utils/logger.js';
 import {createBillingWebhook} from './services/nativeBilling.js';
+import {startArtifactCleanup} from './services/syncArtifacts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || 3000);
 startUploadSessionCleanup();
+startArtifactCleanup();
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);

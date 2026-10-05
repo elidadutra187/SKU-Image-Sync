@@ -20,7 +20,7 @@ test('guided import authenticates, resolves names, validates choices and enforce
   }));
   const server=app.listen(0,'127.0.0.1'); await new Promise(resolve=>server.once('listening',resolve));
   const url=`http://127.0.0.1:${server.address().port}/sync`;
-  let cookie; setStoreSession({setHeader(name,value){cookie=value.split(';')[0];}},'store-a');
+  let cookie; setStoreSession({setHeader(name,value){cookie=value.split(';')[0];}},'111');
   const headers={cookie};
   try {
     assert.equal((await fetch(`${url}/preview`,{method:'POST'})).status,401);

@@ -7,6 +7,7 @@ import {createCommercialAccess,createPostgresAccessRepository} from '../services
 import {createImageHistory} from '../services/imageHistory.js';
 import {createStoreLock} from '../services/storeLock.js';
 import {createStoreRedactor} from '../services/storeData.js';
+import {createPurchaseRepository} from '../services/purchase.js';
 
 test('real PostgreSQL: migration, ten concurrent reservations, history persistence and store redaction', {skip:process.env.RUN_POSTGRES_TESTS!=='true'},async()=>{
   assert.ok(process.env.DATABASE_URL,'DATABASE_URL required');
@@ -30,6 +31,12 @@ test('real PostgreSQL: migration, ten concurrent reservations, history persisten
     const attempts=await Promise.allSettled(Array.from({length:20},()=>access.authorize('123',['1'])));
     assert.equal(attempts.filter(r=>r.status==='fulfilled').length,10);
     assert.equal((await access.status('123')).demoBatchesUsed,10);
+    const purchases=createPurchaseRepository(()=>pool,async()=>{});
+    const purchaseClaims=await Promise.all(Array.from({length:20},()=>purchases.claim('123')));
+    assert.equal(purchaseClaims.filter(Boolean).length,1);
+    assert.equal(await purchases.claim('456'),false);
+    await purchases.save('validation-charge','123');
+    assert.deepEqual(await purchases.get('123'),{status:'pending',chargeId:'validation-charge'});
     const reconnected=createCommercialAccess(createPostgresAccessRepository(()=>pool,async()=>{}));
     await assert.rejects(()=>reconnected.authorize('123',['1']),error=>error.status===402);
     const locks=createStoreLock(()=>pool,async()=>{}),release=await locks('123');
@@ -43,7 +50,7 @@ test('real PostgreSQL: migration, ten concurrent reservations, history persisten
     const cleaned=[];
     await createStoreRedactor(()=>pool,async()=>{},locks,async id=>cleaned.push(id))('123');
     await createStoreRedactor(()=>pool,async()=>{},locks,async()=>{})('123');
-    for(const table of ['stores','image_sync_access','image_sync_history'])assert.equal((await pool.query(`select count(*)::int as count from ${table} where store_id='123'`)).rows[0].count,0);
+    for(const table of ['stores','image_sync_access','image_sync_history','image_sync_purchase'])assert.equal((await pool.query(`select count(*)::int as count from ${table} where store_id='123'`)).rows[0].count,0);
     assert.equal((await pool.query("select count(*)::int as count from stores where store_id='456'")).rows[0].count,1);
     assert.deepEqual(cleaned,['123']);await assert.rejects(()=>history.save('123',state),/store_no_longer_authorized/);
   }finally {

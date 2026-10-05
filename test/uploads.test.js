@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import {createUploadSession, deleteUploadSession, getSessionImagePath} from '../services/uploadSessions.js';
+import {createUploadSession, deleteUploadSession, getSessionImagePath,getUploadSession,cleanupExpiredUploadSessions} from '../services/uploadSessions.js';
 test('flat uploads group numbered photos without merging different product names', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sku-upload-'));
   const names = ['Camiseta Azul_01.jpg','Camiseta Azul_02.jpg','Camiseta Verde_01.jpg'];
@@ -19,4 +19,15 @@ test('flat uploads group numbered photos without merging different product names
     assert.equal(getSessionImagePath(session.id,group.sku,'../other.jpg'),null);
     assert.equal(getSessionImagePath(session.id,group.sku,'not-uploaded.jpg'),null);
   } finally { await deleteUploadSession(session.id); await fs.rm(dir,{recursive:true,force:true}); }
+});
+test('expired running uploads stay available until processing finishes',async()=>{
+  const session=await createUploadSession({files:[],storeId:'123'});
+  try {
+    session.createdAt='2020-01-01T00:00:00Z';session.running=true;
+    await cleanupExpiredUploadSessions();
+    assert.equal(getUploadSession(session.id),session);
+    session.running=false;
+    await cleanupExpiredUploadSessions();
+    assert.equal(getUploadSession(session.id),null);
+  }finally {await deleteUploadSession(session.id);}
 });

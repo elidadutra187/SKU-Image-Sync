@@ -7,6 +7,7 @@ test('only a signed native paid charge for this app grants one-time access',asyn
   assert.equal(typeof native.createBillingWebhook,'function','native payment confirmation is missing');
   const writes=[];
   const handler=native.createBillingWebhook({secret:'test-secret',appId:'33268',price:'79.90',
+    isExpectedCharge:async ({chargeId})=>chargeId==='charge-1',
     grant:async record=>writes.push(record)});
   const app=express();app.post('/billing',express.raw({type:'application/json',limit:'64kb'}),handler);
   const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
@@ -24,6 +25,7 @@ test('only a signed native paid charge for this app grants one-time access',asyn
     assert.equal((await send({...body,event:'charge/failed'})).status,200);assert.equal(writes.length,0);
     assert.equal((await send({...body,charge:{...body.charge,amount_value:1}})).status,200);assert.equal(writes.length,0);
     assert.equal((await send({...body,charge:{...body.charge,amount_value:99.9}})).status,200);assert.equal(writes.length,0);
+    assert.equal((await send({...body,id:'unrequested-charge',charge:{...body.charge,id:'unrequested-charge'}})).status,200);assert.equal(writes.length,0);
     assert.equal((await send(body)).status,200);assert.equal(writes.length,1);
     assert.deepEqual(writes[0],{storeId:'123',chargeId:'charge-1'});
   } finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}

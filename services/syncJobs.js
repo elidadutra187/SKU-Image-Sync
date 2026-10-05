@@ -31,6 +31,10 @@ export function getJob(jobId) {
   const job = jobs.get(jobId);
   return job ? publicJob(job) : null;
 }
+export function forgetJob(jobId){
+  if(jobs.get(jobId)?.status==='running')return false;
+  return jobs.delete(jobId);
+}
 
 export function startSyncJob({ mode, dryRun, run }) {
   if (hasRunningJob()) {

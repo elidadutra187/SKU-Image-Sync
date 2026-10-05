@@ -9,14 +9,28 @@ function cents(value) {
 }
 export function nativeBillingConfigured() {
   return Boolean(process.env.NUVEMSHOP_CLIENT_SECRET && process.env.NUVEMSHOP_CLIENT_ID
-    && cents(process.env.NUVEMSHOP_ONE_TIME_PRICE) && process.env.NUVEMSHOP_NATIVE_BILLING==='true');
+    && cents(process.env.NUVEMSHOP_ONE_TIME_PRICE)===7990
+    && (process.env.NUVEMSHOP_BILLING_CURRENCY || 'BRL')==='BRL'
+    && process.env.NUVEMSHOP_BILLING_MODEL==='usage_once'
+    && process.env.NUVEMSHOP_NATIVE_BILLING==='true');
+}
+async function isExpectedCharge({storeId,chargeId}){
+  const pool=getPool();if(!pool)throw new Error('database_unavailable');await initializeDatabase();
+  const {rows}=await pool.query('select charge_id,status from image_sync_purchase where store_id=$1',[storeId]);
+  if(rows[0]?.status==='creating')throw new Error('charge_creation_pending');
+  return rows[0]?.charge_id===chargeId;
 }
 async function grantPaidAccess({storeId,chargeId}) {
   const pool=getPool();if(!pool)throw new Error('database_unavailable');
   await initializeDatabase();
   const {rows}=await pool.query(`
+    with confirmed as (
+      update image_sync_purchase set status='paid',updated_at=now()
+      where store_id=$1 and charge_id=$2 and exists(select 1 from stores where store_id=$1)
+      returning store_id
+    )
     insert into image_sync_access (store_id,paid_at,payment_reference)
-    select $1,now(),$2 where exists (select 1 from stores where store_id=$1)
+    select $1,now(),$2 from confirmed
     on conflict (store_id) do update set
       paid_at=coalesce(image_sync_access.paid_at,excluded.paid_at),
       payment_reference=coalesce(image_sync_access.payment_reference,excluded.payment_reference)
@@ -47,6 +61,7 @@ export function createBillingWebhook(options={}) {
       return res.json({success:true,ignored:true});
     }
     try {
+      if(!await (options.isExpectedCharge || isExpectedCharge)({storeId,chargeId}))return res.json({success:true,ignored:true});
       await (options.grant || grantPaidAccess)({storeId,chargeId});
       return res.json({success:true});
     }catch{return res.status(503).json({success:false});}

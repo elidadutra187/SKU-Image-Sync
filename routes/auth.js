@@ -44,6 +44,7 @@ export function buildAuthorizeUrl(clientId) {
 router.get('/status', async (req, res) => {
   try {
     const storeId = readStoreSession(req);
+    if (!storeId) return res.json({connected:false});
     const client = await NuvemshopClient.fromStore(storeId);
     const result = await client.testConnection();
     res.json(sanitizeStatusResponse({

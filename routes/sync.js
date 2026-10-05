@@ -11,6 +11,8 @@ import {displayProductName,matchProduct} from '../services/productMatching.js';
 import {getCurrentJob,getJob,hasRunningJob,startSyncJob} from '../services/syncJobs.js';
 import {createUploadSession,deleteUploadSession,foldersForSession,getSessionImagePath,getUploadSession} from '../services/uploadSessions.js';
 import {acquireStoreLock} from '../services/storeLock.js';
+import {syncArtifacts,reportNameForStore} from '../services/syncArtifacts.js';
+import purchaseService from '../services/purchase.js';
 
 const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,fields:3,fieldSize:256*1024,parts:503}});
 const fail=(message,status=400)=>Object.assign(new Error(message),{status,public:true});
@@ -18,7 +20,7 @@ const publicProduct=product=>({id:product.id,name:displayProductName(product)});
 
 export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromStore(storeId),
   access=commercialAccess,serviceFactory=options=>new ImageSyncService(options)}={}) {
-  const router=Router(),reports=new Map(),jobOwners=new Map();
+  const router=Router();
   const wrap=handler=>(req,res,next)=>Promise.resolve(handler(req,res)).catch(next);
   router.use((req,res,next)=>{
     req.storeId=readStoreSession(req);
@@ -47,6 +49,7 @@ export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromSt
       suggestions:group.suggestions || []};
   }
   router.get('/access',wrap(async(req,res)=>res.json({success:true,...await access.status(req.storeId)})));
+  router.post('/purchase',wrap(async(req,res)=>res.json({success:true,...await purchaseService.purchase(req.storeId,req.body?.confirmed)})));
   for(const endpoint of ['/dry-run','/add','/sync','/replace']) {
     router.post(endpoint,(req,res)=>res.status(410).json({success:false,error:'Selecione as imagens e use a prévia para enviar seu lote.'}));
   }
@@ -112,33 +115,34 @@ export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromSt
     session.running=true;
     try {
       await access.authorize(req.storeId,folders.map(folder=>folder.productId),{dryRun});
-      const reportName='sku-image-sync-'+crypto.randomUUID()+'.csv';
+      const reportName=reportNameForStore(req.storeId);
       const job=startSyncJob({mode,dryRun,run:async(onProgress)=>{
         try {
           const result=await serviceFactory({mode,dryRun,folders,concurrency:1,storeId:req.storeId,onProgress,assertProcessing:releaseStoreLock.assertActive,
             reportPath:'reports/'+reportName,
             stateFile:'uploads/state-'+crypto.createHash('sha256').update(req.storeId).digest('hex')+'.json'}).run();
-          if(result.report?.reportPath)reports.set(reportName,req.storeId);
+          if(result.report?.reportPath)syncArtifacts.registerReport(reportName,req.storeId);
           if(!dryRun)await deleteUploadSession(session.id);
           return {success:true,mode,dryRun,...result,reportDownloadUrl:result.report?.reportPath?'/sync/report/'+reportName:null};
         } finally {session.running=false;await releaseStoreLock();}
       }});
-      jobOwners.set(job.id,req.storeId);res.status(202).json({success:true,status:'running',jobId:job.id,job});
+      syncArtifacts.registerJob(job.id,req.storeId);res.status(202).json({success:true,status:'running',jobId:job.id,job});
     } catch(error) {session.running=false;await releaseStoreLock();throw error;}
   }));
   router.get('/report/:filename',wrap(async(req,res)=>{
     const filename=req.params.filename;
-    if(reports.get(filename)!==req.storeId)throw fail('Relatório não encontrado.',404);
+    if(syncArtifacts.reportOwner(filename)!==req.storeId)throw fail('Relatório não encontrado.',404);
     res.download(path.resolve('reports',filename),filename);
   }));
   router.get('/job/:jobId',(req,res)=>{
-    const job=jobOwners.get(req.params.jobId)===req.storeId?getJob(req.params.jobId):null;
+    const job=syncArtifacts.jobOwner(req.params.jobId)===req.storeId?getJob(req.params.jobId):null;
     if(!job)return res.status(404).json({success:false,error:'Processamento não encontrado.'});
     res.json({success:true,job});
   });
   router.get('/status',(req,res)=>{
     const current=getCurrentJob();
-    res.json({running:hasRunningJob(),job:current && jobOwners.get(current.id)===req.storeId?current:null});
+    const owned=current && syncArtifacts.jobOwner(current.id)===req.storeId;
+    res.json({running:Boolean(owned && current.status==='running'),job:owned?current:null});
   });
   router.use(async(error,req,res,next)=>{
     for(const file of Object.values(req.files || {}).flat())await fs.rm(file.path,{force:true}).catch(()=>{});

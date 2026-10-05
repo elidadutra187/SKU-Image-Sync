@@ -78,3 +78,39 @@ A usuária confirmou depois desta revisão: 10 lotes gratuitos por loja. A imple
 A usuária confirmou 10 lotes gratuitos por loja; somente depois do décimo lote há exigência de pagamento único de R$79,90. Cada lote gratuito mantém até 10 produtos distintos. Contador demo_batches_used é persistido separado de OAuth; reserva condicional atômica incrementa somente abaixo de 10. Migração mantém o consumo anterior como 1 lote quando demo_used_at já está preenchido, sem zerar consumo em reinícios. Prévia/simulação não incrementam. Contadores inválidos bloqueiam acesso; falha parcial conserva o consumo.
 
 28 testes passaram: integração com serviço real e API/armazenamento simulados por nome e por SKU aceita os lotes 1–10, rejeita o 11º, não reseta ao reconectar e libera novos lotes para acesso pago. Vinte tentativas simultâneas com nove lotes já utilizados aceitam exatamente uma reserva. PostgreSQL real e loja demo real ainda não validados. UI e guia mostram 10 lotes e saldo restante. A alteração está apenas na versão em preparação, sem implantação no Render.
+
+## Artes finais aprovadas — 05/10/2026
+
+A usuária adicionou a logo da ElunaLab às duas páginas e autorizou utilizar essas versões salvas. O rascunho de edição anterior foi cancelado, preservando suas alterações. Design editável: https://www.canva.com/design/DAHXJN26JDA/iEOfbb0uBkujOo3Pfve-KQ/edit .
+
+Exportação PNG verificada: página 1 em português, 1920 × 1080, 1.202.299 bytes; página 2 em espanhol, 1920 × 1080, 1.222.962 bytes. Ambas abaixo de 5 MB. Arquivos finais em D:/Users/elida/Documents/Codex/outputs/imagememlote-artes-logo/1.png e 2.png. Ainda não enviados aos campos de imagens do Partners, indisponíveis na configuração atual de distribuição.
+
+## Revisão do Partners — 05/10/2026
+
+Nome Imagem em Lote, descrição curta e longa e dez perguntas frequentes salvos e conferidos nas fichas já existentes de Brasil, Argentina, Chile, Colômbia e México. Português no Brasil; espanhol nas outras fichas. Não foram criados novos países ou idiomas. Removidas promessas de milhares de atualizações em minutos e a exigência de pastas SKU. Explicados nomes de arquivos, escolha manual, modos adicionar/substituir, 10 lotes gratuitos com até 10 produtos, consumo no envio real, falhas parciais, simulação e reconexão. Link correto do guia: /how-to. Preço único existente R$79,90 preservado; moedas/valores de outros países não convertidos.
+
+Textos finais: D:/Users/elida/Documents/Codex/outputs/imagememlote-textos-partners.json.
+
+Pendência comprovada: formulário geral de publicação não persiste alterações das URLs e handle. Após Salvar e recarregar, preferences/privacy/support retornam a sku-image-sync.onrender.com e handle imagens-em-massa-nuvemshop. Não afirmar URLs atualizadas. Nenhuma mensagem útil de validação aparece; as fichas por país salvam normalmente. Também há somente uma imagem cadastrada em cada ficha observada; o portal informa mínimo de três. As duas artes finais ainda não foram enviadas. Publicação técnica e cobrança pós-demo não validadas por esta revisão editorial.
+
+## Auditoria de funcionamento — 05/10/2026
+
+32 validações passaram: 31 testes normais e um teste opt-in no PostgreSQL real (migração, reserva concorrente limitada a 10, histórico e exclusão por loja). npm audit --omit=dev: zero vulnerabilidades conhecidas nas dependências. Render principal confirmado live no commit f257cc7a6c35a1933b92af07da622ac4f51113d5. Isso não comprova pagamento real nem upload real na loja demo.
+
+Demo: dez lotes por loja, até dez produtos distintos em cada lote; prévia/simulação sem consumo. O 11º envio sem acesso pago é bloqueado. Reconectar não zera. Falhas parciais consomem o lote reservado.
+
+Pendência crítica de cobrança: existe receptor autenticado de charge/paid, mas nenhum endpoint ou botão inicia a compra depois do décimo lote. O preço único no Partners não estabelece um gatilho por contagem de lotes. Não anunciar cobrança pós-demo como concluída nem ativar flag de billing sem confirmar o contrato real da plataforma. Referências oficiais: https://nuvemshop.dev/apps/publish/pricing-billing e https://nuvemshop.dev/api/resources/2025-03/billing .
+
+Bugs reproduzidos localmente sem credenciais reais: services/session.js aceita cookie HMAC válido com createdAt de 2020 (sem expiração validada no servidor); parseCookies lança URIError ao receber cookie irrelevante com %ZZ. Em produção, ausência dos dois segredos também ativa fallback dev-session-secret. O segredo configurado atualmente não foi exposto por esta auditoria. Corrigir e testar antes de afirmar revisão de segurança completa.
+
+Retenção: mapas de jobs/relatórios sem TTL e redator da loja só limpa as sessões de upload, não todos os relatórios/jobs. cleanupExpiredUploadSessions não protege lote running de remoção por TTL. Esses caminhos precisam de testes e correções.
+
+URL antiga: Render sku-image-sync-legacy, srv-d8f18h8g4nts738dgdkg, confirmado não suspenso e com autoDeploy. URL https://sku-image-sync.onrender.com continua funcional porque a migração ainda tem referências antigas no formulário geral de publicação do Partners. Não suspender sem confirmar callback e URLs gerais no novo domínio, para evitar interromper lojas existentes.
+
+## Correções para venda — 05/10/2026
+
+Corrigidas expiração de sessão, cookies malformados, ausência de segredo em produção e conexão falsa de visitantes sem sessão. Upload em execução não é apagado pela expiração. Relatórios/jobs têm retenção de 24 horas; a exclusão por loja também encontra relatórios após reinício do processo.
+
+Compra única implementada em /sync/purchase com confirmação explícita, somente após dez lotes, intenção atômica por loja, sem repetição de POST de cobrança em falha ambígua. Charge/paid precisa corresponder ao ID da compra registrada, além de assinatura/app/valor/moeda/conceito. A compra permanece desativada até validar modelo de cobrança e autorização Edit Charges no Partners, reconectar a demo e testar pagamento real. Não reabrir vendas com esses testes pendentes.
+
+Verificação: 40 testes automatizados passaram; teste PostgreSQL opt-in passou separadamente, incluindo vinte reservas concorrentes (somente dez autorizadas), vinte intenções de compra (somente uma criada), migração e redaction. Dependências de produção: zero vulnerabilidades conhecidas.
