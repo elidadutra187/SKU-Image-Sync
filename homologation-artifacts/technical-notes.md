@@ -2,9 +2,9 @@
 
 ## Aplicativo
 
-- Nome: SKU Image Sync
+- Nome: Imagem em Lote
 - App ID: `33268`
-- URL: `https://sku-image-sync.onrender.com`
+- URL: `https://imagememlote.onrender.com`
 - Plataforma: Node.js hospedado no Render
 - Autenticacao: OAuth Nuvemshop
 
@@ -22,7 +22,7 @@ O app deve ser instalado pela URL:
 
 Apos a autorizacao, a Nuvemshop chama:
 
-`https://sku-image-sync.onrender.com/auth/callback`
+`https://imagememlote.onrender.com/auth/callback`
 
 O callback troca o `code` por `access_token`, salva a conexao e redireciona para a tela principal.
 
@@ -46,11 +46,11 @@ Justificativa:
 
 ## Adequacao NubeSDK
 
-O SKU Image Sync e um aplicativo administrativo para uso pelo lojista dentro da pagina do app. Ele nao adiciona botao, banner, modal, tag, validacao de carrinho ou qualquer componente na vitrine/checkout da loja.
+O Imagem em Lote e um aplicativo administrativo para uso pelo lojista dentro da pagina do app. Ele nao adiciona botao, banner, modal, tag, validacao de carrinho ou qualquer componente na vitrine/checkout da loja.
 
 Para cumprir a validacao tecnica de homologacao quando a Nuvemshop exigir um script NubeSDK vinculado ao aplicativo, o projeto disponibiliza o script:
 
-`https://sku-image-sync.onrender.com/nube/main.min.js`
+`https://imagememlote.onrender.com/nube/main.min.js`
 
 Esse script exporta `App(nube)`, nao acessa `window`, `document`, `localStorage`, `innerHTML`, jQuery ou APIs de DOM, e nao injeta interface visual no storefront. No Partner Portal, ele deve ser cadastrado com a opcao `Uses Nube SDK` ativada.
 
