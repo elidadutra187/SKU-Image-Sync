@@ -1,4 +1,4 @@
-# Roteiro do video demo - SKU Image Sync
+# Roteiro do video demo - Imagem em Lote
 
 Duracao sugerida: ate 3 minutos.
 
@@ -18,7 +18,7 @@ Passos:
 
 1. Acessar a URL de instalacao.
 2. Autorizar o aplicativo na loja.
-3. Mostrar o redirecionamento para `https://sku-image-sync.onrender.com/?connected=1`.
+3. Mostrar o redirecionamento para `https://imagememlote.onrender.com/?connected=1`.
 4. Mostrar o status `Conectado na loja`.
 
 Narracao sugerida:
@@ -29,7 +29,7 @@ Narracao sugerida:
 
 Passos:
 
-1. Acessar `https://sku-image-sync.onrender.com`.
+1. Acessar `https://imagememlote.onrender.com`.
 2. Mostrar que o app consulta `/auth/status`.
 3. Confirmar que a loja aparece conectada.
 
