@@ -30,7 +30,7 @@ O fluxo anterior exigia pastas por SKU e expunha termos técnicos. O novo fluxo 
 - Prévia mostra fotos enviadas e fotos atuais. Simulação não altera imagens.
 - Grupos associados ao mesmo produto são processados juntos para não apagar fotos de um grupo anterior no modo de substituição.
 - Fotos idênticas dentro de uma operação são deduplicadas por hash.
-- Demo limitado a um lote de até 10 produtos distintos, com reserva condicional atômica no PostgreSQL, independente da instalação OAuth.
+- Demo alterado pela usuária para 10 lotes gratuitos por loja, cada um com até 10 produtos distintos. Reserva condicional atômica e contador no PostgreSQL, independente da instalação OAuth.
 - Envios por caminhos locais foram retirados da API HTTP; a CLI administrativa continua disponível.
 - Sessões, fotos temporárias, relatórios e jobs exigem autenticação e vínculo com a loja.
 - Manual token de outra loja não substitui o token da loja autenticada.
@@ -60,4 +60,9 @@ Encontrado e corrigido: modo adicionar enviava novas imagens começando na posi�
 
 Revisão visual local: desktop e celular; sem overflow horizontal no celular. Três etapas, exemplos de nomes, comparação entre fotos novas/atuais e SKU/CSV nas opções avançadas. Interface reconheceu 10/10 produtos e simulação mostrou 10 produtos, zero uploads e zero erros. Confirmação de envio no navegador integrado ficou pendente do clique da usuária: a janela JavaScript bloqueou o controle. Servidor isolado de teste em localhost:3135; nenhuma loja real foi alterada. scripts/visual-preview.mjs permite repetir a revisão com catálogo fictício, sem OAuth, banco ou cobrança reais.
 
-Limite ainda segue a definição anterior de um único lote de até 10 produtos. A pergunta sobre a expressão “10 lotes” está pendente; não alterar para dez lotes sem a resposta.
+A usuária confirmou depois desta revisão: 10 lotes gratuitos por loja. A implementação e os testes abaixo substituem a regra anterior de um lote.
+## Regra final do demo — 04/10/2026
+
+A usuária confirmou 10 lotes gratuitos por loja; somente depois do décimo lote há exigência de pagamento único de R$79,90. Cada lote gratuito mantém até 10 produtos distintos. Contador demo_batches_used é persistido separado de OAuth; reserva condicional atômica incrementa somente abaixo de 10. Migração mantém o consumo anterior como 1 lote quando demo_used_at já está preenchido, sem zerar consumo em reinícios. Prévia/simulação não incrementam. Contadores inválidos bloqueiam acesso; falha parcial conserva o consumo.
+
+28 testes passaram: integração com serviço real e API/armazenamento simulados por nome e por SKU aceita os lotes 1–10, rejeita o 11º, não reseta ao reconectar e libera novos lotes para acesso pago. Vinte tentativas simultâneas com nove lotes já utilizados aceitam exatamente uma reserva. PostgreSQL real e loja demo real ainda não validados. UI e guia mostram 10 lotes e saldo restante. A alteração está apenas na versão em preparação, sem implantação no Render.

@@ -14,7 +14,7 @@ Pastas com SKU e filtro CSV continuam em opções avançadas. A associação é 
 
 ## Demo e acesso
 
-Um único lote grátis de até 10 produtos distintos por loja. Várias fotos do mesmo produto contam uma vez. Prévia e simulação não consomem o demo. O início do envio real reserva o demo; falhas parciais não liberam um novo lote.
+10 lotes grátis por loja, cada um com até 10 produtos distintos. Várias fotos do mesmo produto contam uma vez. Prévia e simulação não consomem lotes. O início de cada envio real reserva um lote; falhas parciais não devolvem o lote. O 11º envio exige acesso pago. A interface mostra quantos lotes restam; reconectar não zera a contagem.
 
 Depois do demo, pagamento único de **R$79,90 por loja**, pela **Nuvemshop**, deve liberar novos lotes e reutilizações na mesma loja. O receptor de confirmação nativa está implementado em `/webhooks/billing`, validando HMAC, aplicativo, loja, valor, moeda e conceito. **Preço aprovado pela usuária; configuração da cobrança no Partners e validação do fluxo pendentes.** O bloqueio é feito no servidor e persistido no PostgreSQL, independente da autorização OAuth. Sem DATABASE_URL, o processamento fica bloqueado. Não há checkout externo.
 

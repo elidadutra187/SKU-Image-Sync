@@ -15,7 +15,7 @@ const artifacts=await fs.mkdtemp(path.join(os.tmpdir(),'imagem-visual-'));
 const image='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1ioAAAAASUVORK5CYII=';
 const colors=['Azul','Verde','Vermelha','Amarela','Branca','Preta','Roxa','Rosa','Cinza','Laranja','Bege'];
 const products=colors.map((color,index)=>({id:index+1,name:`Camiseta ${color}`,variants:[{sku:`CAM-${String(index+1).padStart(3,'0')}`}]}));
-let demoUsed=false;
+let demoBatchesUsed=0;
 const client={
   async getProducts(){return products;},
   async getProduct(id){const item=products.find(p=>String(p.id)===String(id));if(!item)throw new Error('unknown product');return item;},
@@ -25,7 +25,7 @@ const client={
   async delay(){},
 };
 NuvemshopClient.fromStore=async()=>client;
-const access=createCommercialAccess({async status(){return {paid:false,demoUsed};},async reserve(){if(demoUsed)return false;demoUsed=true;return true;}});
+const access=createCommercialAccess({async status(){return {paid:false,demoBatchesUsed};},async reserve(){if(demoBatchesUsed>=10)return false;demoBatchesUsed++;return true;}});
 const app=express();app.use(express.json());
 app.get('/auth/status',(req,res)=>{setStoreSession(res,'visual-test');res.json({success:true,connected:true,storeId:'visual-test'});});
 app.get('/auth/install',(req,res)=>res.redirect('/'));

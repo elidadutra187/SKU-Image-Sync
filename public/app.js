@@ -32,8 +32,8 @@ function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?'Seu lote grátis já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
-    :'Experimente grátis: envie um único lote de até 10 produtos. Você pode conferir e simular antes de enviar.';
+    ?'Seus 10 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
+    :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. Cada lote permite até ${access.demoProducts} produtos. Conferir e simular não consome lotes.`;
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.purchaseConfigured
     ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
@@ -119,7 +119,7 @@ async function preview() {
 }
 async function run(dryRun) {
   const selectedSkus=selected(),mode=$('mode').value;
-  const demoNotice=state.access?.paid?'':' Ao iniciar, seu lote demo será utilizado.';
+  const demoNotice=state.access?.paid?'':' Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.';
   if(!dryRun && !window.confirm(mode==='replace'
     ?'Este modo vai remover as fotos atuais dos produtos selecionados e enviar as novas. Confirma?'
     :'Você conferiu os produtos e as fotos? Enviar agora?'+demoNotice))return;

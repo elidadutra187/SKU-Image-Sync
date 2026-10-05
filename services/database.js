@@ -39,9 +39,17 @@ export async function initializeDatabase() {
     create table if not exists image_sync_access (
       store_id text primary key,
       demo_used_at timestamptz,
+      demo_batches_used integer not null default 0,
       paid_at timestamptz,
       payment_reference text unique
     )
   `);
+  // Preserve consumption from the previous one-batch demo when migrating.
+  await client.query('alter table image_sync_access add column if not exists demo_batches_used integer');
+  await client.query(`update image_sync_access set demo_batches_used=
+    case when demo_used_at is null then 0 else 1 end where demo_batches_used is null`);
+  await client.query('alter table image_sync_access alter column demo_batches_used set default 0');
+  await client.query('alter table image_sync_access alter column demo_batches_used set not null');
   initialized = true;
 }
+
