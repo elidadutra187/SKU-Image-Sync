@@ -1,5 +1,8 @@
 # Instruções do projeto
 
+- Nome público: Imagem em Lote. URL de produção: https://imagememlote.onrender.com. Manter o identificador técnico do repositório SKU-Image-Sync.
+- Serviço Render principal: srv-db1ejulg1s2s739r08v0. O serviço srv-d8f18h8g4nts738dgdkg mantém o endereço antigo durante a transição; não apagar antes de confirmar as URLs do Partners.
+
 - A experiência principal é selecionar fotos pelo nome do arquivo; pastas com SKU e CSV são opções avançadas.
 - Usar português claro e exemplos do ponto de vista do lojista. Não expor configuração de servidor no fluxo do cliente.
 - Não usar IA visual para associar fotos. Comparar SKU exato e nome normalizado com o catálogo da loja autenticada.
