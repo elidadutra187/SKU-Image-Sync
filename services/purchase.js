@@ -1,5 +1,5 @@
 import {getPool,initializeDatabase} from './database.js';
-import commercialAccess from './commercialAccess.js';
+import commercialAccess,{DEMO_BATCHES} from './commercialAccess.js';
 import NuvemshopClient from './nuvemshop.js';
 import {nativeBillingConfigured,registerBillingWebhooks} from './nativeBilling.js';
 const fail=(message,status)=>Object.assign(new Error(message),{status,public:true});
@@ -7,8 +7,8 @@ export function createPurchaseRepository(poolProvider=getPool,initialize=initial
   async pool(){const pool=poolProvider();if(!pool)throw fail('Não foi possível verificar seu acesso. Tente novamente mais tarde.',503);await initialize();return pool;},
   async claim(storeId){const pool=await this.pool();const {rows}=await pool.query(`insert into image_sync_purchase(store_id,status)
     select $1,'creating' where exists(select 1 from stores where store_id=$1)
-    and exists(select 1 from image_sync_access where store_id=$1 and demo_batches_used=10 and paid_at is null)
-    on conflict(store_id) do nothing returning store_id`,[storeId]);return rows.length===1;},
+    and exists(select 1 from image_sync_access where store_id=$1 and demo_batches_used >= $2 and paid_at is null)
+    on conflict(store_id) do nothing returning store_id`,[storeId,DEMO_BATCHES]);return rows.length===1;},
   async get(storeId){const pool=await this.pool();const {rows}=await pool.query('select status,charge_id as "chargeId" from image_sync_purchase where store_id=$1',[storeId]);return rows[0] || null;},
   async save(chargeId,storeId){const pool=await this.pool();await pool.query("update image_sync_purchase set charge_id=$1,status=case when status='paid' then status else 'pending' end,updated_at=now() where store_id=$2",[chargeId,storeId]);}
 };}
@@ -29,7 +29,7 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
     if(!configured())throw fail('A compra pela Nuvemshop ainda não está disponível. Fale com o suporte.',503);
     const current=await access.status(storeId);
     if(current.paid)return {status:'paid'};
-    if(current.demoBatchesUsed!==10)throw fail('Utilize seus 10 lotes gratuitos antes de comprar.',409);
+    if(current.demoBatchesUsed<DEMO_BATCHES)throw fail(`Utilize seus ${DEMO_BATCHES} lotes gratuitos antes de comprar.`,409);
     const client=await clientForStore(storeId);
     // Register the paid notification before creating any charge.
     if(!client.requestCharge)await prepareClient(client);
