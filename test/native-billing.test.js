@@ -13,7 +13,7 @@ test('only a signed native paid charge for this app grants one-time access',asyn
   const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
   const url=`http://127.0.0.1:${server.address().port}/billing`;
   const body={store_id:123,event:'charge/paid',app_id:33268,id:'charge-1',
-    charge:{id:'charge-1',concept_code:'plan-cost',amount_value:79.9,amount_currency:'BRL'}};
+    charge:{id:'charge-1',concept_code:'app-cost',amount_value:79.9,amount_currency:'BRL'}};
   const send=async(payload,signed=true)=>{
     const raw=JSON.stringify(payload);
     return fetch(url,{method:'POST',headers:{'content-type':'application/json',

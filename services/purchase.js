@@ -38,7 +38,7 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
     const body={description:'Imagem em Lote: acesso em pagamento único por loja',
       external_reference:`imagememlote-${appId}-${storeId}-one-time`,
       from_date:from.toISOString(),to_date:to.toISOString(),amount_value:79.90,amount_currency:'BRL',
-      concept_code:process.env.NUVEMSHOP_BILLING_CONCEPT || 'plan-cost'};
+      concept_code:process.env.NUVEMSHOP_BILLING_CONCEPT || 'app-cost'};
     try{
       const charge=client.requestCharge?await client.requestCharge(body):await requestNativeCharge(client,body,appId);
       if(!charge?.id || String(charge.id).length>128 || Number(charge.amount_value)!==79.9 || charge.amount_currency!=='BRL')throw new Error('invalid_charge_response');

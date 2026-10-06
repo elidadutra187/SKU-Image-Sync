@@ -57,7 +57,7 @@ export function createBillingWebhook(options={}) {
     if(!/^[1-9]\d*$/.test(storeId) || !chargeId || chargeId.length>128
       || String(charge?.id)!==chargeId || cents(charge?.amount_value)!==price
       || charge?.amount_currency!==(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL')
-      || charge?.concept_code!==(options.concept ?? process.env.NUVEMSHOP_BILLING_CONCEPT ?? 'plan-cost')) {
+      || charge?.concept_code!==(options.concept ?? process.env.NUVEMSHOP_BILLING_CONCEPT ?? 'app-cost')) {
       return res.json({success:true,ignored:true});
     }
     try {
