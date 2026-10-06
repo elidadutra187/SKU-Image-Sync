@@ -25,7 +25,7 @@ test('native charge POST performs one request and does not retry a server failur
 });
 test('an ambiguous network failure preserves the intent instead of creating another charge',async()=>{
   assert.equal(typeof module.createPurchaseService,'function');let intent=null,calls=0;
-  const service=module.createPurchaseService({configured:()=>true,appId:'33268',access:{async status(){return {paid:false,demoBatchesUsed:10};}},
+  const service=module.createPurchaseService({configured:()=>true,appId:'33268',access:{async status(){return {paid:false,demoBatchesUsed:2};}},
     repository:{async claim(){if(intent)return false;intent={status:'creating'};return true;},async get(){return intent;},async save(){}},
     clientForStore:async()=>({async requestCharge(){calls++;throw new Error('network_timeout');}})});
   await assert.rejects(()=>service.purchase('123',true),e=>e.status===503);
