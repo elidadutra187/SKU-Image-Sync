@@ -1,3 +1,5 @@
+> Atualização de 06/10/2026: por decisão mais recente da usuária, o demo passa a permitir **2 lotes gratuitos por loja**, mantendo até 10 produtos distintos por lote. O 3º envio exige acesso pago. Contadores antigos acima de 2 permanecem registrados e são tratados como demo encerrado. Esta decisão substitui as referências históricas abaixo ao limite anterior de 10 lotes.
+
 # Preparação para reabertura — 04/10/2026
 
 ## Atualização de idioma e validação — 05/10/2026
