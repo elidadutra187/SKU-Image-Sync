@@ -1,14 +1,14 @@
 import {getPool, initializeDatabase} from './database.js';
 import {nativeBillingConfigured} from './nativeBilling.js';
 export const DEMO_PRODUCTS = 10;
-export const DEMO_BATCHES = 10;
+export const DEMO_BATCHES = 2;
 
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
 export function validateBatchAccess(access,count) {
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
   if (access.paid) return;
-  if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied('Seus 10 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 libera novos lotes e reutilizações.');
+  if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied('Seus 2 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 libera novos lotes e reutilizações.');
   if (count > DEMO_PRODUCTS) throw denied('Cada lote gratuito permite até 10 produtos. Selecione até 10 para continuar.');
 }
 
@@ -46,18 +46,18 @@ export function createCommercialAccess(repository=postgresRepository) {
     async status(storeId) {
       if (!storeId) throw denied('Conecte sua loja para continuar.',401);
       const current=await repository.status(storeId);
-      if(!Number.isInteger(current.demoBatchesUsed) || current.demoBatchesUsed<0 || current.demoBatchesUsed>DEMO_BATCHES) {
+      if(!Number.isInteger(current.demoBatchesUsed) || current.demoBatchesUsed<0) {
         throw denied('Não foi possível verificar os lotes gratuitos. Tente novamente mais tarde.',503);
       }
       return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
-        demoBatches:DEMO_BATCHES,demoBatchesRemaining:DEMO_BATCHES-current.demoBatchesUsed,demoProducts:DEMO_PRODUCTS,
+        demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,
         purchaseConfigured:nativeBillingConfigured(),paymentProvider:'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false}={}) {
       const access=await this.status(storeId);
       validateBatchAccess(access,new Set(productIds.map(String)).size);
       if (!dryRun && !access.paid && !await repository.reserve(storeId)) {
-        throw denied('Seus 10 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 libera novos lotes e reutilizações.');
+        throw denied('Seus 2 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 libera novos lotes e reutilizações.');
       }
       return access;
     }
