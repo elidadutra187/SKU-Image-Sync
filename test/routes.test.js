@@ -13,7 +13,7 @@ test('guided import authenticates, resolves names, validates choices and enforce
     const product=products.find(item=>String(item.id)===String(id)); if(!product)throw new Error('missing'); return product;
   },async getProductImages(){return [];}};
   const access=createCommercialAccess({async status(){return {paid:false,demoBatchesUsed:consumed};},
-    async reserve(){if(consumed>=10)return false;consumed++;return true;}});
+    async reserve(){if(consumed>=2)return false;consumed++;return true;}});
   const app=express(); app.use(express.json()); app.use('/sync',syncRoutes.createSyncRouter({
     clientForStore:async()=>client,access,
     serviceFactory:()=>({async run(){assert.equal(consumed,1);runs++;return {stats:{processed:1}};}})
@@ -43,7 +43,7 @@ test('guided import authenticates, resolves names, validates choices and enforce
     assert.ok(started.jobId);
     for(let n=0;n<20 && !runs;n++) await new Promise(resolve=>setTimeout(resolve,10));
     assert.equal(runs,1);
-    const status=await (await fetch(`${url}/access`,{headers})).json(); assert.equal(status.demoUsed,false);assert.equal(status.demoBatchesRemaining,9);
+    const status=await (await fetch(`${url}/access`,{headers})).json(); assert.equal(status.demoUsed,false);assert.equal(status.demoBatchesRemaining,1);
     const unauthorized=await fetch(`${url}/job/${started.jobId}`); assert.equal(unauthorized.status,401);
   } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 });
