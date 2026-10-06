@@ -34,7 +34,7 @@ function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?'Seus 10 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
+    ?'Seus 2 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
     :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. Cada lote permite até ${access.demoProducts} produtos. Conferir e simular não consome lotes.`;
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.purchaseConfigured
