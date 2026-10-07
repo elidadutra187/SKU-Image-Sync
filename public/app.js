@@ -19,15 +19,16 @@ function busy(value,text) {
   updateActions();
 }
 function updateActions() {
+  $('retainNotice').hidden=$('mode').value!=='add';
   for(const checkbox of document.querySelectorAll('[data-select]')) {
     checkbox.disabled=state.busy || !state.items.find(item=>item.sku===checkbox.value)?.product || !state.session;
   }
   if(state.access)$('purchase').disabled=state.busy || ['creating','pending'].includes(state.access.purchaseStatus);
   const count=selected().length;
   $('preview').disabled=state.busy || !state.connected || !state.files.length;
-  $('simulate').disabled=state.busy || !count;
+  $('simulate').disabled=state.busy || !count || !state.session;
   const blocked=state.access && !state.access.paid && state.access.demoUsed;
-  $('send').disabled=state.busy || !count || !state.access || blocked;
+  $('send').disabled=state.busy || !count || !state.session || !state.access || blocked;
   $('selectionCount').textContent=count ? `${count} grupo(s) selecionado(s). Cada produto conta uma vez no demo.` : 'Marque os produtos que deseja atualizar.';
 }
 function renderAccess(access) {
@@ -61,6 +62,8 @@ function groups() {
 function updateBatches() {
   const count=groups().length,size=Number($('batchSize').value),old=Number($('batchPage').value || 0);
   const pages=Math.max(1,Math.ceil(count/size));$('batchPage').replaceChildren();
+  $('batchOptions').hidden=count<=10;
+  if(pages>1)$('batchOptions').open=true;
   for(let index=0;index<pages;index++)$('batchPage').add(new Option(count?`Lote ${index+1}: grupos ${index*size+1} a ${Math.min((index+1)*size,count)}`:'Selecione as fotos',String(index)));
   $('batchPage').value=String(Math.min(old,pages-1));
   $('fileCount').textContent=count?`${state.files.length} foto(s) selecionada(s), em ${count} grupo(s). Confira os produtos na próxima etapa.`:'Nenhuma foto selecionada.';
@@ -69,7 +72,7 @@ function selectFiles(files) {
   state.files=[...files].filter(file=>/\.(jpe?g|png|webp|gif)$/i.test(file.name));
   state.session=null;state.items=[];$('review').hidden=true;$('report').hidden=true;
   updateBatches();updateActions();
-  message('Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.');
+  message(state.files.length?'Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.':'Selecione fotos JPG, PNG, WebP ou GIF para continuar.');
 }
 function images(list,local) {
   return list.length?`<div class="photos">${list.map(image=>`<figure><img ${local?'data-no-translate':''} loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption ${local?'data-no-translate':''}>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
@@ -104,6 +107,7 @@ function renderItems() {
     $('products').append(card);
   }
   $('reviewSummary').textContent=`${state.items.filter(item=>item.status==='ok').length} de ${state.items.length} grupo(s) associado(s). Grupos sem produto não serão enviados.`;
+  $('matchHelp').hidden=state.items.every(item=>item.product);
   updateActions();
 }
 async function preview() {
@@ -172,7 +176,7 @@ $('refreshAccess').addEventListener('click',async()=>{
 });
 $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener('click',()=>run(false));
 $('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateActions();});
-$('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';});
+$('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';updateActions();});
 async function initialize() {
   try {
     const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);

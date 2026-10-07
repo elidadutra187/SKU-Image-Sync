@@ -42,23 +42,26 @@
   </div>
   <section class="panel" aria-labelledby="uploadTitle">
     <h2 id="uploadTitle">1. Selecione suas fotos</h2>
+    <p>Escolha as fotos do seu computador. Você pode conferir e escolher o produto antes de enviar.</p>
+    <details><summary>Como nomear as fotos para encontrar o produto automaticamente?</summary>
     <p>Se o produto se chama <strong>Camiseta Azul</strong>, você pode usar:</p>
     <p><code>Camiseta Azul_01.jpg</code> · <code>Camiseta Azul_02.jpg</code> · <code>Camiseta Azul_03.jpg</code></p>
-    <p class="muted">Acentos, espaços, hífens e sublinhados são aceitos. Os números finais 01, 02 e 03 indicam fotos do mesmo produto. Arquivos como <code>IMG_1234.jpg</code> precisam de associação manual.</p>
+    <p class="muted">Acentos, espaços, hífens e sublinhados são aceitos. Os números finais 01, 02 e 03 indicam fotos do mesmo produto. Arquivos como <code>IMG_1234.jpg</code> precisam de associação manual.</p></details>
     <div id="dropzone" class="dropzone"><label for="images">Selecionar imagens ou arrastar arquivos para cá<input id="images" type="file" accept=".jpg,.jpeg,.png,.webp,.gif" multiple></label><p class="muted">JPG, PNG, WebP ou GIF. Até 10 MB por imagem.</p><p id="fileCount" class="muted">Nenhuma foto selecionada.</p></div>
-    <div class="row"><label for="batchSize">Tamanho do lote<select id="batchSize"><option value="10">Até 10 grupos de fotos</option><option value="20">Até 20 grupos de fotos</option><option value="50">Até 50 grupos de fotos</option></select></label><label for="batchPage">Lote para conferir<select id="batchPage"><option value="0">Selecione as fotos</option></select></label></div>
+    <details id="batchOptions" hidden><summary>Organizar as fotos em lotes</summary><p class="muted">Confira e envie um lote de cada vez. As outras fotos continuam selecionadas.</p><div class="row"><label for="batchSize">Tamanho do lote<select id="batchSize"><option value="10">Até 10 grupos de fotos</option><option value="20">Até 20 grupos de fotos</option><option value="50">Até 50 grupos de fotos</option></select></label><label for="batchPage">Lote para conferir<select id="batchPage"><option value="0">Selecione as fotos</option></select></label></div></details>
     <details><summary>Já uso pastas com SKU ou uma planilha de SKUs</summary><p class="muted">Essa opção continua disponível. Uma subpasta por produto, começando pelo SKU: <code>ABC-123 - Camiseta</code>. A planilha é opcional e filtra os produtos encontrados.</p><label for="folder">Selecionar pasta de fotos<input id="folder" type="file" webkitdirectory multiple accept="image/*"></label><label for="csv">Filtrar por CSV de SKUs (opcional)<input id="csv" type="file" accept=".csv,text/csv"></label></details>
     <div class="actions"><button id="preview" disabled>Encontrar produtos</button></div>
   </section>
   <p id="message" class="message" role="status" aria-live="polite">Comece conectando sua loja e selecionando as fotos. Nenhuma imagem é alterada ao gerar a prévia.</p>
   <p id="loading" class="muted" hidden>Aguarde a conclusão desta etapa...</p>
   <section id="review" class="panel" hidden aria-labelledby="reviewTitle">
-    <h2 id="reviewTitle">2. Confira antes de enviar</h2><p id="reviewSummary"></p>
+    <h2 id="reviewTitle">2. Confira antes de enviar</h2><p id="reviewSummary"></p><p id="matchHelp" class="notice" hidden>Faltou encontrar um produto? Busque pelo nome e confirme na lista abaixo.</p>
     <p class="muted">Produtos com nomes iguais ou incompletos exigem sua escolha. Confira também as fotos atuais para evitar enviar imagens repetidas.</p>
     <div id="products"></div>
     <h2>3. Envie as fotos</h2><p id="selectionCount"></p>
     <details><summary>Opções avançadas de atualização</summary><label for="mode">O que fazer com as fotos atuais?<select id="mode"><option value="add">Manter as atuais e adicionar as novas (recomendado)</option><option value="sync">Atualizar fotos enviadas anteriormente pelo app</option><option value="replace">Remover as atuais e enviar estas fotos</option></select></label><p id="modeHelp" class="muted">As fotos atuais serão mantidas.</p></details>
-    <div class="actions"><button id="simulate" class="secondary" disabled>Simular sem alterar a loja</button><button id="send" disabled>Enviar fotos selecionadas</button><a id="report" href="#" hidden>Baixar relatório</a></div>
+    <p id="retainNotice" class="muted">Enviar adiciona as fotos e mantém as atuais. Confira os produtos marcados antes de continuar.</p>
+    <div class="actions"><button id="send" disabled>Enviar fotos selecionadas</button><button id="simulate" class="secondary" disabled>Simular sem alterar a loja</button><a id="report" href="#" hidden>Baixar relatório</a></div>
   </section>
   <footer><a href="/how-to">Como usar</a><a href="/support">Preciso de ajuda</a><a href="/privacy">Privacidade</a></footer>
 </main><script type="module" src="/app.js"></script><script src="/elunalab-footer.js" defer></script></body></html>

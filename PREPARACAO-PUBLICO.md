@@ -148,3 +148,12 @@ Testes frescos: nove testes de demo/compra/webhook aprovados, incluindo dez lote
 View Subscriptions autorizada e salva; OAuth reconectado. API retornou Concept should be app-cost para o conceito antigo plan-cost. Corrigidos os padrões de compra, webhook e .env.example para app-cost; teste de webhook reproduziu falha antes e passou após correção. Suíte completa: 41 aprovados, zero falhas, um opt-in ignorado nesta execução; PostgreSQL real passou separadamente.
 
 Consulta app-cost revelou assinatura existente da demo com amount_value 79.90 BRL, recurring_frequency M, next_execution 2026-10-16, last_execution 2026-10-05. Partners Brasil confirmado Pagamento único selecionado, 79,90, mensal desmarcado. Divergência entre ficha e assinatura já instalada não foi resolvida. Não criar cobrança adicional: pode duplicar cobrança existente. Edit Subscriptions permanece não autorizada; nenhum preço/assinatura existente alterado nesta investigação. Cobrança do aplicativo continua desativada. Decisão da usuária reiterada: R$79,90 em pagamento único por loja após dez lotes.
+
+
+## Simplificação da interface — 07/10/2026
+
+- Instruções detalhadas de nomes ficam recolhidas; a seleção de fotos é a ação principal.
+- Controles de lotes aparecem somente quando há mais de dez grupos.
+- Prévia orienta a buscar manualmente produtos não encontrados; envio destaca a preservação das fotos atuais.
+- Simular e enviar exigem uma prévia válida, inclusive depois de trocar o lote.
+- Textos adicionados traduzidos em português, inglês e espanhol. Limite vigente de dois lotes gratuitos preservado.

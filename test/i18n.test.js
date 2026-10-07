@@ -17,11 +17,11 @@ test('all pages switch languages, retain selection and translate dynamic updates
       assert.equal(w.document.querySelectorAll('#app-language').length,1);
       if(page==='support')assert.equal(w.document.querySelector('#name').placeholder,language==='en'?'Your name':language==='es'?'Tu nombre':'Seu nome');
     }
-    const original='Seus 10 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 libera novos lotes e reutilizações.';
+    const original='Seus 2 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 libera novos lotes e reutilizações.';
     const status=w.document.createElement('p');status.textContent=original;w.document.body.append(status);
     const merchant=w.document.createElement('span');merchant.dataset.noTranslate='';merchant.textContent='Camiseta Azul';w.document.body.append(merchant);
     select.value='en';select.dispatchEvent(new w.Event('change'));
-    assert.match(status.textContent,/10 free batches/);assert.equal(merchant.textContent,'Camiseta Azul');
+    assert.match(status.textContent,/both free batches/);assert.equal(merchant.textContent,'Camiseta Azul');
     status.textContent='Processando: 2 de 10 produto(s).';await new Promise(resolve=>setTimeout(resolve,5));
     assert.equal(status.textContent,'Processing: 2 of 10 product(s).');
     select.value='es';select.dispatchEvent(new w.Event('change'));assert.equal(status.textContent,'Procesando: 2 de 10 producto(s).');
@@ -47,3 +47,4 @@ test('interface text across all pages has English and Spanish translations',asyn
     dom.window.close();
   }
 });
+
