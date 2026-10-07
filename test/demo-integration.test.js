@@ -16,7 +16,7 @@ const image=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const colors=['Azul','Verde','Vermelha','Amarela','Branca','Preta','Roxa','Rosa','Cinza','Laranja','Bege'];
 
 for(const mode of ['name','sku-folder']) {
-  test(`HTTP import by ${mode}: ten free batches and the eleventh requires payment`,async(t)=>{
+  test(`HTTP import by ${mode}: one free batch of ten images; further uploads require payment`,async(t)=>{
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'imagem-demo-'));
     const sessions=[];
     const products=colors.map((color,index)=>({id:index+1,name:`Camiseta ${color}`,variants:[{sku:`CAM-${String(index+1).padStart(3,'0')}`}]}));
@@ -33,7 +33,7 @@ for(const mode of ['name','sku-folder']) {
     let consumed=0,paid=false;
     const access=createCommercialAccess({
       async status(){return {paid,demoBatchesUsed:consumed};},
-      async reserve(){if(consumed>=10)return false;consumed++;return true;},
+      async reserve(){if(consumed>=1)return false;consumed++;return true;},
     });
     const app=express();app.use(express.json());
     app.use('/sync',createSyncRouter({clientForStore:async()=>client,access,
@@ -78,9 +78,7 @@ for(const mode of ['name','sku-folder']) {
       assert.deepEqual(uploaded.map(item=>Number(item.id)).sort((a,b)=>a-b),products.slice(0,10).map(p=>p.id));
       assert.ok(uploaded.every(item=>item.position===2));
       headers={cookie:cookieFor((mode==='name'?'111':'222'))};
-      for(let batch=2;batch<=10;batch++) {
-        const free=await preview(1);await completed(await run(free));assert.equal(consumed,batch);
-      }
+
       const next=await preview(1);assert.equal((await run(next)).status,402);assert.equal(uploaded.length,10);
       const foreignHeaders={cookie:cookieFor('333'),'content-type':'application/json'};
       assert.equal((await fetch(`${base}/session/${next.sessionId}/run`,{method:'POST',headers:foreignHeaders,body:JSON.stringify({selectedSkus:next.items.map(i=>i.sku)})})).status,403);

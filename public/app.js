@@ -27,16 +27,18 @@ function updateActions() {
   const count=selected().length;
   $('preview').disabled=state.busy || !state.connected || !state.files.length;
   $('simulate').disabled=state.busy || !count || !state.session;
+  const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
+  const oversized=state.access && !state.access.paid && imageCount>10;
   const blocked=state.access && !state.access.paid && state.access.demoUsed;
-  $('send').disabled=state.busy || !count || !state.session || !state.access || blocked;
-  $('selectionCount').textContent=count ? `${count} grupo(s) selecionado(s). Cada produto conta uma vez no demo.` : 'Marque os produtos que deseja atualizar.';
+  $('send').disabled=state.busy || !count || !state.session || !state.access || blocked || oversized;
+  $('selectionCount').textContent=count ? `${imageCount} imagem(ns) selecionada(s). ${oversized ? 'No gratuito, selecione no máximo 10 imagens.' : 'Confira as fotos antes de enviar.'}` : 'Marque os produtos que deseja atualizar.';
 }
 function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?'Seus 2 lotes gratuitos já foram utilizados. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
-    :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. Cada lote permite até ${access.demoProducts} produtos. Conferir e simular não consome lotes.`;
+    ?'Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
+    :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. O lote gratuito permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.purchaseConfigured
     ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
@@ -53,7 +55,7 @@ function groups() {
   for(const file of state.files) {
     const parts=(file.webkitRelativePath || file.name).replaceAll('\\','/').split('/');
     const label=parts.length>1?parts.at(-2):imageGroupName(file.name);
-    const key=normalizeName(label);
+    const key=$('individual').checked ? String(state.files.indexOf(file)) : normalizeName(label);
     if(!result.has(key))result.set(key,{label,files:[]});
     result.get(key).files.push(file);
   }
@@ -114,6 +116,7 @@ async function preview() {
   const size=Number($('batchSize').value),start=Number($('batchPage').value)*size;
   const files=groups().slice(start,start+size).flatMap(group=>group.files);
   const form=new FormData();files.forEach(file=>form.append('images',file,file.name));
+  form.append('individual',String($('individual').checked));
   form.append('manifest',JSON.stringify(files.map(file=>({path:file.webkitRelativePath || file.name}))));
   if($('csv').files[0])form.append('csv',$('csv').files[0]);
   busy(true,'Encontrando os produtos pelo nome das fotos. Aguarde...');
@@ -152,6 +155,7 @@ async function run(dryRun) {
     busy(false);if(!state.session){$('simulate').disabled=true;$('send').disabled=true;}
   }
 }
+$('individual').addEventListener('change',()=>{state.session=null;state.items=[];$('review').hidden=true;updateBatches();updateActions();});
 $('images').addEventListener('change',event=>selectFiles(event.target.files));
 $('folder').addEventListener('change',event=>selectFiles(event.target.files));
 for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=>{

@@ -13,7 +13,7 @@ test('guided import authenticates, resolves names, validates choices and enforce
     const product=products.find(item=>String(item.id)===String(id)); if(!product)throw new Error('missing'); return product;
   },async getProductImages(){return [];}};
   const access=createCommercialAccess({async status(){return {paid:false,demoBatchesUsed:consumed};},
-    async reserve(){if(consumed>=2)return false;consumed++;return true;}});
+    async reserve(){if(consumed>=1)return false;consumed++;return true;}});
   const app=express(); app.use(express.json()); app.use('/sync',syncRoutes.createSyncRouter({
     clientForStore:async()=>client,access,
     serviceFactory:()=>({async run(){assert.equal(consumed,1);runs++;return {stats:{processed:1}};}})
@@ -39,11 +39,18 @@ test('guided import authenticates, resolves names, validates choices and enforce
     const run=async(id,body)=>fetch(`${url}/session/${id}/run`,{method:'POST',
       headers:{...headers,'content-type':'application/json'},body:JSON.stringify(body)});
     assert.equal((await run(preview.sessionId,{dryRun:'false'})).status,400);
+    const manualForm=new FormData();manualForm.append('individual','true');
+    for(let n=1;n<=11;n++)manualForm.append('images',new Blob(['image-'+n],{type:'image/jpeg'}),'IMG_'+n+'.jpg');
+    const manual=await (await fetch(url+'/preview',{method:'POST',headers,body:manualForm})).json();
+    assert.equal(manual.items.length,11);assert.ok(manual.items.every(item=>!item.product));
+    for(const item of manual.items){const matched=await (await fetch(url+'/session/'+manual.sessionId+'/match',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({groupId:item.sku,productId:1})})).json();assert.equal(matched.item.product.id,1);}
+    const oversized=await run(manual.sessionId,{selectedSkus:manual.items.map(item=>item.sku)});
+    assert.equal(oversized.status,402);assert.match((await oversized.json()).error,/10 imagens/);assert.equal(consumed,0);
     const started=await (await run(preview.sessionId,{dryRun:false,selectedSkus:[preview.items[0].sku]})).json();
     assert.ok(started.jobId);
     for(let n=0;n<20 && !runs;n++) await new Promise(resolve=>setTimeout(resolve,10));
     assert.equal(runs,1);
-    const status=await (await fetch(`${url}/access`,{headers})).json(); assert.equal(status.demoUsed,false);assert.equal(status.demoBatchesRemaining,1);
+    const status=await (await fetch(`${url}/access`,{headers})).json(); assert.equal(status.demoUsed,true);assert.equal(status.demoBatchesRemaining,0);
     const unauthorized=await fetch(`${url}/job/${started.jobId}`); assert.equal(unauthorized.status,401);
   } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 });

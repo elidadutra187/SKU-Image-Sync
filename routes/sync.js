@@ -14,7 +14,7 @@ import {acquireStoreLock} from '../services/storeLock.js';
 import {syncArtifacts,reportNameForStore} from '../services/syncArtifacts.js';
 import purchaseService from '../services/purchase.js';
 
-const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,fields:3,fieldSize:256*1024,parts:503}});
+const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,fields:4,fieldSize:256*1024,parts:504}});
 const fail=(message,status=400)=>Object.assign(new Error(message),{status,public:true});
 const publicProduct=product=>({id:product.id,name:displayProductName(product)});
 
@@ -61,7 +61,7 @@ export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromSt
       const files=req.files?.images || [];
       if(!files.length)throw fail('Selecione ao menos uma foto.');
       const client=await clientForStore(req.storeId),catalog=await client.getProducts();
-      session=await createUploadSession({files,manifest,storeId:req.storeId,catalog,
+      session=await createUploadSession({files,manifest,storeId:req.storeId,catalog,individual:req.body?.individual==='true',
         csvText:req.files?.csv?.[0] ? await fs.readFile(req.files.csv[0].path,'utf8') : ''});
       session.catalog=catalog;
       for(const group of session.groups) {
@@ -114,7 +114,7 @@ export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromSt
     const releaseStoreLock=await acquireStoreLock(req.storeId);
     session.running=true;
     try {
-      await access.authorize(req.storeId,folders.map(folder=>folder.productId),{dryRun});
+      await access.authorize(req.storeId,folders.map(folder=>folder.productId),{dryRun,imageCount:session.groups.filter(group=>selected.includes(group.sku)).reduce((count,group)=>count+group.images.length,0)});
       const reportName=reportNameForStore(req.storeId);
       const job=startSyncJob({mode,dryRun,run:async(onProgress)=>{
         try {

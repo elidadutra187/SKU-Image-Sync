@@ -157,3 +157,8 @@ Consulta app-cost revelou assinatura existente da demo com amount_value 79.90 BR
 - Prévia orienta a buscar manualmente produtos não encontrados; envio destaca a preservação das fotos atuais.
 - Simular e enviar exigem uma prévia válida, inclusive depois de trocar o lote.
 - Textos adicionados traduzidos em português, inglês e espanhol. Limite vigente de dois lotes gratuitos preservado.
+
+
+## Associação por foto e novo demo — 07/10/2026
+
+Opção de separar cada foto para associação manual, sem exigir nomes iguais aos produtos. Várias fotos podem ser associadas ao mesmo produto. Limite vigente: um único lote gratuito com até dez imagens, verificado no servidor antes da reserva; contadores existentes são preservados.

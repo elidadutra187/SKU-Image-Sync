@@ -88,7 +88,7 @@ export function parseCsvSkus(text) {
   );
 }
 
-export async function createUploadSession({ files, manifest = [], csvText, batch, storeId, catalog = [] }) {
+export async function createUploadSession({ files, manifest = [], csvText, batch, storeId, catalog = [], individual = false }) {
   await cleanupExpiredUploadSessions();
 
   const sessionId = crypto.randomUUID();
@@ -114,7 +114,7 @@ export async function createUploadSession({ files, manifest = [], csvText, batch
       continue;
     }
 
-    const groupKey = exactProduct ? `product:${exactProduct.id}` : normalizeName(folderName);
+    const groupKey = individual ? `image:${index}` : exactProduct ? `product:${exactProduct.id}` : normalizeName(folderName);
     if (!groups.has(groupKey)) {
       const id = crypto.randomUUID();
       groups.set(groupKey, { sku: id, sourceFolder: folderName,

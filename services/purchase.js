@@ -29,7 +29,7 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
     if(!configured())throw fail('A compra pela Nuvemshop ainda não está disponível. Fale com o suporte.',503);
     const current=await access.status(storeId);
     if(current.paid)return {status:'paid'};
-    if(current.demoBatchesUsed<DEMO_BATCHES)throw fail(`Utilize seus ${DEMO_BATCHES} lotes gratuitos antes de comprar.`,409);
+    if(current.demoBatchesUsed<DEMO_BATCHES)throw fail('Utilize seu lote gratuito antes de comprar.',409);
     const client=await clientForStore(storeId);
     // Register the paid notification before creating any charge.
     if(!client.requestCharge)await prepareClient(client);

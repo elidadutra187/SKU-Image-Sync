@@ -11,7 +11,7 @@
 - Não usar IA visual para associar fotos. Comparar SKU exato e nome normalizado com o catálogo da loja autenticada.
 - Nomes duplicados ou aproximados exigem escolha manual. Nunca enviar uma sugestão ambígua automaticamente.
 - O padrão é adicionar mantendo fotos atuais. Substituição exige confirmação explícita.
-- O demo permite exatamente 2 lotes gratuitos por loja. Manter até 10 produtos distintos por lote gratuito; várias fotos contam como um produto. Depois do segundo lote, somente acesso pago permite novos envios. Decisão mais recente da usuária em 06/10/2026, substituindo o limite anterior de 10 lotes.
+- O demo permite exatamente 1 lote gratuito por loja com no máximo 10 imagens no total, incluindo várias fotos do mesmo produto. Depois do primeiro envio, exigir acesso pago. Decisão da usuária em 07/10/2026.
 - Prévia e simulação não consomem o demo. O envio real reserva e utiliza o demo antes das operações. Não resetar por reconexão.
 - Persistir o acesso no banco e bloquear processamento quando ele não estiver disponível. Não confiar em flags de pagamento do navegador.
 - Pagamento único de R$79,90 por loja, aprovado pela usuária em 04/10/2026, exclusivamente pela cobrança nativa da Nuvemshop. Não criar checkout externo.

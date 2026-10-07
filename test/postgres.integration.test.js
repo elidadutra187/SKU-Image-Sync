@@ -9,7 +9,7 @@ import {createStoreLock} from '../services/storeLock.js';
 import {createStoreRedactor} from '../services/storeData.js';
 import {createPurchaseRepository} from '../services/purchase.js';
 
-test('real PostgreSQL: migration, ten concurrent reservations, history persistence and store redaction', {skip:process.env.RUN_POSTGRES_TESTS!=='true'},async()=>{
+test('real PostgreSQL: migration, one concurrent reservation, history persistence and store redaction', {skip:process.env.RUN_POSTGRES_TESTS!=='true'},async()=>{
   assert.ok(process.env.DATABASE_URL,'DATABASE_URL required');
   const schema='imagem_validation_'+crypto.randomBytes(8).toString('hex');
   assert.match(schema,/^imagem_validation_[a-f0-9]{16}$/);
@@ -29,8 +29,8 @@ test('real PostgreSQL: migration, ten concurrent reservations, history persisten
     const repository=createPostgresAccessRepository(()=>pool,async()=>{}),access=createCommercialAccess(repository);
     await access.authorize('123',['1'],{dryRun:true});assert.equal((await access.status('123')).demoBatchesUsed,0);
     const attempts=await Promise.allSettled(Array.from({length:20},()=>access.authorize('123',['1'])));
-    assert.equal(attempts.filter(r=>r.status==='fulfilled').length,10);
-    assert.equal((await access.status('123')).demoBatchesUsed,10);
+    assert.equal(attempts.filter(r=>r.status==='fulfilled').length,1);
+    assert.equal((await access.status('123')).demoBatchesUsed,1);
     const purchases=createPurchaseRepository(()=>pool,async()=>{});
     const purchaseClaims=await Promise.all(Array.from({length:20},()=>purchases.claim('123')));
     assert.equal(purchaseClaims.filter(Boolean).length,1);
@@ -46,7 +46,7 @@ test('real PostgreSQL: migration, ten concurrent reservations, history persisten
     assert.deepEqual(await createImageHistory(()=>pool,async()=>{}).load('123'),state);
     assert.deepEqual(await history.load('456'),{skus:{}});
     await pool.query("update image_sync_access set paid_at=now(),payment_reference='validation-paid' where store_id='123'");
-    await reconnected.authorize('123',['1']);assert.equal((await reconnected.status('123')).demoBatchesUsed,10);
+    await reconnected.authorize('123',['1']);assert.equal((await reconnected.status('123')).demoBatchesUsed,1);
     const cleaned=[];
     await createStoreRedactor(()=>pool,async()=>{},locks,async id=>cleaned.push(id))('123');
     await createStoreRedactor(()=>pool,async()=>{},locks,async()=>{})('123');

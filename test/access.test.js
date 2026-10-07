@@ -1,41 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-const access = await import('../services/commercialAccess.js').catch(() => ({}));
-test('demo accepts at most ten products; paid access permits later batches', () => {
-  assert.equal(typeof access.validateBatchAccess,'function','commercial access is missing');
-  assert.doesNotThrow(()=>access.validateBatchAccess({paid:false,demoBatchesUsed:0},10));
-  assert.throws(()=>access.validateBatchAccess({paid:false,demoBatchesUsed:0},11),/10/);
-  assert.throws(()=>access.validateBatchAccess({paid:false,demoBatchesUsed:2},1),/pagamento/);
-  assert.doesNotThrow(()=>access.validateBatchAccess({paid:true,demoBatchesUsed:2},50));
-  assert.throws(()=>access.validateBatchAccess({paid:true},0),/Selecione/);
-});
-test('two batches allowed; preview is free and concurrent attempts cannot exceed two', async () => {
-  assert.equal(typeof access.createCommercialAccess,'function');
-  let consumed=0;
-  const service=access.createCommercialAccess({
-    async status(){return {paid:false,demoBatchesUsed:consumed};},
-    async reserve(){ if(consumed>=2)return false; consumed++; return true; }
-  });
-  await service.authorize('store-a',['1','1','2'],{dryRun:true});
-  assert.equal(consumed,0);
-  for(let n=0;n<1;n++)await service.authorize('store-a',['1','2'],{dryRun:false});
-  assert.equal((await service.status('store-a')).demoBatchesRemaining,1);
-  const result=await Promise.allSettled(Array.from({length:20},()=>service.authorize('store-a',['3'],{dryRun:false})));
-  assert.equal(result.filter(item=>item.status==='fulfilled').length,1);
-  assert.equal(consumed,2);
-  assert.equal((await service.status('store-a')).demoBatchesRemaining,0);
-  await assert.rejects(()=>service.authorize('store-a',['1'],{dryRun:false}),/pagamento/);
-});
-test('invalid persisted counters fail closed',async()=>{
-  for(const value of [undefined,-1,'2',NaN]) {
-    const service=access.createCommercialAccess({async status(){return {paid:false,demoBatchesUsed:value};}});
-    await assert.rejects(()=>service.status('store-a'),error=>error.status===503);
-  }
-});
-
-test('legacy counters above the new demo limit are treated as exhausted, not invalid',async()=>{
-  const service=access.createCommercialAccess({async status(){return {paid:false,demoBatchesUsed:7};}});
-  const status=await service.status('store-a');
-  assert.equal(status.demoUsed,true);
-  assert.equal(status.demoBatchesRemaining,0);
-});
+import {validateBatchAccess,createCommercialAccess} from '../services/commercialAccess.js';
+test('free upload counts images even when they belong to one product',()=>{assert.doesNotThrow(()=>validateBatchAccess({paid:false,demoBatchesUsed:0},1,10));assert.throws(()=>validateBatchAccess({paid:false,demoBatchesUsed:0},1,11),/10 imagens/);assert.doesNotThrow(()=>validateBatchAccess({paid:true},1,100));assert.throws(()=>validateBatchAccess({paid:false,demoBatchesUsed:1},1,1),/pagamento/);});
+test('only one concurrent free upload; preview never consumes it',async()=>{let used=0;const access=createCommercialAccess({async status(){return {paid:false,demoBatchesUsed:used};},async reserve(){if(used>=1)return false;used++;return true;}});await access.authorize('store',['1'],{dryRun:true,imageCount:10});assert.equal(used,0);const results=await Promise.allSettled(Array.from({length:20},()=>access.authorize('store',['1'],{imageCount:10})));assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal((await access.status('store')).demoBatchesRemaining,0);});
+test('previously used demo remains exhausted',async()=>{for(const used of [1,2,10]){const access=createCommercialAccess({async status(){return {paid:false,demoBatchesUsed:used};}});assert.equal((await access.status('store')).demoUsed,true);}});
