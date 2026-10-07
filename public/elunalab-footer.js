@@ -12,7 +12,6 @@
   link.href = "https://elunalab.onrender.com/";
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  link.setAttribute("aria-label", "Feito pela ElunaLab. Abrir site em uma nova aba.");
   const logo = document.createElement("img");
   logo.src = "/elunalab-logo.png";
   logo.alt = "";
@@ -20,11 +19,20 @@
   logo.height = 32;
   logo.loading = "lazy";
   const text = document.createElement("span");
-  text.append("Feito pela ");
+  const credit = document.createTextNode("Criado pela ");
+  text.append(credit);
   const name = document.createElement("strong");
   name.textContent = "ElunaLab";
   text.appendChild(name);
   link.append(logo, text);
   footer.appendChild(link);
   document.body.appendChild(footer);
+  footer.setAttribute('data-no-translate', '');
+  function localize() {
+    const language=document.documentElement.lang;
+    credit.textContent=language.startsWith('en')?'Created by ':language.startsWith('es')?'Creado por ':'Criado pela ';
+    link.setAttribute('aria-label',language.startsWith('en')?'Created by ElunaLab. Open website in a new tab.':language.startsWith('es')?'Creado por ElunaLab. Abrir sitio en una nueva pestaña.':'Criado pela ElunaLab. Abrir site em uma nova aba.');
+  }
+  localize();
+  new MutationObserver(localize).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
 })();
