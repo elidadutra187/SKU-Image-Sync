@@ -52,7 +52,7 @@ export function createCommercialAccess(repository=postgresRepository) {
       }
       return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
         demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
-        purchaseConfigured:nativeBillingConfigured(),paymentProvider:'nuvemshop'};
+        purchaseConfigured:!storeId.startsWith('yampi:') && nativeBillingConfigured(),paymentProvider:storeId.startsWith('yampi:')?'pending':'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);

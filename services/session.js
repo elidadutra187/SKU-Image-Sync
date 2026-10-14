@@ -60,7 +60,7 @@ export function readStoreSession(req) {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     const createdAt=Date.parse(data.createdAt),now=Date.now();
     if(!Number.isFinite(createdAt) || createdAt>now+60000 || now-createdAt>=SESSION_TTL_MS)return null;
-    return /^[1-9]\d*$/.test(String(data.storeId || '')) ? String(data.storeId) : null;
+    return /^(?:[1-9]\d*|yampi:[a-z0-9][a-z0-9_-]{0,99})$/.test(String(data.storeId || '')) ? String(data.storeId) : null;
   } catch {
     return null;
   }

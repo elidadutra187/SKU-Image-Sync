@@ -52,3 +52,13 @@ Autora: Elida Dutra. Repositório: [SKU-Image-Sync](https://github.com/elidadutr
 - Projeto próprio: https://script.google.com/u/1/home/projects/1SwAkwmyEuxK9aOWEiBn1gfXl9Nfk55P-2EltP7qxynJXPZZdyK58bOBa/edit . Código em scripts/google-apps-script-support.js. Executar configurarSuporte com autorização da proprietária, publicar como aplicativo web e configurar SUPPORT_WEBHOOK_URL e SUPPORT_WEBHOOK_SECRET no Render. A publicação sem login Google exige confirmação por criar novo acesso; o segredo deve permanecer somente nas propriedades do script e no Render.
 - GET /support/status mostra somente disponibilidade e e-mail público. Enquanto não configurado, o formulário fica indisponível e oferece contato direto por e-mail. Não afirmar que houve entrega sem confirmar o provedor.
 - Testes em test/support.test.js cobrem anexos, validação, origem, limites de tentativas, destinatário fixo, erros sem segredos e comprovante. Mensagens não devem expor configurações internas ao lojista.
+# Integração Yampi (14/10/2026)
+
+O mesmo painel atende Nuvemshop e Yampi. Selecione a plataforma antes de conectar; a instalação Yampi usa `/auth/yampi/install` e callback `/auth/yampi/callback`, com OAuth PKCE e somente catálogo (`view_catalog` e `manage_catalog`). Configure o Client ID próprio de Imagem em Lote em `YAMPI_CLIENT_ID`, além de `YAMPI_REDIRECT_URI=https://imagememlote.onrender.com/auth/yampi/callback` e `APP_URL=https://imagememlote.onrender.com`.
+
+Tokens Yampi são cifrados com AES-256-GCM usando `YAMPI_TOKEN_SECRET` ou a chave de sessão existente, com renovação serializada por loja. Não troque essa chave sem migrar as credenciais/reconectar lojas. PostgreSQL é obrigatório. Tabelas exclusivas: `image_sync_yampi_stores`, `image_sync_yampi_oauth`, `image_sync_yampi_media`. Identificadores de acesso e histórico usam prefixo `yampi:` para evitar colisão com Nuvemshop.
+
+Na Yampi, cada SKU/variação é um destino separado. Nomes de produtos com múltiplas variações exigem escolha manual ou SKU exato. Upload usa a API oficial de imagens por URL: uma foto recebe URL aleatória válida por dez minutos, sem token OAuth; a Yampi importa por esse endereço. Consultas têm controle de frequência; somente GET pode ser repetido em 429. POST de imagem não é repetido automaticamente para evitar duplicatas.
+
+O lote gratuito continua único por loja, até dez fotos no total. Prévia e simulação não consomem; envio reserva antes de alterar. Desconexão remove tokens, sem reiniciar gratuito. Cobrança Yampi está desabilitada, inclusive no servidor: jamais reutilizar a cobrança nativa Nuvemshop nessa plataforma. Instalação e envio numa loja Yampi real precisam ser confirmados antes de homologação; testes com API simulada não os substituem.
+

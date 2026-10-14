@@ -16,7 +16,7 @@ export function displayProductName(product) {
 }
 
 function names(product) {
-  return typeof product.name === 'string' ? [product.name] : Object.values(product.name || {});
+  return [...(typeof product.name === 'string' ? [product.name] : Object.values(product.name || {})),...(product.matchNames || [])];
 }
 
 export function matchProduct(source, catalog) {

@@ -5,6 +5,7 @@ import path from 'node:path';
 import CsvReport from '../utils/csvReport.js';
 import logger from '../utils/logger.js';
 import NuvemshopClient from './nuvemshop.js';
+import {clientForStore} from './platformClient.js';
 import {hasDatabase} from './database.js';
 import imageHistory from './imageHistory.js';
 
@@ -76,7 +77,7 @@ export class ImageSyncService {
       throw new Error(`Images root folder not found: ${this.imagesRoot}`);
     }
 
-    this.client = await NuvemshopClient.fromStore(this.storeId);
+    this.client = await clientForStore(this.storeId);
     this.report = new CsvReport(this.reportPath, {
       batchLabel: this.batch?.label,
       batchStart: this.batch?.start,

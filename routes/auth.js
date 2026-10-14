@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import NuvemshopClient from '../services/nuvemshop.js';
+import {clientForStore} from '../services/platformClient.js';
 import { saveStoredToken, tokenStatusAsync } from '../services/oauthStore.js';
 import { readStoreSession, setStoreSession } from '../services/session.js';
 import logger from '../utils/logger.js';
@@ -45,11 +46,11 @@ router.get('/status', async (req, res) => {
   try {
     const storeId = readStoreSession(req);
     if (!storeId) return res.json({connected:false});
-    const client = await NuvemshopClient.fromStore(storeId);
+    const client = await clientForStore(storeId);
     const result = await client.testConnection();
     res.json(sanitizeStatusResponse({
       ...result,
-      token: await tokenStatusAsync(result.storeId),
+      token: storeId.startsWith('yampi:')?undefined:await tokenStatusAsync(result.storeId),
     }, Boolean(storeId)));
   } catch (error) {
     const storeId = readStoreSession(req);

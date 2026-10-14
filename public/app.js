@@ -3,6 +3,10 @@ import {imageGroupName,normalizeName} from '/product-matching.js';
 
 const $=id=>document.getElementById(id);
 const state={connected:false,files:[],session:null,items:[],catalog:[],access:null,busy:false};
+const platform=$('platform');
+platform.value=new URLSearchParams(location.search).get('platform')==='yampi'?'yampi':'nuvemshop';
+const updatePlatform=()=>{$('connect').href=platform.value==='yampi'?'/auth/yampi/install':'/auth/install';};
+platform.addEventListener('change',updatePlatform);updatePlatform();
 const escape=value=>String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const selected=()=>[...document.querySelectorAll('[data-select]:checked')].map(input=>input.value);
 const message=(text,error=false)=>{ $('message').textContent=text;$('message').classList.toggle('error',error);};
@@ -37,10 +41,12 @@ function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?'Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
+    ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':'Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
     :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. O lote gratuito permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
   $('purchasePending').hidden=access.paid || !access.demoUsed;
-  $('purchasePending').textContent=access.purchaseConfigured
+  $('purchasePending').textContent=access.paymentProvider==='pending'
+    ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
+    :access.purchaseConfigured
     ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
@@ -186,8 +192,16 @@ async function initialize() {
     const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);
     $('connection').textContent=state.connected?'Loja conectada':'Conecte a loja para começar';
     $('connect').hidden=state.connected;
+    if(state.connected){platform.value=connection.platform==='yampi'?'yampi':'nuvemshop';updatePlatform();}
+    $('platformLabel').hidden=state.connected;
+    $('disconnect').hidden=!state.connected || connection.platform!=='yampi';
     if(state.connected)renderAccess(await request('/sync/access'));
   } catch(error){message(error.message,true);}
   updateActions();
 }
+$('disconnect').addEventListener('click',async()=>{
+  if(!confirm(t('Desconectar esta loja Yampi? O lote gratuito utilizado não será reiniciado.')))return;
+  try{await request('/auth/yampi/disconnect',{method:'POST'});location.href='/?platform=yampi';}
+  catch(error){message(error.message,true);}
+});
 initialize();

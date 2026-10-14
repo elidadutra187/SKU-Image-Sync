@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import ImageSyncService from '../services/imageSync.js';
 import NuvemshopClient from '../services/nuvemshop.js';
+import {clientForStore as platformClientForStore} from '../services/platformClient.js';
 import {readStoreSession} from '../services/session.js';
 import commercialAccess from '../services/commercialAccess.js';
 import {displayProductName,matchProduct} from '../services/productMatching.js';
@@ -18,7 +19,7 @@ const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,
 const fail=(message,status=400)=>Object.assign(new Error(message),{status,public:true});
 const publicProduct=product=>({id:product.id,name:displayProductName(product)});
 
-export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromStore(storeId),
+export function createSyncRouter({clientForStore=platformClientForStore,
   access=commercialAccess,serviceFactory=options=>new ImageSyncService(options)}={}) {
   const router=Router();
   const wrap=handler=>(req,res,next)=>Promise.resolve(handler(req,res)).catch(next);
@@ -49,7 +50,10 @@ export function createSyncRouter({clientForStore=storeId=>NuvemshopClient.fromSt
       suggestions:group.suggestions || []};
   }
   router.get('/access',wrap(async(req,res)=>res.json({success:true,...await access.status(req.storeId)})));
-  router.post('/purchase',wrap(async(req,res)=>res.json({success:true,...await purchaseService.purchase(req.storeId,req.body?.confirmed)})));
+  router.post('/purchase',wrap(async(req,res)=>{
+    if(req.storeId.startsWith('yampi:'))return res.status(503).json({success:false,error:'A cobrança para lojas Yampi ainda está em preparação.'});
+    res.json({success:true,...await purchaseService.purchase(req.storeId,req.body?.confirmed)});
+  }));
   for(const endpoint of ['/dry-run','/add','/sync','/replace']) {
     router.post(endpoint,(req,res)=>res.status(410).json({success:false,error:'Selecione as imagens e use a prévia para enviar seu lote.'}));
   }

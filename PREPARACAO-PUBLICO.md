@@ -162,3 +162,18 @@ Consulta app-cost revelou assinatura existente da demo com amount_value 79.90 BR
 ## Associação por foto e novo demo — 07/10/2026
 
 Opção de separar cada foto para associação manual, sem exigir nomes iguais aos produtos. Várias fotos podem ser associadas ao mesmo produto. Limite vigente: um único lote gratuito com até dez imagens, verificado no servidor antes da reserva; contadores existentes são preservados.
+
+
+## Revisão dos cinco cadastros Yampi
+Proprietária autorizou copiar informações comerciais, URLs e materiais da Nuvemshop para Yampi. Estado atual, decisões expressas, provas e bloqueios registrados em D:/Users/elida/Documents/Codex/work/yampi-cadastros/STATUS.md. Esse registro prevalece sobre o estado cadastral anterior; não equivale a nova validação técnica, cobrança implementada ou aprovação. Upload adiado expressamente pela proprietária após bloqueio da extensão. Nenhum app submetido nesta revisão.
+
+# Yampi — conferência em 14/10/2026
+
+## Implementação técnica em andamento — 14/10
+
+Adaptador Yampi implementado: OAuth PKCE/estado vinculado ao navegador e uso único no PostgreSQL, tokens AES-GCM/refresh serializado, IDs yampi:alias, catálogo paginado por SKU/variação, prévia e associação manual, upload de fotos por URL aleatória de 10 minutos, desconexão sem resetar demo, cobrança Nuvemshop bloqueada para Yampi. Atualizada privacidade e seleção de plataforma. Revisão independente apontou frequência de API e mensagem de demo; corrigidos com regressões. Suite: 53 testes, 52 passaram, 1 teste PostgreSQL real sem configuração pulado. Teste HTTP com API Yampi simulada: 10 fotos adicionadas, 0 removidas, simulação não consome, 11 fotos recusadas, segundo lote bloqueado, outra loja não acessa prévia.
+
+Ainda não alegar teste real: configurar Client ID/permissões requer confirmação na ferramenta de navegador. Callback/permissões Catálogo visualizar/gerenciar preparados, sem salvar até autorização. Instalação/envio real/renovação contra banco de produção ainda pendentes. Cobrança adiada por instrução da usuária.
+
+Logo e duas mídias confirmados na ficha do Partners; checklist comercial 5/5. Usuária confirmou 1 lote gratuito de até 10 fotos no total. Descrição/FAQ e plano Yampi corrigidos e salvos com R$79,90 em pagamento único. Integração ainda sem Client ID/callback/permissões; código permanece Nuvemshop, sem port Yampi nesta etapa. Não enviado para análise. Usuária deseja verificar cobrança direta pela Yampi antes de escolher provedor externo; documentação pública de planos consultada só confirma exibição dos valores. Estado detalhado e prova em `../yampi-cadastros/STATUS.md`.
+

@@ -32,7 +32,7 @@
 <script type="module" src="/i18n.js"></script></head>
 <body><main>
   <header><div><div class="eyebrow">Imagem em Lote</div><h1>Fotos nos produtos certos, sem complicação.</h1><p class="muted">Selecione suas imagens. Nós encontramos os produtos pelo nome do arquivo ou pelo SKU. Você confere antes de enviar.</p></div>
-    <aside class="connection"><strong id="connection">Verificando sua loja...</strong><p><a class="button" id="connect" href="/auth/install" target="_top">Conectar minha loja</a></p></aside>
+    <aside class="connection"><strong id="connection">Verificando sua loja...</strong><label id="platformLabel" for="platform">Plataforma<select id="platform"><option value="nuvemshop">Nuvemshop / Tiendanube</option><option value="yampi">Yampi</option></select></label><p><a class="button" id="connect" href="/auth/install" target="_top">Conectar minha loja</a></p><button id="disconnect" type="button" class="secondary" hidden>Desconectar loja Yampi</button></aside>
   </header>
   <div class="notice" id="access" hidden><span id="accessText"></span><p id="purchasePending" hidden></p><button id="purchase" type="button" hidden>Comprar acesso por R$79,90</button><button id="refreshAccess" type="button" class="secondary" hidden>Já paguei: atualizar acesso</button></div>
   <div class="steps" aria-label="Como funciona">

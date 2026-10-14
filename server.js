@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import authRoutes from './routes/auth.js';
+import yampiAuthRoutes,{yampiMediaRouter} from './routes/yampiAuth.js';
 import productsRoutes from './routes/products.js';
 import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
@@ -64,6 +65,8 @@ app.get('/api', (req, res) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/auth/yampi', yampiAuthRoutes);
+app.use('/yampi/media', yampiMediaRouter);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
 app.use('/support', supportRoutes);
