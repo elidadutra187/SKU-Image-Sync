@@ -5,7 +5,7 @@ import {JSDOM} from 'jsdom';
 import {translate,rows} from '../public/locales.js';
 
 test('all pages switch languages, retain selection and translate dynamic updates without altering merchant data',async()=>{
-  const runtime=(await fs.readFile('public/i18n.js','utf8')).replace(/^import .*;\n/,'').replaceAll('export const ','const ');
+  const runtime=(await fs.readFile('public/i18n.js','utf8')).replace(/^import .*;\r?\n/,'').replaceAll('export const ','const ');
   for(const page of ['index','how-to','support','privacy']) {
     const dom=new JSDOM(await fs.readFile(`public/${page}.html`,'utf8'),{url:`https://imagememlote.onrender.com/${page}`,runScripts:'outside-only'});
     const w=dom.window;w.translate=translate;w.eval(runtime);
