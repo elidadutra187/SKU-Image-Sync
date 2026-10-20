@@ -10,6 +10,9 @@ import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
 import supportRoutes from './routes/support.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
+import { refreshAllBillingWebhooks } from './services/nativeBilling.js';
+import { listStoredStoreIds } from './services/oauthStore.js';
+import { NuvemshopClient } from './services/nuvemshop.js';
 import logger from './utils/logger.js';
 import {createBillingWebhook} from './services/nativeBilling.js';
 import {startArtifactCleanup} from './services/syncArtifacts.js';
@@ -91,6 +94,8 @@ app.listen(port, () => {
   logger.header('Imagem em Lote');
   logger.info(`Server running on port ${port}`);
   logger.info(`Local URL: http://localhost:${port}`);
+  // Keeps charge webhooks on the current APP_URL so a domain/host change needs no reinstall.
+  setTimeout(()=>refreshAllBillingWebhooks({listStoreIds:listStoredStoreIds,clientFor:id=>NuvemshopClient.fromStore(id),log:logger}).catch(()=>{}),15000).unref();
 });
 
 export default app;

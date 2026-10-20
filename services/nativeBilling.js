@@ -74,8 +74,25 @@ export async function registerBillingWebhooks(client) {
   if(!base || new URL(base).protocol!=='https:')throw new Error('billing_url_not_configured');
   const url=new URL('/webhooks/billing',base).href;
   const list=await client.request('/webhooks');
-  for(const event of ['charge/paid','charge/failed']) {
+  const events=['charge/paid','charge/failed'];
+  for(const event of events) {
     if(list.some(hook=>hook.event===event && hook.url===url))continue;
     await client.request('/webhooks',{method:'POST',body:JSON.stringify({event,url})});
   }
+  // After an address change, retire this app's billing webhooks still pointing to the old host.
+  for(const hook of list) {
+    if(events.includes(hook.event) && /\/webhooks\/billing$/.test(String(hook.url)) && hook.url!==url && hook.id!=null)
+      await client.request(`/webhooks/${hook.id}`,{method:'DELETE'});
+  }
+}
+
+// Re-points billing webhooks of every connected store, e.g. after APP_URL moves to a new domain.
+export async function refreshAllBillingWebhooks({listStoreIds,clientFor,log=console}) {
+  if(!nativeBillingConfigured())return 0;
+  let updated=0;
+  for(const id of await listStoreIds()) {
+    try { await registerBillingWebhooks(await clientFor(id)); updated++; }
+    catch { log.error('Atualização de webhooks de cobrança pendente para uma loja.'); }
+  }
+  return updated;
 }
