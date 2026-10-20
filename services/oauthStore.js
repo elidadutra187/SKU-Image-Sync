@@ -70,6 +70,12 @@ export async function readStoredTokenAsync(storeId = null) {
   return token;
 }
 
+export async function listStoredStoreIds() {
+  if (!hasDatabase()) return [];
+  await initializeDatabase();
+  return (await getPool().query('select store_id from stores')).rows.map(row => String(row.store_id));
+}
+
 export async function readSingleStoredTokenAsync() {
   if (hasDatabase()) {
     await initializeDatabase();
