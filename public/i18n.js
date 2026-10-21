@@ -12,7 +12,8 @@ document.querySelector('main').prepend(toolbar);
 const selector=toolbar.querySelector('select');selector.value=language;
 const style=document.createElement('style');style.textContent='.language-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin:0 0 24px;font:14px system-ui}.language-toolbar label{margin:0;font-weight:600}.language-toolbar select{width:auto!important;min-width:150px;min-height:44px;padding:8px 12px;margin:0;border:1px solid #b7c5d8;border-radius:8px;background:white;color:#17243a;font:15px system-ui}';document.head.append(style);
 function render() {
-  observer.disconnect();document.documentElement.lang=language;
+  observer.disconnect();
+  if(document.documentElement.lang!==language)document.documentElement.lang=language;
   const walk=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   while(walk.nextNode()) {
     const node=walk.currentNode;
