@@ -41,8 +41,19 @@ function render() {
   }
   observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label','alt','title']});
 }
-const observer=new MutationObserver(render);
-window.addEventListener('pagehide',()=>observer.disconnect());
+let scheduled=false;
+let pendingTimer=null;
+function scheduleRender() {
+  if(scheduled)return;
+  scheduled=true;
+  pendingTimer=setTimeout(()=>{
+    scheduled=false;
+    pendingTimer=null;
+    if(document.body?.isConnected)render();
+  },0);
+}
+const observer=new MutationObserver(scheduleRender);
+window.addEventListener('pagehide',()=>{observer.disconnect();if(pendingTimer!==null)clearTimeout(pendingTimer);pendingTimer=null;scheduled=false;});
 window.addEventListener('pageshow',render);
 selector.addEventListener('change',()=>{language=selector.value;try{localStorage.setItem(key,language);}catch{}render();window.dispatchEvent(new CustomEvent('app-language-change',{detail:language}));});
 window.addEventListener('storage',event=>{if(event.key===key && supported.includes(event.newValue)){language=event.newValue;selector.value=language;render();}});
