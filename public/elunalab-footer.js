@@ -30,8 +30,10 @@
   footer.setAttribute('data-no-translate', '');
   function localize() {
     const language=document.documentElement.lang;
-    credit.textContent=language.startsWith('en')?'Created by ':language.startsWith('es')?'Creado por ':'Criado pela ';
-    link.setAttribute('aria-label',language.startsWith('en')?'Created by ElunaLab. Open website in a new tab.':language.startsWith('es')?'Creado por ElunaLab. Abrir sitio en una nueva pestaña.':'Criado pela ElunaLab. Abrir site em uma nova aba.');
+    const label=language.startsWith('en')?'Created by ':language.startsWith('es')?'Creado por ':'Criado pela ';
+    if(credit.textContent!==label)credit.textContent=label;
+    const accessibleLabel=language.startsWith('en')?'Created by ElunaLab. Open website in a new tab.':language.startsWith('es')?'Creado por ElunaLab. Abrir sitio en una nueva pestaña.':'Criado pela ElunaLab. Abrir site em uma nova aba.';
+    if(link.getAttribute('aria-label')!==accessibleLabel)link.setAttribute('aria-label',accessibleLabel);
   }
   localize();
   new MutationObserver(localize).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
