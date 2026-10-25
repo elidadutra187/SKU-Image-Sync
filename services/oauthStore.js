@@ -11,6 +11,7 @@ function tokenFilePath() {
 }
 
 export function readStoredToken() {
+  if (process.env.NODE_ENV === 'production') { hasDatabase(); return null; }
   const filePath = tokenFilePath();
   if (!fs.existsSync(filePath)) return null;
 

@@ -2,9 +2,12 @@ import pg from 'pg';
 
 const { Pool } = pg;
 let pool = null;
-let initialized = false;
+let initialization = null;
 
 export function hasDatabase() {
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+    throw Object.assign(new Error('persistent_database_unavailable'), { status: 503 });
+  }
   return Boolean(process.env.DATABASE_URL);
 }
 
@@ -15,7 +18,12 @@ export function getPool() {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: true },
+      max: 5,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      query_timeout: 30000,
     });
+    pool.on('error', () => console.error('Conexão de banco temporariamente indisponível.'));
   }
 
   return pool;
@@ -23,9 +31,9 @@ export function getPool() {
 
 export async function initializeDatabase() {
   const client = getPool();
-  if (!client || initialized) return;
-  await migrateDatabase(client);
-  initialized = true;
+  if (!client) return;
+  if (!initialization) initialization = migrateDatabase(client).catch(error => { initialization = null; throw error; });
+  await initialization;
 }
 
 export async function migrateDatabase(client) {
