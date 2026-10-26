@@ -43,6 +43,7 @@ export function buildAuthorizeUrl(clientId) {
 }
 
 router.get('/status', async (req, res) => {
+  res.setHeader('Cache-Control','no-store');
   try {
     const storeId = readStoreSession(req);
     if (!storeId) return res.json({connected:false});
