@@ -1,5 +1,6 @@
 import {getPool, initializeDatabase} from './database.js';
 import {nativeBillingConfigured} from './nativeBilling.js';
+import {getYampiPaymentRuntime} from './yampiPaymentRuntime.js';
 export const DEMO_PRODUCTS = 10;
 export const DEMO_IMAGES = 10;
 export const DEMO_BATCHES = 1;
@@ -52,7 +53,7 @@ export function createCommercialAccess(repository=postgresRepository) {
       }
       return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
         demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
-        purchaseConfigured:!storeId.startsWith('yampi:') && nativeBillingConfigured(),paymentProvider:storeId.startsWith('yampi:')?'pending':'nuvemshop'};
+        purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):nativeBillingConfigured(),paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);

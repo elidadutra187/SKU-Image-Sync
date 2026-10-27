@@ -21,3 +21,5 @@
 - Suporte público: elunalab@gmail.com. Formulário com um anexo de até 5 MB, via webhook exclusivo Google Apps Script executado pela conta autorizada elidadutra182@gmail.com. Não reutilizar implantação nem segredo de outro app. Informar indisponibilidade e oferecer contato direto por e-mail até terminar a autorização/configuração; só confirmar chamado após aceite do provedor.
 - Usar o plugin GitHub para escritas no GitHub. Não misturar banco, credenciais ou serviços com Botão Comprar ou Continuar pelo WhatsApp.
 - Manter a documentação de preparação atualizada em PREPARACAO-PUBLICO.md.
+
+- 26/10/2026, pedido posterior: cobrança externa Mercado Pago PF autorizada SOMENTE para Yampi, com pagamento único R$79,90. A proibição anterior de checkout externo permanece para Nuvemshop. Não ativar cobranças reais antes da homologação.
