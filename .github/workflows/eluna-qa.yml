@@ -1,0 +1,91 @@
+name: ELUNA QA - testes, Neon e Nuvemshop
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * *' # 06:17 Brasilia, sem horario de verao
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: eluna-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Testes
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ''
+        run: npm test
+      - name: Verificacoes adicionais
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ''
+        run: true
+      - name: Healthcheck publico (somente GET)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          APP_HEALTH_URL: 'https://imagens.elunalab.com.br/health'
+        run: |
+          if [ -z "$APP_HEALTH_URL" ]; then echo 'Healthcheck nao configurado para este app'; exit 0; fi
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 5 --max-time 15 --output /dev/null "$APP_HEALTH_URL"
+      - name: Neon - conexao somente leitura (opcional)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          NEON_READONLY_URL: ${{ secrets.NEON_READONLY_URL }}
+        run: |
+          if [ -z "$NEON_READONLY_URL" ]; then
+            echo 'Neon: configure o secret NEON_READONLY_URL para habilitar'; exit 0
+          fi
+          if ! node -e "require.resolve('pg')" >/dev/null 2>&1; then
+            npm install --no-save --package-lock=false --ignore-scripts pg@8
+          fi
+          node - <<'NODE'
+          const {Client}=require('pg');
+          const db=new Client({connectionString:process.env.NEON_READONLY_URL,connectionTimeoutMillis:8000,query_timeout:8000});
+          (async()=>{await db.connect();await db.query('BEGIN READ ONLY');await db.query('SELECT 1');await db.query('ROLLBACK');console.log('Neon: SELECT 1 OK');})()
+            .catch(e=>{console.error('Neon: conexao ou consulta falhou:',e.code||e.message);process.exitCode=1;})
+            .finally(()=>db.end().catch(()=>{}));
+          NODE
+      - name: Nuvemshop - API de leitura (opcional)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          STORE_ID: ${{ secrets.NUVEMSHOP_TEST_STORE_ID }}
+          ACCESS_TOKEN: ${{ secrets.NUVEMSHOP_TEST_ACCESS_TOKEN }}
+          USER_AGENT: ${{ vars.NUVEMSHOP_TEST_USER_AGENT }}
+        run: |
+          if [ -z "$STORE_ID" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo 'Nuvemshop: configure os secrets de loja de teste para habilitar'; exit 0
+          fi
+          [[ "$STORE_ID" =~ ^[0-9]+$ ]] || { echo 'Store ID invalido'; exit 1; }
+          status=$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}' \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "User-Agent: ${USER_AGENT:-ELUNA-Lab-QA}" \
+            "https://api.nuvemshop.com/v1/$STORE_ID/products?per_page=1")
+          echo "Nuvemshop: HTTP $status"
+          [ "$status" = "200" ]
+      - name: Abrir ou atualizar issue de falha
+        if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner=context.repo.owner,repo=context.repo.repo;
+            const title='[ELUNA QA] Falha na verificacao automatica';
+            const body='A verificacao automatica falhou. Analise testes, healthcheck, Neon e API Nuvemshop.\n\nExecucao: '+context.serverUrl+'/'+owner+'/'+repo+'/actions/runs/'+context.runId+'\n\nReproduza antes de corrigir; proponha PR com testes. Nao altere dados de producao nem publique automaticamente.';
+            const {data:issues}=await github.rest.issues.listForRepo({owner,repo,state:'open',per_page:100});
+            const current=issues.find(i=>i.title===title && !i.pull_request);
+            if(current) await github.rest.issues.createComment({owner,repo,issue_number:current.number,body});
+            else await github.rest.issues.create({owner,repo,title,body});
