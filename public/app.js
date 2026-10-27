@@ -2,7 +2,7 @@ import {t} from '/i18n.js';
 import {imageGroupName,normalizeName} from '/product-matching.js';
 
 const $=id=>document.getElementById(id);
-const state={connected:false,files:[],session:null,items:[],catalog:[],access:null,busy:false};
+const state={connected:false,apiAvailable:false,paymentRequired:false,files:[],session:null,items:[],catalog:[],access:null,busy:false};
 const platform=$('platform');
 platform.value=new URLSearchParams(location.search).get('platform')==='yampi'?'yampi':'nuvemshop';
 const updatePlatform=()=>{$('connect').href=platform.value==='yampi'?'/auth/yampi/install':'/auth/install';};
@@ -29,7 +29,7 @@ function updateActions() {
   }
   if(state.access)$('purchase').disabled=state.busy || ['creating','pending'].includes(state.access.purchaseStatus);
   const count=selected().length;
-  $('preview').disabled=state.busy || !state.connected || !state.files.length;
+  $('preview').disabled=state.busy || !state.connected || !state.apiAvailable || !state.files.length;
   $('simulate').disabled=state.busy || !count || !state.session;
   const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
   const oversized=state.access && !state.access.paid && imageCount>10;
@@ -40,6 +40,7 @@ function updateActions() {
 function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
+  $('accessPlan').textContent='Pagamento único de R$79,90 por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.';
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
     ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':'Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
     :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. O lote gratuito permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
@@ -80,7 +81,7 @@ function selectFiles(files) {
   state.files=[...files].filter(file=>/\.(jpe?g|png|webp|gif)$/i.test(file.name));
   state.session=null;state.items=[];$('review').hidden=true;$('report').hidden=true;
   updateBatches();updateActions();
-  message(state.files.length?'Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.':'Selecione fotos JPG, PNG, WebP ou GIF para continuar.');
+  message(state.paymentRequired?'Fotos selecionadas. A Nuvemshop exige regularizar o pagamento do aplicativo antes de consultar os produtos. Consulte o aviso de acesso acima.':state.files.length?'Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.':'Selecione fotos JPG, PNG, WebP ou GIF para continuar.',state.paymentRequired);
 }
 function images(list,local) {
   return list.length?`<div class="photos">${list.map(image=>`<figure><img ${local?'data-no-translate':''} loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption ${local?'data-no-translate':''}>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
@@ -190,11 +191,15 @@ $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').val
 async function initialize() {
   try {
     const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);
-    $('connection').textContent=state.connected?'Loja conectada':'Conecte a loja para começar';
+    state.paymentRequired=Boolean(connection.paymentRequired);
+    state.apiAvailable=state.connected && connection.apiAvailable!==false;
+    $('connection').textContent=state.connected?`${t('Loja conectada')} · ${connection.storeId}`:'Conecte a loja para começar';
     $('connect').hidden=state.connected;
     if(state.connected){platform.value=connection.platform==='yampi'?'yampi':'nuvemshop';updatePlatform();}
     $('platformLabel').hidden=state.connected;
     $('disconnect').hidden=!state.connected || connection.platform!=='yampi';
+    $('connectionIssue').hidden=!state.paymentRequired;
+    if(state.paymentRequired)message('A loja está conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo. Suas fotos ainda não foram enviadas.',true);
     if(state.connected)renderAccess(await request('/sync/access'));
   } catch(error){message(error.message,true);}
   updateActions();

@@ -177,3 +177,22 @@ Ainda não alegar teste real: configurar Client ID/permissões requer confirmaç
 
 Logo e duas mídias confirmados na ficha do Partners; checklist comercial 5/5. Usuária confirmou 1 lote gratuito de até 10 fotos no total. Descrição/FAQ e plano Yampi corrigidos e salvos com R$79,90 em pagamento único. Integração ainda sem Client ID/callback/permissões; código permanece Nuvemshop, sem port Yampi nesta etapa. Não enviado para análise. Usuária deseja verificar cobrança direta pela Yampi antes de escolher provedor externo; documentação pública de planos consultada só confirma exibição dos valores. Estado detalhado e prova em `../yampi-cadastros/STATUS.md`.
 
+
+## Correção de conexão e envio — 26/10/2026
+
+Reprodução real no Saldão Center (5255436): OAuth retornou ?connected=1, token salvo e sessão válida. GET /auth/status devolveu connected:false porque GET products respondeu HTTP 402, App disabled for store until payment. A interface confundia restrição de pagamento com desconexão, escondia acesso e mantinha Encontrar produtos desabilitado sem explicação.
+
+Correção preparada nesta branch: preservar connected:true especificamente em402, apiAvailable:false/paymentRequired:true;401/403 continuam desconectados; não expor detalhes do provedor. Status sem cache. Painel identifica loja, oculta conexão, mostra plano/pagamento único e motivo do bloqueio; fotos selecionadas não apagam a orientação. Nenhum bloqueio financeiro contornado, token transferido ou cobrança criada. Preço79,90 e1lote/10imagens mantidos.
+
+Partners Brasil conferido somente leitura: Pagamento único79,90; descrição/FAQ ainda promete10lotes, incompatível com regra vigente1lote. Necessário revisar cobrança nativa e corrigir ficha com autorização da proprietária;402 real não é resolvido apenas pelo painel. Não afirmar envio real liberado. Mudanças Partners e merge main dependem confirmação conforme regra global existente.
+
+Codex implementou/testou/integrará. Claude Code real fez revisão inicial somente leitura; hipótese de cookie não persistido rejeitada após reprodução com sessão válida e402. Claude trabalha independentemente nos indicadores dos demais apps. Testes:61aprovados/1PostgreSQLopcional ignorado, incluindo6novos de conexão/UI após falharem antes da correção. Sem publicação nesta etapa.
+
+Verificação complementar26/10: administrador Nuvemshop do Saldão exibe Sua loja está em dia. Consultas GET /store, /products e /concepts/app-cost/services/33268/subscriptions responderam402. Backend NUVEMSHOP_NATIVE_BILLING=false; sem configuração de modelo/preço, sem linha de acesso ou compra para5255436. Não afirmar dívida real ou recomendar pagar novamente. Há divergência de liberação na plataforma e integração nativa não ativada; requer revisão autorizada antes de venda/envio.
+
+
+## Conexão, bloqueio de acesso e domínio oficial —27/10/2026
+
+Conexão e pagamento separados; loja identificada sob402, plano visível e prévia bloqueada com explicação. Regra vigente1lote/10fotos e compra única79,90 mantida. Rodapé aponta https://elunalab.com.br/. Testes61 aprovados e1PostgreSQLopcional ignorado. Restrição real do Saldão na Nuvemshop e cobrança nativa ainda desativada: não afirmar envio real liberado ou dívida da loja.
+
+Estado: preparado e testado nesta branch; integração/publicação pendentes. Aprovação de merge exigida pelo AGENTS global existente. PRs MercadoPago de outro chat são separados e têm arquivos sobrepostos; integrar com revisão de conflitos, nunca sobrescrever seu ledger/checkout.

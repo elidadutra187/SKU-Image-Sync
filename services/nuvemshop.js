@@ -183,7 +183,7 @@ export class NuvemshopClient {
 
     if (!response.ok) {
       const detail = typeof data === 'string' ? data : JSON.stringify(data);
-      throw new Error(`Nuvemshop API ${response.status}: ${detail}`);
+      throw Object.assign(new Error(`Nuvemshop API ${response.status}: ${detail}`),{status:response.status});
     }
 
     return data;
@@ -240,16 +240,26 @@ export class NuvemshopClient {
       await this.request('/products?per_page=1');
       return {
         connected: true,
+        apiAvailable: true,
+        paymentRequired: false,
+        platform: 'nuvemshop',
         storeId: this.storeId,
         apiVersion: this.apiVersion,
         message: 'Connection with Nuvemshop API is working.',
       };
     } catch (error) {
       return {
-        connected: false,
+        connected: error.status === 402,
+        apiAvailable: false,
+        paymentRequired: error.status === 402,
+        platform: 'nuvemshop',
         storeId: this.storeId,
         apiVersion: this.apiVersion,
-        message: error.message,
+        message: error.status === 402
+          ? 'Loja conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo.'
+          : [401,403].includes(error.status)
+          ? 'A autorização da loja precisa ser renovada. Conecte sua loja novamente.'
+          : 'Não foi possível consultar a loja agora. Tente novamente.',
       };
     }
   }
