@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import authRoutes from './routes/auth.js';
+import {getYampiPaymentRuntime} from './services/yampiPaymentRuntime.js';
 import yampiAuthRoutes,{yampiMediaRouter} from './routes/yampiAuth.js';
 import productsRoutes from './routes/products.js';
 import syncRoutes from './routes/sync.js';
@@ -70,6 +71,7 @@ app.get('/api', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/auth/yampi', yampiAuthRoutes);
 app.use('/yampi/media', yampiMediaRouter);
+app.use('/yampi/billing',getYampiPaymentRuntime().router);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
 app.use('/support', supportRoutes);
@@ -91,6 +93,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => {
+  getYampiPaymentRuntime().start();
   logger.header('Imagem em Lote');
   logger.info(`Server running on port ${port}`);
   logger.info(`Local URL: http://localhost:${port}`);

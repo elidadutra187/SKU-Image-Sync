@@ -1,4 +1,8 @@
 export const rows = [
+['Confirma a compra única de R$79,90 por loja, pelo Mercado Pago, sem mensalidade?','Confirm the one-time purchase of BRL79.90 per store with Mercado Pago, with no monthly fee?','¿Confirmas la compra única de R$79,90 por tienda con Mercado Pago, sin mensualidad?'],
+['Abrindo o pagamento no Mercado Pago...','Opening payment with Mercado Pago...','Abriendo el pago en Mercado Pago...'],
+['O pagamento único de R$79,90 por loja é pelo Mercado Pago, sem mensalidade. O acesso será liberado após a confirmação.','The one-time payment of BRL79.90 per store is through Mercado Pago, with no monthly fee. Access starts after confirmation.','El pago único de R$79,90 por tienda es con Mercado Pago, sin mensualidad. El acceso comienza tras la confirmación.'],
+['O pagamento ainda não foi confirmado. Aguarde a compensação e tente novamente.','Payment has not been confirmed yet. Wait for processing and try again.','El pago aún no se confirmó. Espera la compensación e inténtalo nuevamente.'],
 ['Plataforma','Platform','Plataforma'],
 ['Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.','Your free batch has been used. Further uploads await Yampi billing availability.','Tu lote gratuito ya fue utilizado. Los siguientes envíos esperan la disponibilidad del cobro Yampi.'],
 ['A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.','Billing for Yampi stores is being prepared. Contact support for updates on further upload availability.','El cobro para tiendas Yampi está en preparación. Contacta al soporte para consultar la disponibilidad de nuevos envíos.'],

@@ -47,7 +47,7 @@ function renderAccess(access) {
   $('purchasePending').textContent=access.paymentProvider==='pending'
     ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
     :access.purchaseConfigured
-    ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
+    ?access.paymentProvider==='mercadopago'?'O pagamento único de R$79,90 por loja é pelo Mercado Pago, sem mensalidade. O acesso será liberado após a confirmação.':'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('purchase').disabled=state.busy || ['creating','pending'].includes(access.purchaseStatus);
@@ -169,6 +169,7 @@ for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=
 });
 $('preview').addEventListener('click',preview);
 $('purchase').addEventListener('click',async()=>{
+  if(state.access?.paymentProvider==='mercadopago')return purchaseYampi();
   if(!confirm(t('Confirma a compra única de R$79,90 por loja, cobrada pela Nuvemshop, sem mensalidade?')))return;
   busy(true,'Solicitando a compra pela Nuvemshop...');
   try{
@@ -181,7 +182,7 @@ $('refreshAccess').addEventListener('click',async()=>{
   busy(true,'Verificando a confirmação do pagamento...');
   try {
     const access=await request('/sync/access');renderAccess(access);
-    message(access.paid?'Pagamento confirmado. Seu acesso está liberado.':'A Nuvemshop ainda não confirmou o pagamento. Aguarde a compensação e tente novamente.');
+    message(access.paid?'Pagamento confirmado. Seu acesso está liberado.':t('O pagamento ainda não foi confirmado. Aguarde a compensação e tente novamente.'));
   }catch(error){message(error.message,true);}finally{busy(false);}
 });
 $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener('click',()=>run(false));
@@ -205,3 +206,15 @@ $('disconnect').addEventListener('click',async()=>{
   catch(error){message(error.message,true);}
 });
 initialize();
+
+async function purchaseYampi() {
+  if(!confirm(t('Confirma a compra única de R$79,90 por loja, pelo Mercado Pago, sem mensalidade?')))return;
+  busy(true,t('Abrindo o pagamento no Mercado Pago...'));
+  try {
+    const data=await request('/yampi/billing/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(data.status==='paid'){renderAccess(await request('/sync/access'));return;}
+    const url=new URL(data.checkoutUrl);
+    if(url.protocol!=='https:'||url.hostname!=='www.mercadopago.com.br'||url.port||url.username||url.password||!['/checkout/v1/redirect','/mlb/checkout/start'].includes(url.pathname))throw Error('Não foi possível abrir o pagamento. Fale com o suporte.');
+    location.assign(url.href);
+  }catch(error){message(error.message,true);}finally{busy(false);}
+}
