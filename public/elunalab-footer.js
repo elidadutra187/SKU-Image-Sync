@@ -9,7 +9,7 @@
   footer.id = "elunalab-credit";
   footer.className = "elunalab-credit";
   const link = document.createElement("a");
-  link.href = "https://elunalab.onrender.com/";
+  link.href = "https://elunalab.com.br/";
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   const logo = document.createElement("img");

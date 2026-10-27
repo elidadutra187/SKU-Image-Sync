@@ -189,3 +189,10 @@ Partners Brasil conferido somente leitura: Pagamento único79,90; descrição/FA
 Codex implementou/testou/integrará. Claude Code real fez revisão inicial somente leitura; hipótese de cookie não persistido rejeitada após reprodução com sessão válida e402. Claude trabalha independentemente nos indicadores dos demais apps. Testes:61aprovados/1PostgreSQLopcional ignorado, incluindo6novos de conexão/UI após falharem antes da correção. Sem publicação nesta etapa.
 
 Verificação complementar26/10: administrador Nuvemshop do Saldão exibe Sua loja está em dia. Consultas GET /store, /products e /concepts/app-cost/services/33268/subscriptions responderam402. Backend NUVEMSHOP_NATIVE_BILLING=false; sem configuração de modelo/preço, sem linha de acesso ou compra para5255436. Não afirmar dívida real ou recomendar pagar novamente. Há divergência de liberação na plataforma e integração nativa não ativada; requer revisão autorizada antes de venda/envio.
+
+
+## Conexão, bloqueio de acesso e domínio oficial —27/10/2026
+
+Conexão e pagamento separados; loja identificada sob402, plano visível e prévia bloqueada com explicação. Regra vigente1lote/10fotos e compra única79,90 mantida. Rodapé aponta https://elunalab.com.br/. Testes61 aprovados e1PostgreSQLopcional ignorado. Restrição real do Saldão na Nuvemshop e cobrança nativa ainda desativada: não afirmar envio real liberado ou dívida da loja.
+
+Estado: preparado e testado nesta branch; integração/publicação pendentes. Aprovação de merge exigida pelo AGENTS global existente. PRs MercadoPago de outro chat são separados e têm arquivos sobrepostos; integrar com revisão de conflitos, nunca sobrescrever seu ledger/checkout.
