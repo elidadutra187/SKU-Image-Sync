@@ -51,7 +51,8 @@ function renderAccess(access) {
     ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
-  $('purchase').disabled=state.busy || ['creating','pending'].includes(access.purchaseStatus);
+  $('purchase').textContent=access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,90';
+  $('purchase').disabled=state.busy || access.purchaseMode!=='platform_once'&&['creating','pending'].includes(access.purchaseStatus);
   $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
   if(!access.paid)$('batchSize').value='10';
@@ -170,12 +171,16 @@ for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=
 });
 $('preview').addEventListener('click',preview);
 $('purchase').addEventListener('click',async()=>{
+  if(state.access?.purchaseMode==='platform_once'){
+    message('Abra Aplicativos no administrador da Nuvemshop e confira o pagamento do Imagem em Lote. Se já pagou, não compre novamente: fale com o suporte para recuperar o acesso.');
+    return;
+  }
   if(!confirm(t('Confirma a compra única de R$79,90 por loja, cobrada pela Nuvemshop, sem mensalidade?')))return;
   busy(true,'Solicitando a compra pela Nuvemshop...');
   try{
     const purchase=await request('/sync/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmed:true})});
     renderAccess(await request('/sync/access'));
-    message(purchase.status==='paid'?'Pagamento confirmado. Seu acesso está liberado.':purchase.status==='pending'?'Cobrança solicitada. Consulte os pagamentos no administrador da Nuvemshop. O acesso será liberado após a confirmação.':'A criação da cobrança está sendo verificada. Fale com o suporte antes de tentar novamente.');
+    message(purchase.managedBy==='nuvemshop'?'Abra Aplicativos no administrador da Nuvemshop e confira o pagamento do Imagem em Lote. Se já pagou, não compre novamente: fale com o suporte para recuperar o acesso.':purchase.status==='paid'?'Pagamento confirmado. Seu acesso está liberado.':purchase.status==='pending'?'Cobrança solicitada. Consulte os pagamentos no administrador da Nuvemshop. O acesso será liberado após a confirmação.':'A criação da cobrança está sendo verificada. Fale com o suporte antes de tentar novamente.');
   }catch(error){message(error.message,true);}finally{busy(false);}
 });
 $('refreshAccess').addEventListener('click',async()=>{
