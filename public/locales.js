@@ -1,4 +1,6 @@
 export const rows = [
+['Ver pagamento na Nuvemshop','View payment on Nuvemshop','Ver pago en Tiendanube'],
+['Abra Aplicativos no administrador da Nuvemshop e confira o pagamento do Imagem em Lote. Se já pagou, não compre novamente: fale com o suporte para recuperar o acesso.','Open Apps in your Nuvemshop admin and check the payment for Imagem em Lote. If you have already paid, do not purchase again: contact support to recover access.','Abre Aplicaciones en el administrador de Tiendanube y consulta el pago de Imagem em Lote. Si ya pagaste, no vuelvas a comprar: contacta al soporte para recuperar el acceso.'],
 ['Plano e acesso','Plan and access','Plan y acceso'],
 ['Pagamento único de R$79,90 por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.','One-time payment of R$79.90 per store, with no monthly fee. Includes one free batch of up to 10 images.','Pago único de R$79,90 por tienda, sin mensualidad. Incluye un lote gratuito de hasta 10 imágenes.'],
 ['Loja conectada — acesso bloqueado na Nuvemshop','Store connected — access blocked on Nuvemshop','Tienda conectada — acceso bloqueado en Tiendanube'],

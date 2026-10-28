@@ -5,7 +5,7 @@ test('one-time purchase requires consent and one completed demo reservation, nev
   assert.equal(typeof module.createPurchaseService,'function');
   let intent=null,calls=0,used=0,paid=false;
   const repository={async claim(){if(intent)return false;intent={status:'creating'};return true;},async get(){return intent;},async save(id){intent={status:'pending',chargeId:id};}};
-  const service=module.createPurchaseService({repository,configured:()=>true,appId:'33268',
+  const service=module.createPurchaseService({mode:'usage_once',repository,configured:()=>true,appId:'33268',
     access:{async status(){return {paid,demoBatchesUsed:used};}},
     clientForStore:async()=>({async requestCharge(body){calls++;assert.equal(body.amount_value,79.9);assert.equal(body.amount_currency,'BRL');assert.match(body.external_reference,/33268.*123/);return {id:'charge-123',amount_value:79.9,amount_currency:'BRL'};}})});
   await assert.rejects(()=>service.purchase('123',false),e=>e.status===400);
@@ -25,7 +25,7 @@ test('native charge POST performs one request and does not retry a server failur
 });
 test('an ambiguous network failure preserves the intent instead of creating another charge',async()=>{
   assert.equal(typeof module.createPurchaseService,'function');let intent=null,calls=0;
-  const service=module.createPurchaseService({configured:()=>true,appId:'33268',access:{async status(){return {paid:false,demoBatchesUsed:2};}},
+  const service=module.createPurchaseService({mode:'usage_once',configured:()=>true,appId:'33268',access:{async status(){return {paid:false,demoBatchesUsed:2};}},
     repository:{async claim(){if(intent)return false;intent={status:'creating'};return true;},async get(){return intent;},async save(){}},
     clientForStore:async()=>({async requestCharge(){calls++;throw new Error('network_timeout');}})});
   await assert.rejects(()=>service.purchase('123',true),e=>e.status===503);

@@ -71,5 +71,11 @@ export async function migrateDatabase(client) {
     store_id text primary key,status text not null,charge_id text unique,
     created_at timestamptz not null default now(),updated_at timestamptz not null default now()
   )`);
+  await client.query(`create table if not exists image_sync_native_receipts (
+    charge_id text primary key,store_id text not null,app_id text not null,
+    amount_value numeric(18,2) not null,amount_currency text not null,
+    from_date timestamptz not null,to_date timestamptz not null,
+    confirmed_at timestamptz not null default now()
+  )`);
 }
 

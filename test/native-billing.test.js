@@ -6,7 +6,7 @@ const native=await import('../services/nativeBilling.js').catch(()=>({}));
 test('only a signed native paid charge for this app grants one-time access',async()=>{
   assert.equal(typeof native.createBillingWebhook,'function','native payment confirmation is missing');
   const writes=[];
-  const handler=native.createBillingWebhook({secret:'test-secret',appId:'33268',price:'79.90',
+  const handler=native.createBillingWebhook({mode:'usage_once',secret:'test-secret',appId:'33268',price:'79.90',
     isExpectedCharge:async ({chargeId})=>chargeId==='charge-1',
     grant:async record=>writes.push(record)});
   const app=express();app.post('/billing',express.raw({type:'application/json',limit:'64kb'}),handler);

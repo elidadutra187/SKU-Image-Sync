@@ -14,6 +14,30 @@ export function nativeBillingConfigured() {
     && process.env.NUVEMSHOP_BILLING_MODEL==='usage_once'
     && process.env.NUVEMSHOP_NATIVE_BILLING==='true');
 }
+export function platformBillingConfigured(){return Boolean(process.env.NUVEMSHOP_CLIENT_SECRET&&/^\d+$/.test(process.env.NUVEMSHOP_CLIENT_ID||''));}
+export async function knownPlatformStore({storeId}){
+ const pool=getPool();if(!pool)throw Error('database_unavailable');await initializeDatabase();
+ return (await pool.query('select store_id from stores where store_id=$1',[storeId])).rows.length===1;
+}
+export async function grantPlatformPaidAccess({storeId,chargeId,receipt},poolProvider=getPool,initialize=initializeDatabase){
+ const pool=poolProvider();if(!pool)throw Error('database_unavailable');await initialize();
+ const {rows}=await pool.query(`with confirmed as (
+  insert into image_sync_native_receipts(charge_id,store_id,app_id,amount_value,amount_currency,from_date,to_date)
+  select $2,$1,$3,$4,$5,$6,$7 from stores where store_id=$1
+  on conflict(charge_id) do update set charge_id=excluded.charge_id
+  where image_sync_native_receipts.store_id=excluded.store_id
+   and image_sync_native_receipts.app_id=excluded.app_id
+   and image_sync_native_receipts.amount_value=excluded.amount_value
+   and image_sync_native_receipts.amount_currency=excluded.amount_currency
+   and image_sync_native_receipts.from_date=excluded.from_date
+   and image_sync_native_receipts.to_date=excluded.to_date
+  returning store_id
+ ) insert into image_sync_access(store_id,paid_at,payment_reference)
+ select store_id,now(),$2 from confirmed
+ on conflict(store_id) do update set paid_at=coalesce(image_sync_access.paid_at,excluded.paid_at),payment_reference=coalesce(image_sync_access.payment_reference,excluded.payment_reference)
+ returning store_id`,[storeId,chargeId,receipt.appId,receipt.amountValue,receipt.amountCurrency,receipt.fromDate,receipt.toDate]);
+ if(!rows.length)throw Error('native_receipt_not_applied');
+}
 async function isExpectedCharge({storeId,chargeId}){
   const pool=getPool();if(!pool)throw new Error('database_unavailable');await initializeDatabase();
   const {rows}=await pool.query('select charge_id,status from image_sync_purchase where store_id=$1',[storeId]);
@@ -42,8 +66,9 @@ export function createBillingWebhook(options={}) {
   return async(req,res)=>{
     const secret=options.secret ?? process.env.NUVEMSHOP_CLIENT_SECRET;
     const appId=String(options.appId ?? process.env.NUVEMSHOP_CLIENT_ID ?? '');
-    const price=cents(options.price ?? process.env.NUVEMSHOP_ONE_TIME_PRICE);
-    const configured=options.secret ? true : nativeBillingConfigured();
+    const mode=options.mode??process.env.NUVEMSHOP_BILLING_MODEL??'platform_once';
+    const price=cents(options.price ?? process.env.NUVEMSHOP_ONE_TIME_PRICE??'79.90');
+    const configured=options.secret ? true : mode==='platform_once'?platformBillingConfigured():nativeBillingConfigured();
     if(!secret || !appId || !price || !configured)return res.status(503).json({success:false});
     const body=Buffer.isBuffer(req.body)?req.body:req.rawBody;
     const signature=req.get('x-linkedstore-hmac-sha256') || '';
@@ -56,11 +81,18 @@ export function createBillingWebhook(options={}) {
     const charge=event.charge,storeId=String(event.store_id || ''),chargeId=String(event.id || '');
     if(!/^[1-9]\d*$/.test(storeId) || !chargeId || chargeId.length>128
       || String(charge?.id)!==chargeId || cents(charge?.amount_value)!==price
-      || charge?.amount_currency!==(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL')
+      || !(mode==='platform_once'&&!options.currency?['BRL','ARS'].includes(charge?.amount_currency):charge?.amount_currency===(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL'))
       || charge?.concept_code!==(options.concept ?? process.env.NUVEMSHOP_BILLING_CONCEPT ?? 'app-cost')) {
       return res.json({success:true,ignored:true});
     }
     try {
+      if(mode==='platform_once'){
+        const from=Date.parse(charge.from_date),to=Date.parse(charge.to_date);
+        if(typeof charge.from_date!=='string'||typeof charge.to_date!=='string'||!Number.isFinite(from)||!Number.isFinite(to)||to<=from)return res.json({success:true,ignored:true});
+        if(!await (options.isKnownStore||knownPlatformStore)({storeId}))return res.status(503).json({success:false});
+        await (options.grant||grantPlatformPaidAccess)({storeId,chargeId,receipt:{appId,amountValue:price/100,amountCurrency:charge.amount_currency,fromDate:new Date(from).toISOString(),toDate:new Date(to).toISOString()}});
+        return res.json({success:true});
+      }
       if(!await (options.isExpectedCharge || isExpectedCharge)({storeId,chargeId}))return res.json({success:true,ignored:true});
       await (options.grant || grantPaidAccess)({storeId,chargeId});
       return res.json({success:true});
@@ -69,7 +101,7 @@ export function createBillingWebhook(options={}) {
 }
 
 export async function registerBillingWebhooks(client) {
-  if(!nativeBillingConfigured())return;
+  if(!platformBillingConfigured()&&!nativeBillingConfigured())return;
   const base=process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
   if(!base || new URL(base).protocol!=='https:')throw new Error('billing_url_not_configured');
   const url=new URL('/webhooks/billing',base).href;
@@ -88,7 +120,7 @@ export async function registerBillingWebhooks(client) {
 
 // Re-points billing webhooks of every connected store, e.g. after APP_URL moves to a new domain.
 export async function refreshAllBillingWebhooks({listStoreIds,clientFor,log=console}) {
-  if(!nativeBillingConfigured())return 0;
+  if(!platformBillingConfigured()&&!nativeBillingConfigured())return 0;
   let updated=0;
   for(const id of await listStoreIds()) {
     try { await registerBillingWebhooks(await clientFor(id)); updated++; }
