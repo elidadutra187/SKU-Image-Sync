@@ -21,3 +21,9 @@
 - Suporte público: elunalab@gmail.com. Formulário com um anexo de até 5 MB, via webhook exclusivo Google Apps Script executado pela conta autorizada elidadutra182@gmail.com. Não reutilizar implantação nem segredo de outro app. Informar indisponibilidade e oferecer contato direto por e-mail até terminar a autorização/configuração; só confirmar chamado após aceite do provedor.
 - Usar o plugin GitHub para escritas no GitHub. Não misturar banco, credenciais ou serviços com Botão Comprar ou Continuar pelo WhatsApp.
 - Manter a documentação de preparação atualizada em PREPARACAO-PUBLICO.md.
+
+## Orientação posterior da proprietária —28/10/2026
+
+Três entradas exclusivas e visíveis: por imagens, por pasta e por CSV. A pasta principal não é um produto: fotos nomeadas na raiz devem ser agrupadas pelos nomes dos arquivos. Uma pasta identificada por nome/SKU do catálogo e subpastas por produto continuam aceitas. CSV relaciona `sku` e `arquivo`, uma linha por foto, com fotos selecionadas no próprio modo CSV; não associar pelo nome quando o SKU da linha não existe ou é ambíguo. Mostrar erro de arquivo ausente/conflitante. Trocar entrada limpa seleção/prévia anterior e não herda CSV oculto.
+
+Prévia paginada por10/20/30/40/50 imagens, seleção de produtos preservada entre páginas. Mostrar progresso do envio e conclusão/erros. Falha de consulta não significa envio encerrado e não deve permitir repetição automática. A URL atual é https://imagens.elunalab.com.br/ no Railway; as antigas instruções Render não são destino de implantação. Suporte público por formulário, conforme instrução global posterior. Cobrança nativa fixa separada do fluxo adicional; PR12 integrado por autorização explícita em28/10. Esta nova melhoria de entrada/progresso ainda depende de revisão e autorização de merge.
