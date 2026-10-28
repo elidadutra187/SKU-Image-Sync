@@ -10,6 +10,17 @@ async function fixture({ failProjection = false } = {}) {
                 throw Error('projection_failed'); return db.query(sql, params); }, release }; } };
     return { db, repo: createPurchaseLedger(pool) };
 }
+test('a corrupt MP purchase intent cannot grant access or write receipts for a Nuvemshop store',async()=>{
+ const {db,repo}=await fixture();try{
+  const {intent}=await repo.reserve('yampi:one');
+  await repo.savePreference(intent.external_reference,{id:'123-one',external_reference:intent.external_reference});
+  await db.query('UPDATE yampi_purchase_intents SET store_id=$1 WHERE id=$2',['123',intent.id]);
+  await assert.rejects(repo.apply({id:7,external_reference:intent.external_reference,status:'approved',transaction_amount:79.9,currency_id:'BRL',date_approved:'2026-10-25T12:00:00Z'}),/payment_intent_mismatch/);
+  assert.equal((await db.query('SELECT count(*)::int n FROM yampi_purchase_receipts')).rows[0].n,0);
+  assert.equal((await db.query('SELECT count(*)::int n FROM image_sync_access WHERE store_id=$1',['123'])).rows[0].n,0);
+ }finally{await db.close();}
+});
+
 test('one-time intent is unique under concurrency and uncertain requests cannot create a second preference', async () => {
     const { db, repo } = await fixture();
     try {

@@ -1,3 +1,6 @@
+import billingPlatformPolicy from './billingPlatformPolicy.cjs';
+const {createBillingPolicy,isYampiStoreId,assertYampiStoreId}=billingPlatformPolicy;
+const billingPolicy=createBillingPolicy();
 import { Router } from 'express';
 import { createOneTimeProvider } from './yampiPaymentProvider.js';
 import { createPurchaseLedger } from './yampiPurchaseLedger.js';
@@ -10,7 +13,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
     const live = env.YAMPI_MP_MODE === 'production' && env.YAMPI_MP_PRODUCTION_ENABLED === 'true';
     const test = (env.YAMPI_MP_MODE || 'test') === 'test' && (String(env.YAMPI_MP_ACCESS_TOKEN || '').startsWith('TEST-') || env.YAMPI_MP_TEST_ACCOUNT_VERIFIED === 'true');
     const provider = injectedProvider || createOneTimeProvider({ baseUrl, enabled: env.YAMPI_MP_ENABLED === 'true' && (live || test), accessToken: env.YAMPI_MP_ACCESS_TOKEN, webhookSecret: env.YAMPI_MP_WEBHOOK_SECRET, collectorId: env.YAMPI_MP_COLLECTOR_ID, applicationId: env.YAMPI_MP_APPLICATION_ID });
-    const eligible = id => live || testStores.has(id);
+    const eligible = id => isYampiStoreId(id) && !!billingPolicy.assertProvider({appCode:'IE',platform:'yampi',storeId:id},'mercadopago') && (live || testStores.has(id));
     const available = id => eligible(id) && provider.isConfigured();
     let repoPromise;
     async function repository() {
@@ -33,7 +36,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
             throw fail('Conecte sua loja Yampi para continuar.', 401);
         return id;
     }
-    async function checkout(storeId) {
+    async function checkout(storeId) { assertYampiStoreId(storeId);
         const repo = await repository(), reservation = await repo.reserve(storeId), intent = reservation.intent;
         if (intent.status === 'paid')
             return { status: 'paid', checkoutUrl: null };
@@ -67,7 +70,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
         const repo = await repository(), reference = await provider.paymentReference(id), intent = await repo.find(reference);
         if (!intent?.preference_id)
             return { ignored: true };
-        const preference = await provider.getPreference(intent.preference_id, reference), payment = await provider.getPayment(id, preference);
+        assertYampiStoreId(intent.store_id); const preference = await provider.getPreference(intent.preference_id, reference), payment = await provider.getPayment(id, preference);
         return repo.apply(payment);
     }
     async function reconcileAll() {
@@ -77,6 +80,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
         let failed = 0;
         for (const intent of await repo.list()) {
             try {
+                assertYampiStoreId(intent.store_id);
                 const preference = intent.preference_id ? await provider.getPreference(intent.preference_id, intent.external_reference) : await provider.findPreference(intent.external_reference);
                 if (!preference)
                     continue;

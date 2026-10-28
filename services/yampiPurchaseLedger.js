@@ -1,3 +1,5 @@
+import billingPlatformPolicy from './billingPlatformPolicy.cjs';
+const {isYampiStoreId}=billingPlatformPolicy;
 import crypto from 'node:crypto';
 const fail = (message, status = 409) => Object.assign(Error(message), { status });
 export function createPurchaseLedger(pool) {
@@ -51,7 +53,7 @@ export function createPurchaseLedger(pool) {
     async function savePreference(reference, p) {
         return transaction(async (db) => {
             const intent = (await db.query('SELECT * FROM yampi_purchase_intents WHERE external_reference=$1 FOR UPDATE', [reference])).rows[0];
-            if (!intent || p.external_reference !== reference || (intent.preference_id && intent.preference_id !== String(p.id)))
+            if (!intent || !isYampiStoreId(intent.store_id) || p.external_reference !== reference || (intent.preference_id && intent.preference_id !== String(p.id)))
                 throw fail('preference_identity_mismatch');
             await db.query("UPDATE yampi_purchase_intents SET preference_id=$2,status=CASE WHEN status IN('intent','uncertain') THEN 'pending' ELSE status END WHERE external_reference=$1", [reference, String(p.id)]);
         });
@@ -65,7 +67,7 @@ export function createPurchaseLedger(pool) {
             throw fail('invalid_payment', 400);
         return transaction(async (db) => {
             const intent = (await db.query('SELECT * FROM yampi_purchase_intents WHERE external_reference=$1 FOR UPDATE', [p.external_reference])).rows[0];
-            if (!intent?.preference_id)
+            if (!intent?.preference_id || !isYampiStoreId(intent.store_id))
                 throw fail('payment_intent_mismatch');
             await db.query('INSERT INTO image_sync_access(store_id,demo_batches_used) VALUES($1,0) ON CONFLICT DO NOTHING', [intent.store_id]);
             await db.query('SELECT store_id FROM image_sync_access WHERE store_id=$1 FOR UPDATE', [intent.store_id]);

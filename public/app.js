@@ -2,7 +2,17 @@ import {t} from '/i18n.js';
 import {imageGroupName,normalizeName} from '/product-matching.js';
 
 const $=id=>document.getElementById(id);
-const state={connected:false,files:[],session:null,items:[],catalog:[],access:null,busy:false};
+const hasAuthenticatedYampiBilling=()=>state.billingIdentity?.platform==='yampi' && /^yampi:[a-z0-9][a-z0-9_-]{0,99}$/.test(state.billingIdentity.storeId);
+async function ensureYampiPaymentUi(){
+  if(!hasAuthenticatedYampiBilling())throw Error('billing_platform_mismatch');
+  if(state.yampiPaymentUi)return state.yampiPaymentUi;
+  const id=state.billingIdentity.storeId;
+  const module=await import('/yampi-payment-ui.mjs');
+  if(!hasAuthenticatedYampiBilling()||state.billingIdentity.storeId!==id)throw Error('billing_platform_mismatch');
+  state.yampiPaymentUi=module.createYampiPaymentUI({isAuthorized:()=>hasAuthenticatedYampiBilling()&&state.billingIdentity.storeId===id,request,renderAccess,message,busy,t,confirm:text=>confirm(text),navigate:url=>location.assign(url)});
+  return state.yampiPaymentUi;
+}
+const state={billingIdentity:null,yampiPaymentUi:null,connected:false,files:[],session:null,items:[],catalog:[],access:null,busy:false};
 const platform=$('platform');
 platform.value=new URLSearchParams(location.search).get('platform')==='yampi'?'yampi':'nuvemshop';
 const updatePlatform=()=>{$('connect').href=platform.value==='yampi'?'/auth/yampi/install':'/auth/install';};
@@ -47,7 +57,7 @@ function renderAccess(access) {
   $('purchasePending').textContent=access.paymentProvider==='pending'
     ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
     :access.purchaseConfigured
-    ?access.paymentProvider==='mercadopago'?'O pagamento único de R$79,90 por loja é pelo Mercado Pago, sem mensalidade. O acesso será liberado após a confirmação.':'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
+    ?access.paymentProvider==='mercadopago'?(hasAuthenticatedYampiBilling()?state.yampiPaymentUi?.paymentDescription():'Não foi possível confirmar a plataforma de cobrança.'):'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('purchase').disabled=state.busy || ['creating','pending'].includes(access.purchaseStatus);
@@ -169,7 +179,11 @@ for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=
 });
 $('preview').addEventListener('click',preview);
 $('purchase').addEventListener('click',async()=>{
-  if(state.access?.paymentProvider==='mercadopago')return purchaseYampi();
+  if(state.access?.paymentProvider==='mercadopago') {
+    if(!hasAuthenticatedYampiBilling()||!state.yampiPaymentUi)return;
+    return state.yampiPaymentUi.purchase();
+  }
+  if(hasAuthenticatedYampiBilling())return;
   if(!confirm(t('Confirma a compra única de R$79,90 por loja, cobrada pela Nuvemshop, sem mensalidade?')))return;
   busy(true,'Solicitando a compra pela Nuvemshop...');
   try{
@@ -189,6 +203,7 @@ $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener
 $('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateActions();});
 $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';updateActions();});
 async function initialize() {
+  state.billingIdentity=null;state.yampiPaymentUi=null;
   try {
     const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);
     $('connection').textContent=state.connected?'Loja conectada':'Conecte a loja para começar';
@@ -196,7 +211,12 @@ async function initialize() {
     if(state.connected){platform.value=connection.platform==='yampi'?'yampi':'nuvemshop';updatePlatform();}
     $('platformLabel').hidden=state.connected;
     $('disconnect').hidden=!state.connected || connection.platform!=='yampi';
-    if(state.connected)renderAccess(await request('/sync/access'));
+    state.billingIdentity=state.connected?{platform:connection.platform||'nuvemshop',storeId:String(connection.storeId)}:null;
+    if(state.connected){
+      const access=await request('/sync/access');
+      if(hasAuthenticatedYampiBilling()&&access.paymentProvider==='mercadopago')await ensureYampiPaymentUi();
+      renderAccess(access);
+    }
   } catch(error){message(error.message,true);}
   updateActions();
 }
@@ -207,14 +227,3 @@ $('disconnect').addEventListener('click',async()=>{
 });
 initialize();
 
-async function purchaseYampi() {
-  if(!confirm(t('Confirma a compra única de R$79,90 por loja, pelo Mercado Pago, sem mensalidade?')))return;
-  busy(true,t('Abrindo o pagamento no Mercado Pago...'));
-  try {
-    const data=await request('/yampi/billing/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    if(data.status==='paid'){renderAccess(await request('/sync/access'));return;}
-    const url=new URL(data.checkoutUrl);
-    if(url.protocol!=='https:'||url.hostname!=='www.mercadopago.com.br'||url.port||url.username||url.password||!['/checkout/v1/redirect','/mlb/checkout/start'].includes(url.pathname))throw Error('Não foi possível abrir o pagamento. Fale com o suporte.');
-    location.assign(url.href);
-  }catch(error){message(error.message,true);}finally{busy(false);}
-}

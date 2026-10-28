@@ -23,3 +23,8 @@
 - Manter a documentação de preparação atualizada em PREPARACAO-PUBLICO.md.
 
 - 26/10/2026, pedido posterior: cobrança externa Mercado Pago PF autorizada SOMENTE para Yampi, com pagamento único R$79,90. A proibição anterior de checkout externo permanece para Nuvemshop. Não ativar cobranças reais antes da homologação.
+
+
+## Cobrança por plataforma — requisito obrigatório28/10/2026
+
+Nuvemshop/Tiendanube cobra SOMENTE nativamente; Yampi cobra pelo Mercado Pago. MP nunca entra no fluxo/interface de pagamento Nuvemshop, nem como fallback de erro. Nova plataforma exige adaptador e registro explícitos/homologados; desconhecida é recusada. Nunca escolher provedor por query/body/localStorage, reaproveitar recibo entre plataformas, reiniciar teste no OAuth ou ativar cobrança por preencher credenciais. Seguir docs/billing-platform-contract.md e manter as cinco políticas versionadas/testadas. Código desta etapa permanece em PRrascunho, sem merge/deploy/cobrança real.
