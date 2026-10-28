@@ -198,6 +198,7 @@ export class ImageSyncService {
     if(this.history)await this.history.save(this.storeId,{skus:{[sku]:stateForSku}});
     await this.report.addSuccess(sku, productId, localImage.filename, 'upload', `Image uploaded. ID: ${uploaded?.id || 'N/A'}`);
     this.stats.uploaded++;
+    this.onProgress?.({uploaded:this.stats.uploaded,skipped:this.stats.skipped,errors:this.stats.errors});
   }
 
   async processSku(folder) {
@@ -268,6 +269,7 @@ export class ImageSyncService {
       if ((this.mode === 'add' || this.mode === 'sync') && unchanged) {
         await this.report.addSkip(sku, productId, localImage.filename, 'File hash already synced.');
         this.stats.skipped++;
+        this.onProgress?.({uploaded:this.stats.uploaded,skipped:this.stats.skipped,errors:this.stats.errors});
         position++;
         continue;
       }
@@ -283,6 +285,7 @@ export class ImageSyncService {
         await this.report.addError(sku, productId, localImage.filename, 'upload', error.message);
         logger.sku(sku, `Upload failed for ${localImage.filename}: ${error.message}`);
         this.stats.errors++;
+        this.onProgress?.({uploaded:this.stats.uploaded,skipped:this.stats.skipped,errors:this.stats.errors});
       }
 
       position++;
@@ -329,7 +332,7 @@ export class ImageSyncService {
 
     await this.runWithConcurrency(folders, this.concurrency, async (folder) => {
       try {
-        this.onProgress?.({ total: folders.length, completed: completedFolders, currentSku: folder.sku });
+        this.onProgress?.({ total: folders.length, completed: completedFolders, currentSku: folder.sku,uploaded:this.stats.uploaded,skipped:this.stats.skipped,errors:this.stats.errors });
         await this.processSku(folder);
       } catch (error) {
         await this.report.addError(folder.sku, '', '', 'process_sku', error.message);
@@ -337,7 +340,7 @@ export class ImageSyncService {
         this.stats.errors++;
       } finally {
         completedFolders++;
-        this.onProgress?.({ total: folders.length, completed: completedFolders, currentSku: folder.sku });
+        this.onProgress?.({ total: folders.length, completed: completedFolders, currentSku: folder.sku,uploaded:this.stats.uploaded,skipped:this.stats.skipped,errors:this.stats.errors });
       }
     });
 

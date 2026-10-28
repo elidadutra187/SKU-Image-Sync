@@ -15,7 +15,7 @@ import {acquireStoreLock} from '../services/storeLock.js';
 import {syncArtifacts,reportNameForStore} from '../services/syncArtifacts.js';
 import purchaseService from '../services/purchase.js';
 
-const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:500,fields:4,fieldSize:256*1024,parts:504}});
+const upload=multer({dest:'uploads/tmp',limits:{fileSize:10*1024*1024,files:501,fields:4,fieldSize:256*1024,parts:505}});
 const fail=(message,status=400)=>Object.assign(new Error(message),{status,public:true});
 const publicProduct=product=>({id:product.id,name:displayProductName(product)});
 
@@ -64,11 +64,21 @@ export function createSyncRouter({clientForStore=platformClientForStore,
       if(!Array.isArray(manifest))throw fail('A lista de fotos é inválida. Selecione os arquivos novamente.');
       const files=req.files?.images || [];
       if(!files.length)throw fail('Selecione ao menos uma foto.');
+      const inputMode=req.body?.inputMode || 'images';
+      if(!['images','folder','csv'].includes(inputMode))throw fail('Escolha imagens, pasta ou CSV.');
+      if(inputMode==='csv'&&!req.files?.csv?.[0])throw fail('Selecione o CSV e as fotos indicadas na planilha.');
       const client=await clientForStore(req.storeId),catalog=await client.getProducts();
-      session=await createUploadSession({files,manifest,storeId:req.storeId,catalog,individual:req.body?.individual==='true',
+      session=await createUploadSession({files,manifest,storeId:req.storeId,catalog,inputMode,individual:req.body?.individual==='true',
         csvText:req.files?.csv?.[0] ? await fs.readFile(req.files.csv[0].path,'utf8') : ''});
       session.catalog=catalog;
       for(const group of session.groups) {
+        if(group.csvSku) {
+          const matches=catalog.filter(product=>(product.variants||[]).some(v=>String(v.sku)===group.csvSku));
+          const product=matches.length===1?matches[0]:null;
+          group.productId=product?.id||null;group.matchReason=product?'sku':null;
+          group.matchStatus=matches.length>1?'ambiguous':product?'matched':'unmatched';
+          group.suggestions=matches.map(publicProduct);continue;
+        }
         const matches=[group.sourceFolder,...group.images.map(image=>image.originalName)].map(source=>matchProduct(source,catalog));
         const skuMatches=matches.filter(match=>match.reason==='sku');
         const pool=skuMatches.length?skuMatches:matches;
@@ -83,6 +93,7 @@ export function createSyncRouter({clientForStore=platformClientForStore,
       if(session.csvSkus.length)session.groups=session.groups.filter(group=>catalog.some(product=>String(product.id)===String(group.productId)
         && (product.variants || []).some(variant=>session.csvSkus.includes(String(variant.sku)))));
       if(session.groups.length>50)throw fail('Selecione até 50 grupos de fotos por prévia.');
+      if(!session.groups.length)throw fail('Nenhum grupo de fotos corresponde ao CSV. Confira os SKUs e os arquivos selecionados.');
       const items=[];for(const group of session.groups)items.push(await itemPreview(group,client));
       res.json({success:true,sessionId:session.id,items,count:items.length,catalog:catalog.map(publicProduct),
         access:await access.status(req.storeId)});

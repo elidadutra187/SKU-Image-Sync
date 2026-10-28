@@ -2,19 +2,19 @@ import {t} from '/i18n.js';
 import {imageGroupName,normalizeName} from '/product-matching.js';
 
 const $=id=>document.getElementById(id);
-const state={connected:false,apiAvailable:false,paymentRequired:false,files:[],session:null,items:[],catalog:[],access:null,busy:false};
+const state={connected:false,apiAvailable:false,paymentRequired:false,inputMode:'images',files:[],session:null,items:[],catalog:[],access:null,busy:false,selection:new Set(),reviewPage:0,jobId:null};
 const platform=$('platform');
 platform.value=new URLSearchParams(location.search).get('platform')==='yampi'?'yampi':'nuvemshop';
 const updatePlatform=()=>{$('connect').href=platform.value==='yampi'?'/auth/yampi/install':'/auth/install';};
 platform.addEventListener('change',updatePlatform);updatePlatform();
 const escape=value=>String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const selected=()=>[...document.querySelectorAll('[data-select]:checked')].map(input=>input.value);
+const selected=()=>[...state.selection];
 const message=(text,error=false)=>{ $('message').textContent=text;$('message').classList.toggle('error',error);};
 
 async function request(url,options) {
-  const response=await fetch(url,options);
+  const response=await fetch(url,{signal:AbortSignal.timeout(30000),...options});
   const data=await response.json();
-  if(!response.ok || data.success===false)throw new Error(data.error || 'Não foi possível concluir. Tente novamente.');
+  if(!response.ok || data.success===false)throw Object.assign(new Error(data.error || 'Não foi possível concluir. Tente novamente.'),{status:response.status});
   return data;
 }
 function busy(value,text) {
@@ -29,12 +29,14 @@ function updateActions() {
   }
   if(state.access)$('purchase').disabled=state.busy || ['creating','pending'].includes(state.access.purchaseStatus);
   const count=selected().length;
-  $('preview').disabled=state.busy || !state.connected || !state.apiAvailable || !state.files.length;
-  $('simulate').disabled=state.busy || !count || !state.session;
+  $('preview').disabled=state.busy || !state.connected || !state.apiAvailable || !state.files.length || state.inputMode==='csv'&&!$('csv').files[0];
+  $('simulate').disabled=state.busy || !!state.jobId || !count || !state.session;
+  $('previousPage').disabled=state.busy||state.reviewPage===0;
+  $('nextPage').disabled=state.busy||state.reviewPage>=Math.max(0,$('reviewPage').options.length-1);
   const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
   const oversized=state.access && !state.access.paid && imageCount>10;
   const blocked=state.access && !state.access.paid && state.access.demoUsed;
-  $('send').disabled=state.busy || !count || !state.session || !state.access || blocked || oversized;
+  $('send').disabled=state.busy || !!state.jobId || !count || !state.session || !state.access || blocked || oversized;
   $('selectionCount').textContent=count ? `${imageCount} imagem(ns) selecionada(s). ${oversized ? 'No gratuito, selecione no máximo 10 imagens.' : 'Confira as fotos antes de enviar.'}` : 'Marque os produtos que deseja atualizar.';
 }
 function renderAccess(access) {
@@ -62,7 +64,7 @@ function groups() {
   const result=new Map();
   for(const file of state.files) {
     const parts=(file.webkitRelativePath || file.name).replaceAll('\\','/').split('/');
-    const label=parts.length>1?parts.at(-2):imageGroupName(file.name);
+    const label=parts.length>2?parts.at(-2):imageGroupName(file.name);
     const key=$('individual').checked ? String(state.files.indexOf(file)) : normalizeName(label);
     if(!result.has(key))result.set(key,{label,files:[]});
     result.get(key).files.push(file);
@@ -72,7 +74,7 @@ function groups() {
 function updateBatches() {
   const count=groups().length,size=Number($('batchSize').value),old=Number($('batchPage').value || 0);
   const pages=Math.max(1,Math.ceil(count/size));$('batchPage').replaceChildren();
-  $('batchOptions').hidden=count<=10;
+  $('batchOptions').hidden=state.inputMode==='csv'||count<=10;
   if(pages>1)$('batchOptions').open=true;
   for(let index=0;index<pages;index++)$('batchPage').add(new Option(count?`Lote ${index+1}: grupos ${index*size+1} a ${Math.min((index+1)*size,count)}`:'Selecione as fotos',String(index)));
   $('batchPage').value=String(Math.min(old,pages-1));
@@ -80,7 +82,7 @@ function updateBatches() {
 }
 function selectFiles(files) {
   state.files=[...files].filter(file=>/\.(jpe?g|png|webp|gif)$/i.test(file.name));
-  state.session=null;state.items=[];$('review').hidden=true;$('report').hidden=true;
+  state.session=null;state.items=[];state.selection.clear();state.reviewPage=0;$('review').hidden=true;$('report').hidden=true;
   updateBatches();updateActions();
   message(state.paymentRequired?'Fotos selecionadas. A Nuvemshop exige regularizar o pagamento do aplicativo antes de consultar os produtos. Consulte o aviso de acesso acima.':state.files.length?'Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.':'Selecione fotos JPG, PNG, WebP ou GIF para continuar.',state.paymentRequired);
 }
@@ -89,17 +91,29 @@ function images(list,local) {
 }
 function renderItems() {
   $('review').hidden=false;$('products').replaceChildren();
-  for(const item of state.items) {
+  const size=Number($('reviewPageSize').value),pages=[[]];let used=0,total=0;
+  for(const original of state.items)for(let start=0;start<original.localImages.length;) {
+    if(used===size){pages.push([]);used=0;}
+    const chunk=original.localImages.slice(start,start+size-used);
+    pages.at(-1).push({...original,localImages:chunk,totalImages:original.localImages.length});
+    start+=chunk.length;used+=chunk.length;total+=chunk.length;
+  }
+  state.reviewPage=Math.max(0,Math.min(state.reviewPage,pages.length-1));
+  $('reviewPage').replaceChildren();
+  pages.forEach((_,i)=>$('reviewPage').add(new Option(String(i+1),String(i))));$('reviewPage').value=String(state.reviewPage);
+  $('previousPage').disabled=state.busy||state.reviewPage===0;$('nextPage').disabled=state.busy||state.reviewPage===pages.length-1;
+  $('pageSummary').textContent=`Página ${state.reviewPage+1} de ${pages.length} · imagens ${total?state.reviewPage*size+1:0} a ${Math.min((state.reviewPage+1)*size,total)} de ${total}.`;
+  for(const item of pages[state.reviewPage]) {
     const card=document.createElement('article');card.className='product';
     const options=[...new Map([...(item.suggestions || []),...state.catalog].map(product=>[String(product.id),product])).values()];
-    card.innerHTML=`<div class="product-heading"><label class="selection"><input data-select type="checkbox" value="${escape(item.sku)}" ${item.status==='ok'?'checked':'disabled'}><span data-no-translate>${escape(item.product?.name || item.sourceFolder)}</span></label><span class="badge ${item.status==='ok'?'':'attention'}">${item.status==='ok'?'Pronto para conferir':'Escolha o produto'}</span></div>
+    card.innerHTML=`<div class="product-heading"><label class="selection"><input data-select type="checkbox" value="${escape(item.sku)}" ${state.selection.has(item.sku)?'checked':''} ${item.status==='ok'?'':'disabled'}><span data-no-translate>${escape(item.product?.name || item.sourceFolder)}</span></label><span class="badge ${item.status==='ok'?'':'attention'}">${item.status==='ok'?'Pronto para conferir':'Escolha o produto'}</span></div>
       <p class="muted">Arquivos: ${escape(item.sourceFolder)} · ${item.localImages.length} foto(s)</p>
       <p>${item.status==='ok'?`Identificado ${item.matchReason==='sku'?'pelo SKU':item.matchReason==='manual'?'por sua escolha':'pelo nome'}. Confira antes de enviar.`:escape(item.error)}</p>
       <details ${item.status==='ok'?'':'open'}><summary>${item.status==='ok'?'Trocar o produto associado':'Associar estas fotos a um produto'}</summary>
         <label>Buscar produto pelo nome<input data-product-search type="search" placeholder="Digite parte do nome"></label>
         <label>Produto que receberá as fotos<select data-product-choice><option value="">Selecione um produto</option>${options.map(product=>`<option data-no-translate value="${escape(product.id)}">${escape(product.name)} (#${escape(product.id)})</option>`).join('')}</select></label><button type="button" class="secondary" data-match>Confirmar produto</button>
       </details><div class="photo-columns"><section><h3>Fotos que você selecionou</h3>${images(item.localImages,true)}</section><section><h3>Fotos atuais na loja</h3>${images(item.remoteImages,false)}</section></div>`;
-    card.querySelector('[data-select]').addEventListener('change',updateActions);
+    card.querySelector('[data-select]').addEventListener('change',event=>{if(event.target.checked)state.selection.add(item.sku);else state.selection.delete(item.sku);updateActions();});
     const choice=card.querySelector('[data-product-choice]');
     card.querySelector('[data-product-search]').addEventListener('input',event=>{
       const query=normalizeName(event.target.value);
@@ -111,6 +125,7 @@ function renderItems() {
       try {
         const data=await request(`/sync/session/${state.session}/match`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({groupId:item.sku,productId:choice.value})});
         state.items=state.items.map(previous=>previous.sku===item.sku?data.item:previous);
+        state.selection.add(item.sku);
         renderItems();message('Produto associado. Confira as fotos antes de enviar.');
       } catch(error){message(error.message,true);}finally{busy(false);}
     });
@@ -122,19 +137,53 @@ function renderItems() {
 }
 async function preview() {
   const size=Number($('batchSize').value),start=Number($('batchPage').value)*size;
-  const files=groups().slice(start,start+size).flatMap(group=>group.files);
+  const files=state.inputMode==='csv'?state.files:groups().slice(start,start+size).flatMap(group=>group.files);
   const form=new FormData();files.forEach(file=>form.append('images',file,file.name));
   form.append('individual',String($('individual').checked));
+  form.append('inputMode',state.inputMode);
   form.append('manifest',JSON.stringify(files.map(file=>({path:file.webkitRelativePath || file.name}))));
-  if($('csv').files[0])form.append('csv',$('csv').files[0]);
-  busy(true,'Encontrando os produtos pelo nome das fotos. Aguarde...');
+  if(state.inputMode==='csv'&&$('csv').files[0])form.append('csv',$('csv').files[0]);
+  busy(true,state.inputMode==='csv'?'Conferindo os SKUs e arquivos do CSV...':'Encontrando os produtos pelo nome das fotos. Aguarde...');
   try {
     const data=await request('/sync/preview',{method:'POST',body:form});
     state.session=data.sessionId;state.items=data.items;state.catalog=data.catalog;
+    state.selection=new Set(state.items.filter(item=>item.status==='ok').map(item=>item.sku));state.reviewPage=0;
     renderAccess(data.access);renderItems();
     message('Confira os produtos e as fotos abaixo. Nenhuma imagem da loja foi alterada.');
     $('review').scrollIntoView({block:'start'});
   } catch(error){message(error.message,true);}finally{busy(false);}
+}
+function renderProgress(job) {
+  const p=job.progress||{},stats=job.result?.stats||p,total=Number(p.total)||0,done=Number(p.completed)||0;
+  const complete=job.status==='completed',failed=job.status==='failed';
+  const percent=complete?100:Math.min(99,Math.max(0,total?Math.floor(done/total*100):0));
+  $('progressPanel').hidden=false;$('uploadProgress').value=percent;
+  $('progressTitle').textContent=failed?'Envio interrompido':complete?(job.dryRun?'Simulação concluída':stats.errors?'Envio concluído com erros':'Envio concluído'):(job.dryRun?'Simulando o lote...':'Enviando fotos...');
+  $('progressText').textContent=`${percent}% · ${done} de ${total} produto(s) finalizado(s).`;
+  $('progressStats').textContent=`Fotos enviadas: ${stats.uploaded||0}. Fotos já existentes: ${stats.skipped||0}. Erros: ${stats.errors||0}.`;
+  $('progressNotice').textContent=failed?'O processamento foi interrompido. Algumas fotos podem ter sido enviadas. Consulte o suporte antes de repetir.':complete?'O processamento terminou. Confira o resultado e baixe o relatório quando disponível.':'O envio está em andamento. Aguarde a confirmação de conclusão.';
+  $('resumeProgress').hidden=true;
+}
+async function watchJob(jobId) {
+  let failures=0;
+  for(;;) {
+    let job;
+    try{({job}=await request(`/sync/job/${jobId}`));failures=0;}
+    catch(error){
+      failures++;$('progressNotice').textContent='A conexão com o progresso falhou. O envio pode continuar no servidor. Estamos tentando atualizar.';
+      if(failures>=3){$('resumeProgress').hidden=false;message('Não foi possível atualizar o progresso. Clique em Atualizar progresso antes de tentar outro envio.',true);return;}
+      await new Promise(r=>setTimeout(r,1500));continue;
+    }
+    renderProgress(job);
+    if(['completed','failed'].includes(job.status)) {
+      state.jobId=null;
+      if(!job.dryRun){state.session=null;state.selection.clear();document.querySelectorAll('[data-select]').forEach(input=>{input.checked=false;});}
+      if(job.result?.reportDownloadUrl){$('report').href=job.result.reportDownloadUrl;$('report').hidden=false;}
+      message($('progressTitle').textContent+'. '+$('progressStats').textContent,job.status==='failed'||Boolean(job.result?.stats?.errors));
+      return;
+    }
+    await new Promise(r=>setTimeout(r,1500));
+  }
 }
 async function run(dryRun) {
   const selectedSkus=selected(),mode=$('mode').value;
@@ -143,31 +192,51 @@ async function run(dryRun) {
     ?t('Este modo vai remover as fotos atuais dos produtos selecionados e enviar as novas. Confirma?')
     :t('Você conferiu os produtos e as fotos? Enviar agora?')+demoNotice))return;
   busy(true,dryRun?'Simulando o envio, sem alterar a loja...':'Enviando as fotos para a loja...');
+  renderProgress({status:'running',dryRun,progress:{total:selectedSkus.length,completed:0}});
+  $('progressPanel').scrollIntoView({block:'start'});
   try {
     const data=await request(`/sync/session/${state.session}/run`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dryRun,mode,selectedSkus})});
-    for(;;) {
-      const {job}=await request(`/sync/job/${data.jobId}`);
-      message(`Processando: ${job.progress?.completed || 0} de ${job.progress?.total || selectedSkus.length} produto(s).`);
-      if(job.status==='failed')throw new Error('O processamento encontrou um problema. Consulte o suporte antes de tentar novamente.');
-      if(job.status==='completed') {
-        const stats=job.result?.stats || {};
-        message(`${dryRun?'Simulação concluída. Nenhuma foto foi alterada.':'Envio concluído.'} Produtos: ${stats.processed || 0}. Fotos enviadas: ${stats.uploaded || 0}. Erros: ${stats.errors || 0}.`,Boolean(stats.errors));
-        if(job.result?.reportDownloadUrl){$('report').href=job.result.reportDownloadUrl;$('report').hidden=false;}
-        if(!dryRun){state.session=null;document.querySelectorAll('[data-select]').forEach(input=>{input.checked=false;});}
-        break;
-      }
-      await new Promise(resolve=>setTimeout(resolve,1500));
-    }
-  }catch(error){message(error.message,true);}finally{
+    state.jobId=data.jobId;await watchJob(data.jobId);
+  }catch(error){
+    message(error.message,true);
+    if(error.status){state.jobId=null;$('progressTitle').textContent='Envio não iniciado';$('progressNotice').textContent=error.message;}
+    else{state.jobId='unknown';$('progressNotice').textContent='Não foi possível confirmar o início. Atualize o progresso antes de repetir o envio.';$('resumeProgress').hidden=false;}
+  }finally{
     try{renderAccess(await request('/sync/access'));}catch{}
     busy(false);if(!state.session){$('simulate').disabled=true;$('send').disabled=true;}
   }
 }
-$('individual').addEventListener('change',()=>{state.session=null;state.items=[];$('review').hidden=true;updateBatches();updateActions();});
+$('reviewPageSize').addEventListener('change',()=>{state.reviewPage=0;renderItems();});
+$('reviewPage').addEventListener('change',()=>{state.reviewPage=Number($('reviewPage').value);renderItems();});
+for(const [id,step] of [['previousPage',-1],['nextPage',1]])$(id).addEventListener('click',()=>{state.reviewPage+=step;renderItems();$('reviewPagination').scrollIntoView({block:'start'});});
+$('resumeProgress').addEventListener('click',async()=>{
+  busy(true);
+  try{
+    if(state.jobId==='unknown'){
+      const data=await request('/sync/status');
+      if(!data.job){message('Não encontramos confirmação do envio. Consulte o suporte antes de reenviar.',true);return;}
+      state.jobId=data.job.id;
+    }
+    if(state.jobId)await watchJob(state.jobId);
+  }catch(error){message(error.message,true);$('resumeProgress').hidden=false;}finally{busy(false);}
+});
+$('individual').addEventListener('change',()=>{state.session=null;state.items=[];state.selection.clear();$('review').hidden=true;updateBatches();updateActions();});
 $('images').addEventListener('change',event=>selectFiles(event.target.files));
 $('folder').addEventListener('change',event=>selectFiles(event.target.files));
+$('csvImages').addEventListener('change',event=>selectFiles(event.target.files));
+$('csv').addEventListener('change',()=>{
+  state.session=null;state.items=[];state.selection.clear();$('review').hidden=true;$('report').hidden=true;
+  $('csvCount').textContent=$('csv').files[0]?.name||'';updateActions();
+});
+for(const radio of document.querySelectorAll('[name="inputMode"]'))radio.addEventListener('change',()=>{
+  if(!radio.checked)return;state.inputMode=radio.value;
+  for(const id of ['images','folder','csv','csvImages'])$(id).value='';
+  $('csvCount').textContent='';$('individual').checked=false;
+  for(const mode of ['images','folder','csv'])$(mode+'Panel').hidden=state.inputMode!==mode;
+  $('groupOptions').hidden=state.inputMode==='csv';selectFiles([]);
+});
 for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=>{
-  event.preventDefault();if(name==='drop')selectFiles(event.dataTransfer.files);
+  event.preventDefault();if(name==='drop'&&state.inputMode==='images')selectFiles(event.dataTransfer.files);
 });
 $('preview').addEventListener('click',preview);
 $('purchase').addEventListener('click',async()=>{
@@ -206,6 +275,10 @@ async function initialize() {
     $('connectionIssue').hidden=!state.paymentRequired;
     if(state.paymentRequired)message('A loja está conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo. Suas fotos ainda não foram enviadas.',true);
     if(state.connected)renderAccess(await request('/sync/access'));
+    if(state.connected){
+      const active=await request('/sync/status');
+      if(active.running&&active.job){state.jobId=active.job.id;busy(true);renderProgress(active.job);try{await watchJob(state.jobId);}finally{busy(false);}}
+    }
   } catch(error){message(error.message,true);}
   updateActions();
 }

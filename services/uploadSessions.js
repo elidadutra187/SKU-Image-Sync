@@ -65,6 +65,7 @@ function parseCsv(text) {
   }
 
   row.push(cell.trim());
+  if(quoted)throw Object.assign(new Error('CSV inválido: feche as aspas do campo.'),{status:400,public:true});
   if (row.some(Boolean)) rows.push(row);
   return rows;
 }
@@ -88,24 +89,60 @@ export function parseCsvSkus(text) {
   );
 }
 
-export async function createUploadSession({ files, manifest = [], csvText, batch, storeId, catalog = [], individual = false }) {
+const invalidCsv=message=>Object.assign(new Error(message),{status:400,public:true});
+const fileKey=value=>String(value||'').replaceAll('\\','/').replace(/^\.\//,'').normalize('NFC').toLowerCase();
+export function parseCsvAssignments(text) {
+  const rows=parseCsv(String(text||'').replace(/^\uFEFF/,''));
+  const headers=(rows.shift()||[]).map(x=>normalizeName(x));
+  const skuIndex=headers.indexOf('sku'),fileIndex=headers.findIndex(x=>['arquivo','filename','file','foto','imagem'].includes(x));
+  if(skuIndex<0||fileIndex<0)throw invalidCsv('O CSV precisa das colunas sku e arquivo. Baixe o modelo e preencha uma linha por foto.');
+  if(!rows.length)throw invalidCsv('O CSV não contém fotos. Preencha uma linha por foto.');
+  const mapping=new Map();
+  for(const [i,row] of rows.entries()) {
+    const sku=row[skuIndex]?.trim(),filename=row[fileIndex]?.trim();
+    if(!sku||!filename)throw invalidCsv(`CSV: preencha SKU e arquivo na linha ${i+2}.`);
+    const key=fileKey(filename);
+    if(mapping.has(key)&&mapping.get(key).sku!==sku)throw invalidCsv(`O arquivo ${filename} está associado a mais de um SKU no CSV.`);
+    mapping.set(key,{sku,filename});
+  }
+  return mapping;
+}
+
+export async function createUploadSession({ files, manifest = [], csvText, batch, storeId, catalog = [], individual = false, inputMode = 'images' }) {
   await cleanupExpiredUploadSessions();
 
   const sessionId = crypto.randomUUID();
   const sessionDir = path.join(UPLOAD_ROOT, sessionId);
-  const csvSkus = csvText ? parseCsvSkus(csvText) : new Set();
+  const csvMap=inputMode==='csv'?parseCsvAssignments(csvText):null;
+  const csvSkus = csvText&&!csvMap ? parseCsvSkus(csvText) : new Set();
+  const assignments=new Map();
+  if(csvMap)for(const [key,row] of csvMap) {
+    const matches=files.map((file,index)=>({file,index,key:fileKey(manifest[index]?.path||file.originalname)}))
+      .filter(item=>item.key===key||!key.includes('/')&&fileKey(item.file.originalname)===key);
+    if(matches.length!==1)throw invalidCsv(matches.length?`Há mais de uma foto chamada ${row.filename}. Informe o caminho completo no CSV.`:`A foto ${row.filename} do CSV não foi selecionada. Selecione as fotos indicadas na planilha.`);
+    const index=matches[0].index;
+    if(assignments.has(index)&&assignments.get(index)!==row.sku)throw invalidCsv(`O arquivo ${row.filename} está associado a mais de um SKU no CSV.`);
+    assignments.set(index,row.sku);
+  }
   const groups = new Map();
 
   await fs.mkdir(sessionDir, { recursive: true });
 
   for (let index = 0; index < files.length; index++) {
     const file = files[index];
+    if(csvMap&&!assignments.has(index))continue;
     const meta = manifest[index] || {};
     const relativePath = String(meta.path || file.originalname || '').replaceAll('\\', '/');
     const parts = relativePath.split('/').filter(Boolean);
-    const exactProduct=parts.length===1 ? matchProduct(file.originalname,catalog).product : null;
-    const folderName = parts.length > 1 ? parts[parts.length - 2]
-      : exactProduct ? displayProductName(exactProduct) : imageGroupName(file.originalname);
+    const csvSku=assignments.get(index);
+    const csvProducts=csvSku?catalog.filter(p=>(p.variants||[]).some(v=>String(v.sku)===csvSku)):[];
+    const parent=parts.length>1?parts[parts.length-2]:'';
+    const parentMatch=parent?matchProduct(parent,catalog):{status:'unmatched'};
+    const filenameMatch=matchProduct(file.originalname,catalog);
+    const useParent=!!parent&&(parentMatch.status!=='unmatched'||parts.length>2&&!filenameMatch.product);
+    const exactProduct=!useParent?filenameMatch.product:null;
+    const folderName = csvSku || (useParent ? parent
+      : exactProduct ? displayProductName(exactProduct) : imageGroupName(file.originalname));
     const filename = safeName(parts.at(-1) || file.originalname);
     const ext = path.extname(filename).toLowerCase();
 
@@ -114,10 +151,10 @@ export async function createUploadSession({ files, manifest = [], csvText, batch
       continue;
     }
 
-    const groupKey = individual ? `image:${index}` : exactProduct ? `product:${exactProduct.id}` : normalizeName(folderName);
+    const groupKey = csvSku ? csvProducts.length===1?`csv-product:${csvProducts[0].id}`:`csv:${csvSku}` : individual ? `image:${index}` : exactProduct ? `product:${exactProduct.id}` : normalizeName(folderName);
     if (!groups.has(groupKey)) {
       const id = crypto.randomUUID();
-      groups.set(groupKey, { sku: id, sourceFolder: folderName,
+      groups.set(groupKey, { sku: id, sourceFolder: folderName,csvSku,
         dir: path.join(sessionDir, id), images: [] });
     }
     const group = groups.get(groupKey);
