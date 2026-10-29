@@ -11,8 +11,13 @@ const escape=value=>String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 const selected=()=>[...state.selection];
 const message=(text,error=false)=>{ $('message').textContent=text;$('message').classList.toggle('error',error);};
 
-async function request(url,options) {
-  const response=await fetch(url,{signal:AbortSignal.timeout(30000),...options});
+async function request(url,options={},timeoutMs=30000) {
+  let response;
+  try{response=await fetch(url,{signal:AbortSignal.timeout(timeoutMs),...options});}
+  catch(error){
+    if(error?.name==='TimeoutError')throw new Error('A consulta demorou mais que o esperado. Escolha um lote menor e tente novamente.');
+    throw error;
+  }
   const data=await response.json();
   if(!response.ok || data.success===false)throw Object.assign(new Error(data.error || 'Não foi possível concluir. Tente novamente.'),{status:response.status});
   return data;
@@ -145,7 +150,7 @@ async function preview() {
   if(state.inputMode==='csv'&&$('csv').files[0])form.append('csv',$('csv').files[0]);
   busy(true,state.inputMode==='csv'?'Conferindo os SKUs e arquivos do CSV...':'Encontrando os produtos pelo nome das fotos. Aguarde...');
   try {
-    const data=await request('/sync/preview',{method:'POST',body:form});
+    const data=await request('/sync/preview',{method:'POST',body:form},300000);
     state.session=data.sessionId;state.items=data.items;state.catalog=data.catalog;
     state.selection=new Set(state.items.filter(item=>item.status==='ok').map(item=>item.sku));state.reviewPage=0;
     renderAccess(data.access);renderItems();
