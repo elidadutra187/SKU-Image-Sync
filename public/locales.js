@@ -1,11 +1,13 @@
 export const rows = [
+['A consulta demorou mais que o esperado. Escolha um lote menor e tente novamente.','The request took longer than expected. Choose a smaller batch and try again.','La consulta tardó más de lo esperado. Elige un lote más pequeño e inténtalo de nuevo.'],
+['As fotos deste lote demoraram demais para enviar. Escolha um lote menor ou reduza o tamanho das fotos e tente novamente.','The photos in this batch took too long to upload. Choose a smaller batch or reduce the photo size and try again.','Las fotos de este lote tardaron demasiado en enviarse. Elige un lote más pequeño o reduce el tamaño de las fotos e inténtalo de nuevo.'],
 ['Conferindo os SKUs e arquivos do CSV...','Checking CSV SKUs and files...','Revisando los SKU y archivos del CSV...'],
 ['O CSV precisa das colunas sku e arquivo. Baixe o modelo e preencha uma linha por foto.','The CSV needs sku and arquivo columns. Download the template and fill in one row per photo.','El CSV necesita las columnas sku y arquivo. Descarga el modelo y completa una fila por foto.'],
 ['O CSV não contém fotos. Preencha uma linha por foto.','The CSV has no photos. Fill in one row per photo.','El CSV no contiene fotos. Completa una fila por foto.'],
 ['CSV inválido: feche as aspas do campo.','Invalid CSV: close the quoted field.','CSV inválido: cierra las comillas del campo.'],
 ['Selecione o CSV e as fotos indicadas na planilha.','Select the CSV and the photos listed in it.','Selecciona el CSV y las fotos indicadas en la planilla.'],
 ['Nenhum grupo de fotos corresponde ao CSV. Confira os SKUs e os arquivos selecionados.','No photo groups match the CSV. Check the SKUs and selected files.','Ningún grupo de fotos corresponde al CSV. Revisa los SKU y archivos seleccionados.'],
-['Até 50 produtos por CSV. Divida planilhas maiores em partes.','Up to 50 products per CSV. Split larger spreadsheets into parts.','Hasta 50 productos por CSV. Divide las planillas mayores en partes.'],
+['Planilhas grandes são divididas em lotes automaticamente. Confira e envie um lote de cada vez.','Large spreadsheets are split into batches automatically. Review and upload one batch at a time.','Las planillas grandes se dividen en lotes automáticamente. Revisa y envía un lote a la vez.'],
 ['Na prévia, escolha 10, 20, 30, 40 ou 50 imagens por página. A seleção continua ao mudar de página.','In the preview, choose 10, 20, 30, 40 or 50 images per page. Selection is preserved when changing pages.','En la vista previa, elige 10, 20, 30, 40 o 50 imágenes por página. La selección se conserva al cambiar de página.'],
 ['Durante o envio, acompanhe a barra de progresso e a contagem de fotos. Aguarde a confirmação de conclusão e confira os erros no relatório.','During upload, follow the progress bar and photo count. Wait for completion confirmation and check errors in the report.','Durante el envío, sigue la barra de progreso y el contador de fotos. Espera la confirmación de finalización y revisa los errores en el informe.'],
 ['10','10','10'],['20','20','20'],['30','30','30'],['40','40','40'],['50','50','50'],
@@ -145,6 +147,8 @@ export const rows = [
 ];
 
 const patterns=[
+[/^(\d+) foto\(s\) selecionada\(s\)\. Selecione o CSV para organizar os lotes\.$/,(n)=>`${n} photo(s) selected. Select the CSV to organize the batches.`,(n)=>`${n} foto(s) seleccionada(s). Selecciona el CSV para organizar los lotes.`],
+[/^As fotos deste lote somam (\d+) MB\. O envio pode levar alguns minutos, conforme a sua internet\. Se demorar, escolha um lote menor ou reduza o tamanho das fotos\.$/,(n)=>`The photos in this batch total ${n} MB. Uploading may take a few minutes depending on your internet. If it takes too long, choose a smaller batch or reduce the photo size.`,(n)=>`Las fotos de este lote suman ${n} MB. El envío puede tardar algunos minutos según tu internet. Si demora, elige un lote más pequeño o reduce el tamaño de las fotos.`],
 [/^CSV: preencha SKU e arquivo na linha (\d+)\.$/,(n)=>`CSV: fill in SKU and file on row ${n}.`,(n)=>`CSV: completa SKU y archivo en la fila ${n}.`],
 [/^O arquivo (.+) está associado a mais de um SKU no CSV\.$/,(n)=>`File ${n} is mapped to more than one SKU in the CSV.`,(n)=>`El archivo ${n} está relacionado con más de un SKU en el CSV.`],
 [/^A foto (.+) do CSV não foi selecionada\. Selecione as fotos indicadas na planilha\.$/,(n)=>`CSV photo ${n} was not selected. Select the photos listed in the spreadsheet.`,(n)=>`No se seleccionó la foto ${n} del CSV. Selecciona las fotos indicadas en la planilla.`],

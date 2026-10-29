@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 import {imageGroupName,normalizeName} from '../services/productMatching.js';
+import * as csvMapping from '../services/csvMapping.js';
 test('send shows live progress, preserves unknown network outcome and prevents duplicate send',async()=>{
  const html=await fs.readFile('public/index.html','utf8'),runtime=(await fs.readFile('public/app.js','utf8')).replace(/^import .*;\r?\n/gm,'');
  const dom=new JSDOM(html,{url:'https://example.test',runScripts:'outside-only'}),w=dom.window,d=w.document;
- Object.assign(w,{t:x=>x,imageGroupName,normalizeName});w.HTMLElement.prototype.scrollIntoView=()=>{};w.confirm=()=>true;
+ Object.assign(w,{t:x=>x,imageGroupName,normalizeName,...csvMapping});w.HTMLElement.prototype.scrollIntoView=()=>{};w.confirm=()=>true;
  const later=w.setTimeout.bind(w);w.setTimeout=(f,n)=>later(f,Math.min(n,5));
  const access={paid:true,demoUsed:false,demoBatches:1,demoImages:10};let sent=0,polls=0,networkFails=true;
  w.fetch=async url=>{if(url.endsWith('/run')){sent++;return{ok:true,json:async()=>({jobId:'job-1'})};}

@@ -1,8 +1,9 @@
 import {t} from '/i18n.js';
 import {imageGroupName,normalizeName} from '/product-matching.js';
+import {buildCsv,csvRowMatchesFile,fileKey,parseCsvAssignments} from '/csv-mapping.js';
 
 const $=id=>document.getElementById(id);
-const state={connected:false,apiAvailable:false,paymentRequired:false,inputMode:'images',files:[],session:null,items:[],catalog:[],access:null,busy:false,selection:new Set(),reviewPage:0,jobId:null};
+const state={connected:false,apiAvailable:false,paymentRequired:false,inputMode:'images',files:[],csvRows:null,session:null,items:[],catalog:[],access:null,busy:false,selection:new Set(),reviewPage:0,jobId:null};
 const platform=$('platform');
 platform.value=new URLSearchParams(location.search).get('platform')==='yampi'?'yampi':'nuvemshop';
 const updatePlatform=()=>{$('connect').href=platform.value==='yampi'?'/auth/yampi/install':'/auth/install';};
@@ -15,7 +16,7 @@ async function request(url,options={},timeoutMs=30000) {
   let response;
   try{response=await fetch(url,{signal:AbortSignal.timeout(timeoutMs),...options});}
   catch(error){
-    if(error?.name==='TimeoutError')throw new Error('A consulta demorou mais que o esperado. Escolha um lote menor e tente novamente.');
+    if(error?.name==='TimeoutError')throw Object.assign(new Error('A consulta demorou mais que o esperado. Escolha um lote menor e tente novamente.'),{timeout:true});
     throw error;
   }
   const data=await response.json();
@@ -34,7 +35,7 @@ function updateActions() {
   }
   if(state.access)$('purchase').disabled=state.busy || ['creating','pending'].includes(state.access.purchaseStatus);
   const count=selected().length;
-  $('preview').disabled=state.busy || !state.connected || !state.apiAvailable || !state.files.length || state.inputMode==='csv'&&!$('csv').files[0];
+  $('preview').disabled=state.busy || !state.connected || !state.apiAvailable || !state.files.length || state.inputMode==='csv'&&!state.csvRows;
   $('simulate').disabled=state.busy || !!state.jobId || !count || !state.session;
   $('previousPage').disabled=state.busy||state.reviewPage===0;
   $('nextPage').disabled=state.busy||state.reviewPage>=Math.max(0,$('reviewPage').options.length-1);
@@ -65,7 +66,22 @@ function renderAccess(access) {
   if(!access.paid)$('batchSize').value='10';
   updateBatches();updateActions();
 }
+function csvGroups() {
+  // Index by path and by filename once: a 1,000-row CSV must not compare every row with every photo.
+  const byKey=new Map(),result=new Map();
+  for(const file of state.files)for(const key of new Set([fileKey(file.webkitRelativePath || file.name),fileKey(file.name)])) {
+    if(!byKey.has(key))byKey.set(key,[]);byKey.get(key).push(file);
+  }
+  for(const row of state.csvRows || []) {
+    if(!result.has(row.sku))result.set(row.sku,{label:row.sku,files:[],rows:[]});
+    const group=result.get(row.sku);group.rows.push(row);
+    for(const file of byKey.get(row.key) || [])
+      if(!group.files.includes(file)&&csvRowMatchesFile(row.key,file.webkitRelativePath || file.name,file.name))group.files.push(file);
+  }
+  return [...result.values()];
+}
 function groups() {
+  if(state.inputMode==='csv')return csvGroups();
   const result=new Map();
   for(const file of state.files) {
     const parts=(file.webkitRelativePath || file.name).replaceAll('\\','/').split('/');
@@ -76,14 +92,25 @@ function groups() {
   }
   return [...result.values()].sort((a,b)=>a.label.localeCompare(b.label,'pt-BR',{numeric:true}));
 }
+function batchGroups() {
+  const size=Number($('batchSize').value),start=Number($('batchPage').value || 0)*size;
+  return groups().slice(start,start+size);
+}
+function updateWeight() {
+  const bytes=batchGroups().flatMap(group=>group.files).reduce((total,file)=>total+(file.size || 0),0),mb=Math.round(bytes/1024/1024);
+  $('batchWeight').hidden=mb<100;
+  $('batchWeight').textContent=`As fotos deste lote somam ${mb} MB. O envio pode levar alguns minutos, conforme a sua internet. Se demorar, escolha um lote menor ou reduza o tamanho das fotos.`;
+}
 function updateBatches() {
   const count=groups().length,size=Number($('batchSize').value),old=Number($('batchPage').value || 0);
   const pages=Math.max(1,Math.ceil(count/size));$('batchPage').replaceChildren();
-  $('batchOptions').hidden=state.inputMode==='csv'||count<=10;
+  $('batchOptions').hidden=count<=10;
   if(pages>1)$('batchOptions').open=true;
   for(let index=0;index<pages;index++)$('batchPage').add(new Option(count?`Lote ${index+1}: grupos ${index*size+1} a ${Math.min((index+1)*size,count)}`:'Selecione as fotos',String(index)));
   $('batchPage').value=String(Math.min(old,pages-1));
-  $('fileCount').textContent=count?`${state.files.length} foto(s) selecionada(s), em ${count} grupo(s). Confira os produtos na próxima etapa.`:'Nenhuma foto selecionada.';
+  $('fileCount').textContent=count?`${state.files.length} foto(s) selecionada(s), em ${count} grupo(s). Confira os produtos na próxima etapa.`
+    :state.files.length&&state.inputMode==='csv'?`${state.files.length} foto(s) selecionada(s). Selecione o CSV para organizar os lotes.`:'Nenhuma foto selecionada.';
+  updateWeight();
 }
 function selectFiles(files) {
   state.files=[...files].filter(file=>/\.(jpe?g|png|webp|gif)$/i.test(file.name));
@@ -141,13 +168,13 @@ function renderItems() {
   updateActions();
 }
 async function preview() {
-  const size=Number($('batchSize').value),start=Number($('batchPage').value)*size;
-  const files=state.inputMode==='csv'?state.files:groups().slice(start,start+size).flatMap(group=>group.files);
+  const batch=batchGroups(),files=[...new Set(batch.flatMap(group=>group.files))];
   const form=new FormData();files.forEach(file=>form.append('images',file,file.name));
   form.append('individual',String($('individual').checked));
   form.append('inputMode',state.inputMode);
   form.append('manifest',JSON.stringify(files.map(file=>({path:file.webkitRelativePath || file.name}))));
-  if(state.inputMode==='csv'&&$('csv').files[0])form.append('csv',$('csv').files[0]);
+  // Each CSV batch carries only its own rows, so the server validates exactly the photos sent.
+  if(state.inputMode==='csv')form.append('csv',new Blob([buildCsv(batch.flatMap(group=>group.rows))],{type:'text/csv'}),$('csv').files[0]?.name || 'fotos.csv');
   busy(true,state.inputMode==='csv'?'Conferindo os SKUs e arquivos do CSV...':'Encontrando os produtos pelo nome das fotos. Aguarde...');
   try {
     const data=await request('/sync/preview',{method:'POST',body:form},300000);
@@ -156,7 +183,7 @@ async function preview() {
     renderAccess(data.access);renderItems();
     message('Confira os produtos e as fotos abaixo. Nenhuma imagem da loja foi alterada.');
     $('review').scrollIntoView({block:'start'});
-  } catch(error){message(error.message,true);}finally{busy(false);}
+  } catch(error){message(error.timeout?'As fotos deste lote demoraram demais para enviar. Escolha um lote menor ou reduza o tamanho das fotos e tente novamente.':error.message,true);}finally{busy(false);}
 }
 function renderProgress(job) {
   const p=job.progress||{},stats=job.result?.stats||p,total=Number(p.total)||0,done=Number(p.completed)||0;
@@ -229,14 +256,16 @@ $('individual').addEventListener('change',()=>{state.session=null;state.items=[]
 $('images').addEventListener('change',event=>selectFiles(event.target.files));
 $('folder').addEventListener('change',event=>selectFiles(event.target.files));
 $('csvImages').addEventListener('change',event=>selectFiles(event.target.files));
-$('csv').addEventListener('change',()=>{
-  state.session=null;state.items=[];state.selection.clear();$('review').hidden=true;$('report').hidden=true;
-  $('csvCount').textContent=$('csv').files[0]?.name||'';updateActions();
+$('csv').addEventListener('change',async()=>{
+  state.session=null;state.items=[];state.selection.clear();state.csvRows=null;$('review').hidden=true;$('report').hidden=true;
+  const file=$('csv').files[0];$('csvCount').textContent=file?.name||'';
+  if(file)try{state.csvRows=[...parseCsvAssignments(await file.text())].map(([key,row])=>({key,...row}));}catch(error){message(error.message,true);}
+  updateBatches();updateActions();
 });
 for(const radio of document.querySelectorAll('[name="inputMode"]'))radio.addEventListener('change',()=>{
   if(!radio.checked)return;state.inputMode=radio.value;
   for(const id of ['images','folder','csv','csvImages'])$(id).value='';
-  $('csvCount').textContent='';$('individual').checked=false;
+  $('csvCount').textContent='';state.csvRows=null;$('individual').checked=false;
   for(const mode of ['images','folder','csv'])$(mode+'Panel').hidden=state.inputMode!==mode;
   $('groupOptions').hidden=state.inputMode==='csv';selectFiles([]);
 });
@@ -265,7 +294,7 @@ $('refreshAccess').addEventListener('click',async()=>{
   }catch(error){message(error.message,true);}finally{busy(false);}
 });
 $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener('click',()=>run(false));
-$('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateActions();});
+$('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateWeight();updateActions();});
 $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';updateActions();});
 async function initialize() {
   try {

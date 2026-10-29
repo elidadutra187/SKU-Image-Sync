@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 import {imageGroupName,normalizeName} from '../services/productMatching.js';
+import * as csvMapping from '../services/csvMapping.js';
 const html=await fs.readFile('public/index.html','utf8');
 const runtime=(await fs.readFile('public/app.js','utf8')).replace(/^import .*;\r?\n/gm,'');
 for(const blocked of [true,false])test(`authenticated store UI and photo selection, billing blocked=${blocked}`,async()=>{
  const dom=new JSDOM(html,{url:'https://example.test/?connected=1',runScripts:'outside-only'}),w=dom.window;
- Object.assign(w,{t:x=>x,imageGroupName,normalizeName});
+ Object.assign(w,{t:x=>x,imageGroupName,normalizeName,...csvMapping});
  w.fetch=async url=>({ok:true,json:async()=>url==='/auth/status'?{connected:true,storeId:'5255436',platform:'nuvemshop',apiAvailable:!blocked,paymentRequired:blocked}:{paid:false,demoUsed:false,demoBatches:1,demoBatchesRemaining:1,demoImages:10,purchaseConfigured:false}});
  try{
  w.eval(runtime);await new Promise(resolve=>setTimeout(resolve,15));
