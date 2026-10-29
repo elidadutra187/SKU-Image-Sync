@@ -39,9 +39,12 @@ export function createSyncRouter({clientForStore=platformClientForStore,
     if(session.running)throw fail('Este lote já está sendo processado.',409);
     return session;
   }
-  async function itemPreview(group,client) {
-    const product=group.productId ? await client.getProduct(group.productId) : null;
-    const remoteImages=product ? await client.getProductImages(product.id) : [];
+  // The catalog listing already carries each product (and, on Nuvemshop, its images): reuse it so
+  // a 50-group preview does not queue 100 throttled API calls and exceed the browser timeout.
+  async function itemPreview(group,client,catalog=[]) {
+    const listed=group.productId ? catalog.find(item=>String(item.id)===String(group.productId)) : null;
+    const product=group.productId ? listed || await client.getProduct(group.productId) : null;
+    const remoteImages=!product ? [] : Array.isArray(listed?.images) ? listed.images : await client.getProductImages(product.id);
     return {sku:group.sku,sourceFolder:group.sourceFolder,selected:Boolean(product),
       status:product?'ok':'error',matchReason:group.matchReason,
       error:group.matchStatus==='ambiguous'?'Há mais de um produto com esse nome. Escolha o correto.':'Escolha o produto que deve receber estas fotos.',
@@ -94,7 +97,7 @@ export function createSyncRouter({clientForStore=platformClientForStore,
         && (product.variants || []).some(variant=>session.csvSkus.includes(String(variant.sku)))));
       if(session.groups.length>50)throw fail('Selecione até 50 grupos de fotos por prévia.');
       if(!session.groups.length)throw fail('Nenhum grupo de fotos corresponde ao CSV. Confira os SKUs e os arquivos selecionados.');
-      const items=[];for(const group of session.groups)items.push(await itemPreview(group,client));
+      const items=[];for(const group of session.groups)items.push(await itemPreview(group,client,catalog));
       res.json({success:true,sessionId:session.id,items,count:items.length,catalog:catalog.map(publicProduct),
         access:await access.status(req.storeId)});
     } catch(error) {if(session)await deleteUploadSession(session.id);throw error;}
