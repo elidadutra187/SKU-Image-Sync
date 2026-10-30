@@ -48,6 +48,11 @@ function updateActions() {
 function renderAccess(access) {
   state.access=access;
   $('access').hidden=false;
+  // Update billing notice component via adapter
+  // Pass storeId from state; adapter tracks it across calls
+  if(window.BillingNoticeAdapter){
+    window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:platform.value,paymentRequired:state.paymentRequired,access:access});
+  }
   $('accessPlan').textContent='Pagamento único de R$79,90 por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.';
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
     ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':'Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
@@ -299,7 +304,9 @@ $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').val
 async function initialize() {
   try {
     const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);
+    state.storeId=connection.storeId||null;
     state.paymentRequired=Boolean(connection.paymentRequired);
+    window.BillingNoticeAdapter?.update({connected:state.connected,storeId:state.storeId,platform:connection.platform||'nuvemshop',paymentRequired:state.paymentRequired,access:state.access});
     state.apiAvailable=state.connected && connection.apiAvailable!==false;
     $('connection').textContent=state.connected?`${t('Loja conectada')} · ${connection.storeId}`:'Conecte a loja para começar';
     $('connect').hidden=state.connected;
@@ -313,7 +320,7 @@ async function initialize() {
       const active=await request('/sync/status');
       if(active.running&&active.job){state.jobId=active.job.id;busy(true);renderProgress(active.job);try{await watchJob(state.jobId);}finally{busy(false);}}
     }
-  } catch(error){message(error.message,true);}
+  } catch(error){if(state.connected&&!state.access)window.BillingNoticeAdapter?.update({connected:true,storeId:state.storeId,platform:platform.value,verificationFailed:true});message(error.message,true);}
   updateActions();
 }
 $('disconnect').addEventListener('click',async()=>{
