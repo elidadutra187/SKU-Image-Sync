@@ -196,3 +196,8 @@ Verificação complementar26/10: administrador Nuvemshop do Saldão exibe Sua lo
 Conexão e pagamento separados; loja identificada sob402, plano visível e prévia bloqueada com explicação. Regra vigente1lote/10fotos e compra única79,90 mantida. Rodapé aponta https://elunalab.com.br/. Testes61 aprovados e1PostgreSQLopcional ignorado. Restrição real do Saldão na Nuvemshop e cobrança nativa ainda desativada: não afirmar envio real liberado ou dívida da loja.
 
 Estado: preparado e testado nesta branch; integração/publicação pendentes. Aprovação de merge exigida pelo AGENTS global existente. PRs MercadoPago de outro chat são separados e têm arquivos sobrepostos; integrar com revisão de conflitos, nunca sobrescrever seu ledger/checkout.
+
+
+## Avisos de acesso —30/10/2026
+
+Modal por sessão e faixa persistente implementados e revisados. 89 testes aprovados e um teste de PostgreSQL real não executado (RUN_POSTGRES_TESTS exige ambiente próprio). Sem publicação nesta etapa. Ver docs/billing-notices-20261030.md.
