@@ -26,12 +26,12 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
   configured=nativeBillingConfigured,appId=process.env.NUVEMSHOP_CLIENT_ID,clientForStore=NuvemshopClient.fromStore,
   prepareClient=async client=>registerBillingWebhooks(client)}={}){return {
   async purchase(storeId,confirmed){
-    if(confirmed!==true)throw fail('Confirme a compra única de R$79,90 por loja.',400);
+    if(confirmed!==true)throw fail('Confirme a compra única de R$79,99 por loja.',400);
     const current=await access.status(storeId);
     if(current.paid)return {status:'paid'};
     if(current.demoBatchesUsed<DEMO_BATCHES)throw fail('Utilize seu lote gratuito antes de comprar.',409);
     // A fixed marketplace price is charged by the platform. Never create an extra usage charge.
-    if(mode==='platform_once')return {status:'pending',managedBy:'nuvemshop',manageUrl:'https://www.nuvemshop.com.br/login'};
+    if(mode==='platform_once')return {status:'unconfirmed',managedBy:'nuvemshop',manageUrl:'https://www.nuvemshop.com.br/login'};
     if(!configured())throw fail('A compra pela Nuvemshop ainda não está disponível. Fale com o suporte.',503);
     const client=await clientForStore(storeId);
     // Register the paid notification before creating any charge.
@@ -40,11 +40,11 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
     const from=new Date(),to=new Date(from.getTime()+24*60*60*1000);
     const body={description:'Imagem em Lote: acesso em pagamento único por loja',
       external_reference:`imagememlote-${appId}-${storeId}-one-time`,
-      from_date:from.toISOString(),to_date:to.toISOString(),amount_value:79.90,amount_currency:'BRL',
+      from_date:from.toISOString(),to_date:to.toISOString(),amount_value:79.99,amount_currency:'BRL',
       concept_code:process.env.NUVEMSHOP_BILLING_CONCEPT || 'app-cost'};
     try{
       const charge=client.requestCharge?await client.requestCharge(body):await requestNativeCharge(client,body,appId);
-      if(!charge?.id || String(charge.id).length>128 || Number(charge.amount_value)!==79.9 || charge.amount_currency!=='BRL')throw new Error('invalid_charge_response');
+      if(!charge?.id || String(charge.id).length>128 || Number(charge.amount_value)!==79.99 || charge.amount_currency!=='BRL')throw new Error('invalid_charge_response');
       await repository.save(String(charge.id),storeId);
       return {status:'pending',chargeId:String(charge.id)};
     }catch{throw fail('Não foi possível confirmar a criação da cobrança. Fale com o suporte antes de tentar novamente.',503);}

@@ -16,7 +16,7 @@
  *
  * Status mapping:
  * - payment_required: platform blocked API access
- * - needs_payment: demo exhausted and purchaseConfigured=true
+ * - payment_unconfirmed: demo exhausted; no payment confirmation received
  * - unverified: demo exhausted but purchaseConfigured=false (can't charge yet)
  * - paid: user paid
  * - demo_available: free batch remaining
@@ -43,7 +43,7 @@
     const needsPayment = !access.paid && access.demoUsed;
     const allowed = data.verificationFailed ? false : !paymentRequired && (!access.demoUsed || access.paid);
 
-    // Status mapping: use payment_required only for platform block or purchaseConfigured=true.
+    // Only a platform block establishes payment_required; credentials do not prove a charge.
     // When purchaseConfigured=false, use 'unverified' since component may not recognize demo_exhausted.
     let status = null;
     let state = null;
@@ -54,8 +54,7 @@
       status = 'payment_required';
       state = 'platform_blocked';
     } else if (needsPayment) {
-      // Use payment_required when purchaseConfigured=true; otherwise unverified
-      status = access.purchaseConfigured ? 'payment_required' : 'unverified';
+      status = access.purchaseConfigured ? (access.paymentProvider === 'pending' ? 'payment_required' : 'payment_unconfirmed') : 'unverified';
       state = access.paymentProvider === 'pending' ? 'pending' : 'needs_payment';
     } else if (access.paid) {
       status = 'paid';

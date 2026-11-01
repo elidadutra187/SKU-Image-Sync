@@ -17,7 +17,7 @@ test('all pages switch languages, retain selection and translate dynamic updates
       assert.equal(w.document.querySelectorAll('#app-language').length,1);
       if(page==='support')assert.equal(w.document.querySelector('#name').placeholder,language==='en'?'Your name':language==='es'?'Tu nombre':'Seu nome');
     }
-    const original='Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 libera novos lotes e reutilizações.';
+    const original='Seu lote gratuito já foi utilizado. O pagamento único de R$79,99 libera novos lotes e reutilizações.';
     const status=w.document.createElement('p');status.textContent=original;w.document.body.append(status);
     const merchant=w.document.createElement('span');merchant.dataset.noTranslate='';merchant.textContent='Camiseta Azul';w.document.body.append(merchant);
     select.value='en';select.dispatchEvent(new w.Event('change'));

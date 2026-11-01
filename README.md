@@ -18,7 +18,7 @@ A prévia tem páginas de10/20/30/40/50 imagens e preserva os produtos marcados 
 
 Um lote gratuito por loja, com até10 imagens no total. Cada foto conta, inclusive várias do mesmo produto. Prévia e simulação não consomem o lote. O início do envio real reserva o lote; falhas parciais não devolvem o lote. Depois do primeiro envio, novos lotes exigem acesso pago. Reconectar não reinicia o gratuito.
 
-Depois do demo, pagamento único de **R$79,90 por loja**, pela **Nuvemshop**, deve liberar novos lotes e reutilizações na mesma loja. O receptor de confirmação nativa está implementado em `/webhooks/billing`, validando HMAC, aplicativo, loja, valor, moeda e conceito. **Preço aprovado pela usuária; configuração da cobrança no Partners e validação do fluxo pendentes.** O bloqueio é feito no servidor e persistido no PostgreSQL, independente da autorização OAuth. Sem DATABASE_URL, o processamento fica bloqueado. Não há checkout externo.
+Depois do demo, pagamento único de **R$79,99 por loja**, pela **Nuvemshop**, deve liberar novos lotes e reutilizações na mesma loja. O receptor de confirmação nativa está implementado em `/webhooks/billing`, validando HMAC, aplicativo, loja, valor, moeda e conceito. **Preço aprovado pela usuária; configuração da cobrança no Partners e validação do fluxo pendentes.** O bloqueio é feito no servidor e persistido no PostgreSQL, independente da autorização OAuth. Sem DATABASE_URL, o processamento fica bloqueado. Não há checkout externo.
 
 Veja [PREPARACAO-PUBLICO.md](PREPARACAO-PUBLICO.md) para as pendências antes da reabertura. Esta revisão está em preparação, sem implantação pública.
 
@@ -64,3 +64,7 @@ Na Yampi, cada SKU/variação é um destino separado. Nomes de produtos com múl
 
 O lote gratuito continua único por loja, até dez fotos no total. Prévia e simulação não consomem; envio reserva antes de alterar. Desconexão remove tokens, sem reiniciar gratuito. Cobrança Yampi está desabilitada, inclusive no servidor: jamais reutilizar a cobrança nativa Nuvemshop nessa plataforma. Instalação e envio numa loja Yampi real precisam ser confirmados antes de homologação; testes com API simulada não os substituem.
 
+
+### Cobrança única — 01/11/2026
+
+O preço brasileiro atual é R$79,99. O receptor também reconhece o preço legado exato de R$79,90 em BRL no modo fixo, conservando o valor recebido. A regra ARS anterior permanece igual. Credenciais, OAuth e demo consumido não comprovam cobrança pendente. Sem confirmação nativa válida, o acesso continua bloqueado; a interface oferece suporte. Não há criação de cobrança adicional no fluxo publicado. Ver docs/billing-support-20261101.md.

@@ -53,18 +53,18 @@ function renderAccess(access) {
   if(window.BillingNoticeAdapter){
     window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:platform.value,paymentRequired:state.paymentRequired,access:access});
   }
-  $('accessPlan').textContent='Pagamento único de R$79,90 por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.';
+  $('accessPlan').textContent='Pagamento único de R$79,99 por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.';
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':'Seu lote gratuito já foi utilizado. O pagamento único de R$79,90 por loja libera os próximos lotes e reutilizações.'
+    ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':'Seu lote gratuito já foi utilizado. O pagamento único de R$79,99 por loja libera os próximos lotes e reutilizações.'
     :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. O lote gratuito permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.paymentProvider==='pending'
     ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
     :access.purchaseConfigured
-    ?'O pagamento único de R$79,90 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
-    :'O pagamento único será de R$79,90 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
+    ?'O pagamento único de R$79,99 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
+    :'O pagamento único será de R$79,99 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
-  $('purchase').textContent=access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,90';
+  $('purchase').textContent=access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,99';
   $('purchase').disabled=state.busy || access.purchaseMode!=='platform_once'&&['creating','pending'].includes(access.purchaseStatus);
   $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
@@ -283,7 +283,7 @@ $('purchase').addEventListener('click',async()=>{
     message('Abra Aplicativos no administrador da Nuvemshop e confira o pagamento do Imagem em Lote. Se já pagou, não compre novamente: fale com o suporte para recuperar o acesso.');
     return;
   }
-  if(!confirm(t('Confirma a compra única de R$79,90 por loja, cobrada pela Nuvemshop, sem mensalidade?')))return;
+  if(!confirm(t('Confirma a compra única de R$79,99 por loja, cobrada pela Nuvemshop, sem mensalidade?')))return;
   busy(true,'Solicitando a compra pela Nuvemshop...');
   try{
     const purchase=await request('/sync/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmed:true})});

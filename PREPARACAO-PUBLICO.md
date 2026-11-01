@@ -201,3 +201,12 @@ Estado: preparado e testado nesta branch; integração/publicação pendentes. A
 ## Avisos de acesso —30/10/2026
 
 Modal por sessão e faixa persistente implementados e revisados. 89 testes aprovados e um teste de PostgreSQL real não executado (RUN_POSTGRES_TESTS exige ambiente próprio). Sem publicação nesta etapa. Ver docs/billing-notices-20261030.md.
+
+
+## Correção preparada — 01/11/2026
+
+Preço brasileiro confirmado pela proprietária nesta conversa: R$79,99, pagamento único. O receptor platform_once reconhece BRL79,99 e BRL79,90 legado, inclusive com configuração antiga, mantém valor real e idempotência. ARS79,90 preservado. Fluxo adicional usage_once não foi habilitado. Aviso pós-demo agora distingue ausência de confirmação de uma dívida demonstrada pela plataforma. Ver docs/billing-support-20261101.md.
+
+Validação local final: npm test, 92PASS, 0FAIL, 1SKIP de PostgreSQL externo; inclui HTTP + PGlite com preços atual/legado, repetição e imutabilidade de recibos. O teste externo não foi executado em produção. npm audit --omit=dev identificou três alertas preexistentes (body-parser, multer, qs); dependências não foram alteradas neste ajuste. Não equivale a validação financeira real.
+
+Codex implementou e integrou; revisão independente no Codex encontrou e confirmou a correção do caso de configuração antiga. Claude Code retornou Prompt is too long, sem revisão concluída. Nenhuma cobrança criada ou pagamento realizado. A consulta real de assinatura periódica retornou404 SubscriptionConcept not found; confirmar o tratamento da modalidade única com o suporte Nuvemshop antes de qualquer emissão adicional. Alteração preparada para revisão; estado de PR/publicação será registrado ao concluir.

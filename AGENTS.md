@@ -14,7 +14,7 @@
 - O demo permite exatamente 1 lote gratuito por loja com no máximo 10 imagens no total, incluindo várias fotos do mesmo produto. Depois do primeiro envio, exigir acesso pago. Decisão da usuária em 07/10/2026.
 - Prévia e simulação não consomem o demo. O envio real reserva e utiliza o demo antes das operações. Não resetar por reconexão.
 - Persistir o acesso no banco e bloquear processamento quando ele não estiver disponível. Não confiar em flags de pagamento do navegador.
-- Pagamento único de R$79,90 por loja, aprovado pela usuária em 04/10/2026, exclusivamente pela cobrança nativa da Nuvemshop. Não criar checkout externo.
+- Pagamento único de R$79,99 por loja, confirmado pela usuária em 01/11/2026 (substitui R$79,90), exclusivamente pela cobrança nativa da Nuvemshop. Não criar checkout externo.
 - Liberação paga exige webhook charge/paid com HMAC válido, app_id deste app, loja conhecida, valor, moeda e conceito esperados. Não liberar com charge/created, charge/failed ou simples acesso à API.
 - Não criar cobrança nem mudar preço para clientes antes de confirmar o valor e validar o comportamento do demo por lote na cobrança nativa.
 - Não reabrir para vendas antes de validar pagamento, reserva concorrente no PostgreSQL real e envio na loja demo.
@@ -27,3 +27,7 @@
 Três entradas exclusivas e visíveis: por imagens, por pasta e por CSV. A pasta principal não é um produto: fotos nomeadas na raiz devem ser agrupadas pelos nomes dos arquivos. Uma pasta identificada por nome/SKU do catálogo e subpastas por produto continuam aceitas. CSV relaciona `sku` e `arquivo`, uma linha por foto, com fotos selecionadas no próprio modo CSV; não associar pelo nome quando o SKU da linha não existe ou é ambíguo. Mostrar erro de arquivo ausente/conflitante. Trocar entrada limpa seleção/prévia anterior e não herda CSV oculto.
 
 Prévia paginada por10/20/30/40/50 imagens, seleção de produtos preservada entre páginas. Mostrar progresso do envio e conclusão/erros. Falha de consulta não significa envio encerrado e não deve permitir repetição automática. A URL atual é https://imagens.elunalab.com.br/ no Railway; as antigas instruções Render não são destino de implantação. Suporte público por formulário, conforme instrução global posterior. Cobrança nativa fixa separada do fluxo adicional; PR12 integrado por autorização explícita em28/10. Esta nova melhoria de entrada/progresso ainda depende de revisão e autorização de merge.
+
+## Confirmação de preço — 01/11/2026
+
+Preço brasileiro vigente: R$79,99, pagamento único pela Nuvemshop. No modo platform_once, confirmações nativas assinadas de BRL79,90 continuam aceitas como legado; guardar o valor real do recibo e preservar paid_at/payment_reference existentes. Não inferir dívida só pelo demo consumido ou por credenciais presentes. Não criar cobrança adicional para contornar ausência de pagamento no painel. Um GET de assinatura recorrente com404 não comprova, sozinho, inexistência de cobrança única.

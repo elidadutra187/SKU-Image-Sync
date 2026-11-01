@@ -81,8 +81,8 @@ describe('Imagem billing-notice-adapter', () => {
     });
 
     assert.equal(updateData.allowed, false, 'should be blocked when demo exhausted');
-    // When purchaseConfigured=true, status is payment_required (component recognizes this)
-    assert.equal(updateData.status, 'payment_required');
+    // Credentials and an exhausted demo do not establish an outstanding charge.
+    assert.equal(updateData.status, 'payment_unconfirmed');
     assert.equal(updateData.state, 'needs_payment');
 
     w.close();
@@ -289,4 +289,18 @@ describe('Imagem billing-notice-adapter', () => {
 
     w.close();
   });
+});
+
+test('exhausted demo explains missing confirmation and offers support in all three languages',()=>{
+ for(const [lang,title] of [['pt-BR','Pagamento não confirmado'],['en','Payment not confirmed'],['es','Pago no confirmado']]){
+  const dom=new JSDOM(`<html lang="${lang}"><body><main></main></body></html>`,{url:'https://app.example/',runScripts:'outside-only'}),w=dom.window;
+  try{
+   w.eval(fs.readFileSync(require.resolve('../public/billing-notice.js'),'utf8'));
+   w.eval(fs.readFileSync(require.resolve('../public/billing-notice-adapter.js'),'utf8'));
+   w.BillingNoticeAdapter.update({connected:true,storeId:'42',platform:'nuvemshop',paymentRequired:false,access:{paid:false,demoUsed:true,purchaseConfigured:true}});
+   assert.equal(w.document.querySelector('[data-billing-title]').textContent,title);
+   assert.equal(w.document.querySelector('[data-billing-action]').getAttribute('href'),'/support');
+   assert.equal(w.document.querySelector('#eluna-billing-dialog h2').textContent,title);
+  }finally{w.close();}
+ }
 });

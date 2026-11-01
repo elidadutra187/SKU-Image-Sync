@@ -9,7 +9,7 @@ function cents(value) {
 }
 export function nativeBillingConfigured() {
   return Boolean(process.env.NUVEMSHOP_CLIENT_SECRET && process.env.NUVEMSHOP_CLIENT_ID
-    && cents(process.env.NUVEMSHOP_ONE_TIME_PRICE)===7990
+    && cents(process.env.NUVEMSHOP_ONE_TIME_PRICE)===7999
     && (process.env.NUVEMSHOP_BILLING_CURRENCY || 'BRL')==='BRL'
     && process.env.NUVEMSHOP_BILLING_MODEL==='usage_once'
     && process.env.NUVEMSHOP_NATIVE_BILLING==='true');
@@ -67,7 +67,8 @@ export function createBillingWebhook(options={}) {
     const secret=options.secret ?? process.env.NUVEMSHOP_CLIENT_SECRET;
     const appId=String(options.appId ?? process.env.NUVEMSHOP_CLIENT_ID ?? '');
     const mode=options.mode??process.env.NUVEMSHOP_BILLING_MODEL??'platform_once';
-    const price=cents(options.price ?? process.env.NUVEMSHOP_ONE_TIME_PRICE??'79.90');
+    const configuredPrice=options.price ?? process.env.NUVEMSHOP_ONE_TIME_PRICE;
+    const price=cents(configuredPrice??'79.99');
     const configured=options.secret ? true : mode==='platform_once'?platformBillingConfigured():nativeBillingConfigured();
     if(!secret || !appId || !price || !configured)return res.status(503).json({success:false});
     const body=Buffer.isBuffer(req.body)?req.body:req.rawBody;
@@ -79,8 +80,15 @@ export function createBillingWebhook(options={}) {
     // Events belong to the store, so other apps' charges must always be ignored.
     if(String(event?.app_id)!==appId || event.event!=='charge/paid')return res.json({success:true,ignored:true});
     const charge=event.charge,storeId=String(event.store_id || ''),chargeId=String(event.id || '');
+    const receivedPrice=cents(charge?.amount_value);
+    // This price change is for BRL only. Keep the previous ARS contract unchanged.
+    const expectedPrice=mode==='platform_once' && options.price==null && charge?.amount_currency==='ARS'?7990:price;
+    // Recognize both authorized BRL prices even if the old environment value remains.
+    const platformBrlPrice=mode==='platform_once' && charge?.amount_currency==='BRL'
+      && [7990,7999].includes(expectedPrice);
+    const acceptedPrice=platformBrlPrice?[7990,7999].includes(receivedPrice):receivedPrice===expectedPrice;
     if(!/^[1-9]\d*$/.test(storeId) || !chargeId || chargeId.length>128
-      || String(charge?.id)!==chargeId || cents(charge?.amount_value)!==price
+      || String(charge?.id)!==chargeId || !acceptedPrice
       || !(mode==='platform_once'&&!options.currency?['BRL','ARS'].includes(charge?.amount_currency):charge?.amount_currency===(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL'))
       || charge?.concept_code!==(options.concept ?? process.env.NUVEMSHOP_BILLING_CONCEPT ?? 'app-cost')) {
       return res.json({success:true,ignored:true});
@@ -90,7 +98,7 @@ export function createBillingWebhook(options={}) {
         const from=Date.parse(charge.from_date),to=Date.parse(charge.to_date);
         if(typeof charge.from_date!=='string'||typeof charge.to_date!=='string'||!Number.isFinite(from)||!Number.isFinite(to)||to<=from)return res.json({success:true,ignored:true});
         if(!await (options.isKnownStore||knownPlatformStore)({storeId}))return res.status(503).json({success:false});
-        await (options.grant||grantPlatformPaidAccess)({storeId,chargeId,receipt:{appId,amountValue:price/100,amountCurrency:charge.amount_currency,fromDate:new Date(from).toISOString(),toDate:new Date(to).toISOString()}});
+        await (options.grant||grantPlatformPaidAccess)({storeId,chargeId,receipt:{appId,amountValue:receivedPrice/100,amountCurrency:charge.amount_currency,fromDate:new Date(from).toISOString(),toDate:new Date(to).toISOString()}});
         return res.json({success:true});
       }
       if(!await (options.isExpectedCharge || isExpectedCharge)({storeId,chargeId}))return res.json({success:true,ignored:true});
