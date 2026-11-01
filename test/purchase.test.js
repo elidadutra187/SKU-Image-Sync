@@ -7,7 +7,7 @@ test('one-time purchase requires consent and one completed demo reservation, nev
   const repository={async claim(){if(intent)return false;intent={status:'creating'};return true;},async get(){return intent;},async save(id){intent={status:'pending',chargeId:id};}};
   const service=module.createPurchaseService({mode:'usage_once',repository,configured:()=>true,appId:'33268',
     access:{async status(){return {paid,demoBatchesUsed:used};}},
-    clientForStore:async()=>({async requestCharge(body){calls++;assert.equal(body.amount_value,79.9);assert.equal(body.amount_currency,'BRL');assert.match(body.external_reference,/33268.*123/);return {id:'charge-123',amount_value:79.9,amount_currency:'BRL'};}})});
+    clientForStore:async()=>({async requestCharge(body){calls++;assert.equal(body.amount_value,79.99);assert.equal(body.amount_currency,'BRL');assert.match(body.external_reference,/33268.*123/);return {id:'charge-123',amount_value:79.99,amount_currency:'BRL'};}})});
   await assert.rejects(()=>service.purchase('123',false),e=>e.status===400);
   await assert.rejects(()=>service.purchase('123',true),e=>e.status===409);assert.equal(calls,0);
   used=1;const results=await Promise.all(Array.from({length:10},()=>service.purchase('123',true)));
