@@ -3,7 +3,17 @@ import {imageGroupName,normalizeName} from '/product-matching.js';
 import {buildCsv,csvRowMatchesFile,fileKey,parseCsvAssignments} from '/csv-mapping.js';
 
 const $=id=>document.getElementById(id);
-const state={connected:false,apiAvailable:false,paymentRequired:false,inputMode:'images',files:[],csvRows:null,session:null,items:[],catalog:[],access:null,busy:false,selection:new Set(),reviewPage:0,jobId:null};
+const state={billingIdentity:null,yampiPaymentUi:null,connected:false,apiAvailable:false,paymentRequired:false,inputMode:'images',files:[],csvRows:null,session:null,items:[],catalog:[],access:null,busy:false,selection:new Set(),reviewPage:0,jobId:null};
+const hasAuthenticatedYampiBilling=()=>state.billingIdentity?.platform==='yampi' && /^yampi:[a-z0-9][a-z0-9_-]{0,99}$/.test(state.billingIdentity.storeId);
+async function ensureYampiPaymentUi(){
+  if(!hasAuthenticatedYampiBilling())throw Error('billing_platform_mismatch');
+  if(state.yampiPaymentUi)return state.yampiPaymentUi;
+  const id=state.billingIdentity.storeId;
+  const module=await import('/yampi-payment-ui.mjs');
+  if(!hasAuthenticatedYampiBilling()||state.billingIdentity.storeId!==id)throw Error('billing_platform_mismatch');
+  state.yampiPaymentUi=module.createYampiPaymentUI({isAuthorized:()=>hasAuthenticatedYampiBilling()&&state.billingIdentity.storeId===id,request,renderAccess,message,busy,t,confirm:text=>confirm(text),navigate:url=>location.assign(url)});
+  return state.yampiPaymentUi;
+}
 const platform=$('platform');
 platform.value=new URLSearchParams(location.search).get('platform')==='yampi'?'yampi':'nuvemshop';
 const updatePlatform=()=>{$('connect').href=platform.value==='yampi'?'/auth/yampi/install':'/auth/install';};
@@ -47,24 +57,25 @@ function updateActions() {
 }
 function renderAccess(access) {
   state.access=access;
+  const accessPrice=hasAuthenticatedYampiBilling()?'79,90':'79,99';
   $('access').hidden=false;
   // Update billing notice component via adapter
   // Pass storeId from state; adapter tracks it across calls
   if(window.BillingNoticeAdapter){
     window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:platform.value,paymentRequired:state.paymentRequired,access:access});
   }
-  $('accessPlan').textContent='Pagamento único de R$79,99 por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.';
+  $('accessPlan').textContent=`Pagamento único de R$${accessPrice} por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.`;
   $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
-    ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':'Seu lote gratuito já foi utilizado. O pagamento único de R$79,99 por loja libera os próximos lotes e reutilizações.'
+    ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':`Seu lote gratuito já foi utilizado. O pagamento único de R$${accessPrice} por loja libera os próximos lotes e reutilizações.`
     :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. O lote gratuito permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
   $('purchasePending').hidden=access.paid || !access.demoUsed;
   $('purchasePending').textContent=access.paymentProvider==='pending'
     ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
     :access.purchaseConfigured
-    ?'O pagamento único de R$79,99 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
+    ?access.paymentProvider==='mercadopago'?(hasAuthenticatedYampiBilling()?state.yampiPaymentUi?.paymentDescription():'Não foi possível confirmar a plataforma de cobrança.'):'O pagamento único de R$79,99 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,99 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
   $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
-  $('purchase').textContent=access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,99';
+  $('purchase').textContent=hasAuthenticatedYampiBilling()?'Comprar acesso por R$79,90':access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,99';
   $('purchase').disabled=state.busy || access.purchaseMode!=='platform_once'&&['creating','pending'].includes(access.purchaseStatus);
   $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
@@ -279,6 +290,8 @@ for(const name of ['dragover','drop'])$('dropzone').addEventListener(name,event=
 });
 $('preview').addEventListener('click',preview);
 $('purchase').addEventListener('click',async()=>{
+  if(state.access?.paymentProvider==='mercadopago'){if(!hasAuthenticatedYampiBilling()||!state.yampiPaymentUi)return;return state.yampiPaymentUi.purchase();}
+  if(hasAuthenticatedYampiBilling())return;
   if(state.access?.purchaseMode==='platform_once'){
     message('Abra Aplicativos no administrador da Nuvemshop e confira o pagamento do Imagem em Lote. Se já pagou, não compre novamente: fale com o suporte para recuperar o acesso.');
     return;
@@ -295,13 +308,14 @@ $('refreshAccess').addEventListener('click',async()=>{
   busy(true,'Verificando a confirmação do pagamento...');
   try {
     const access=await request('/sync/access');renderAccess(access);
-    message(access.paid?'Pagamento confirmado. Seu acesso está liberado.':'A Nuvemshop ainda não confirmou o pagamento. Aguarde a compensação e tente novamente.');
+    message(access.paid?'Pagamento confirmado. Seu acesso está liberado.':'O pagamento ainda não foi confirmado. Aguarde a compensação e tente novamente.');
   }catch(error){message(error.message,true);}finally{busy(false);}
 });
 $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener('click',()=>run(false));
 $('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateWeight();updateActions();});
 $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';updateActions();});
 async function initialize() {
+  state.billingIdentity=null;state.yampiPaymentUi=null;
   try {
     const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);
     state.storeId=connection.storeId||null;
@@ -315,7 +329,8 @@ async function initialize() {
     $('disconnect').hidden=!state.connected || connection.platform!=='yampi';
     $('connectionIssue').hidden=!state.paymentRequired;
     if(state.paymentRequired)message('A loja está conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo. Suas fotos ainda não foram enviadas.',true);
-    if(state.connected)renderAccess(await request('/sync/access'));
+    state.billingIdentity=state.connected?{platform:connection.platform||'nuvemshop',storeId:String(connection.storeId)}:null;
+    if(state.connected){const access=await request('/sync/access');if(hasAuthenticatedYampiBilling()&&access.paymentProvider==='mercadopago')await ensureYampiPaymentUi();renderAccess(access);}
     if(state.connected){
       const active=await request('/sync/status');
       if(active.running&&active.job){state.jobId=active.job.id;busy(true);renderProgress(active.job);try{await watchJob(state.jobId);}finally{busy(false);}}
