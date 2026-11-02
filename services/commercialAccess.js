@@ -1,15 +1,17 @@
 import {getPool, initializeDatabase} from './database.js';
 import {platformBillingConfigured} from './nativeBilling.js';
+import {getYampiPaymentRuntime} from './yampiPaymentRuntime.js';
 export const DEMO_PRODUCTS = 10;
 export const DEMO_IMAGES = 10;
 export const DEMO_BATCHES = 1;
 
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
+const paidAccessMessage=access=>`Seu lote gratuito já foi utilizado. O pagamento único de R$${((access.oneTimePriceCents??7999)/100).toFixed(2).replace('.',',')} libera novos lotes e reutilizações.`;
 export function validateBatchAccess(access,count,imageCount=count) {
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
   if (access.paid) return;
-  if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied('Seu lote gratuito já foi utilizado. O pagamento único de R$79,99 libera novos lotes e reutilizações.');
+  if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied(paidAccessMessage(access));
   if (!Number.isInteger(imageCount) || imageCount < 1 || imageCount > DEMO_IMAGES) throw denied('O lote gratuito permite no máximo 10 imagens. Selecione até 10 fotos para continuar.');
 }
 
@@ -52,13 +54,13 @@ export function createCommercialAccess(repository=postgresRepository) {
       }
       return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
         demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
-        purchaseConfigured:!storeId.startsWith('yampi:') && platformBillingConfigured(),purchaseMode:process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',paymentProvider:storeId.startsWith('yampi:')?'pending':'nuvemshop'};
+        oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):platformBillingConfigured(),purchaseMode:storeId.startsWith('yampi:')?'mercadopago_once':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);
       validateBatchAccess(access,new Set(productIds.map(String)).size,imageCount);
       if (!dryRun && !access.paid && !await repository.reserve(storeId)) {
-        throw denied('Seu lote gratuito já foi utilizado. O pagamento único de R$79,99 libera novos lotes e reutilizações.');
+        throw denied(paidAccessMessage(access));
       }
       return access;
     }

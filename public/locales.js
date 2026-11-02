@@ -1,4 +1,9 @@
 export const rows = [
+['Confirma a compra única de R$79,90 por loja, pelo Mercado Pago, sem mensalidade?','Confirm the one-time purchase of BRL79.90 per store with Mercado Pago, with no monthly fee?','¿Confirmas la compra única de R$79,90 por tienda con Mercado Pago, sin mensualidad?'],
+['Abrindo o pagamento no Mercado Pago...','Opening payment with Mercado Pago...','Abriendo el pago en Mercado Pago...'],
+['O pagamento único de R$79,90 por loja é pelo Mercado Pago, sem mensalidade. O acesso será liberado após a confirmação.','The one-time payment of BRL79.90 per store is through Mercado Pago, with no monthly fee. Access starts after confirmation.','El pago único de R$79,90 por tienda es con Mercado Pago, sin mensualidad. El acceso comienza tras la confirmación.'],
+['O pagamento ainda não foi confirmado. Aguarde a compensação e tente novamente.','Payment has not been confirmed yet. Wait for processing and try again.','El pago aún no se confirmó. Espera la compensación e inténtalo nuevamente.'],
+
 ['A consulta demorou mais que o esperado. Escolha um lote menor e tente novamente.','The request took longer than expected. Choose a smaller batch and try again.','La consulta tardó más de lo esperado. Elige un lote más pequeño e inténtalo de nuevo.'],
 ['As fotos deste lote demoraram demais para enviar. Escolha um lote menor ou reduza o tamanho das fotos e tente novamente.','The photos in this batch took too long to upload. Choose a smaller batch or reduce the photo size and try again.','Las fotos de este lote tardaron demasiado en enviarse. Elige un lote más pequeño o reduce el tamaño de las fotos e inténtalo de nuevo.'],
 ['Conferindo os SKUs e arquivos do CSV...','Checking CSV SKUs and files...','Revisando los SKU y archivos del CSV...'],

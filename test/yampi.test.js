@@ -19,6 +19,20 @@ test('platform selection connects Yampi and does not describe Nuvemshop billing'
   assert.equal(window.document.getElementById('connect').getAttribute('href'),'/auth/install');dom.window.close();
 });
 
+test('a Yampi URL preference cannot replace native Nuvemshop payment or load external payment UI',async()=>{
+ const dom=new JSDOM(await fs.readFile(new URL('../public/index.html',import.meta.url),'utf8'),{url:'https://example.com/?platform=yampi',runScripts:'outside-only'});
+ const {window}=dom,calls=[],confirmations=[];
+ const access={success:true,paid:false,demoUsed:true,demoBatchesRemaining:0,demoBatches:1,demoImages:10,paymentProvider:'nuvemshop',purchaseConfigured:true};
+ window.fetch=async url=>{calls.push(String(url));return Response.json(url==='/auth/status'?{connected:true,storeId:'123',platform:'nuvemshop'}:url==='/sync/purchase'?{status:'pending'}:access);};
+ window.t=s=>s;window.imageGroupName=s=>s;window.normalizeName=s=>s;window.confirm=text=>{confirmations.push(text);return true;};
+ try{
+  window.eval((await fs.readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,''));
+  await new Promise(r=>setTimeout(r,25));window.document.getElementById('purchase').click();await new Promise(r=>setTimeout(r,25));
+  assert.equal(calls.filter(p=>p==='/sync/purchase').length,1);assert.ok(calls.every(p=>!p.includes('/yampi/billing')&&!p.includes('mercadopago')));
+  assert.equal(confirmations.length,1);assert.match(confirmations[0],/Nuvemshop/);assert.doesNotMatch(window.document.body.textContent,/Mercado Pago/);
+ }finally{dom.window.close();}
+});
+
 test('exhausted Yampi demo does not claim a free batch is still available',async()=>{
   const dom=new JSDOM(await fs.readFile(new URL('../public/index.html',import.meta.url),'utf8'),{url:'https://example.com/?platform=yampi',runScripts:'outside-only'});
   const {window}=dom;window.fetch=async url=>Response.json(url==='/auth/status'?{connected:true,storeId:'yampi:teste',platform:'yampi'}

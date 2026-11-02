@@ -31,3 +31,11 @@ Prévia paginada por10/20/30/40/50 imagens, seleção de produtos preservada ent
 ## Confirmação de preço — 01/11/2026
 
 Preço brasileiro vigente: R$79,99, pagamento único pela Nuvemshop. No modo platform_once, confirmações nativas assinadas de BRL79,90 continuam aceitas como legado; guardar o valor real do recibo e preservar paid_at/payment_reference existentes. Não inferir dívida só pelo demo consumido ou por credenciais presentes. Não criar cobrança adicional para contornar ausência de pagamento no painel. Um GET de assinatura recorrente com404 não comprova, sozinho, inexistência de cobrança única.
+
+
+- 26/10/2026, pedido posterior: cobrança externa Mercado Pago PF autorizada SOMENTE para Yampi, com pagamento único R$79,90. A proibição anterior de checkout externo permanece para Nuvemshop. Não ativar cobranças reais antes da homologação.
+
+
+## Cobrança por plataforma — requisito obrigatório28/10/2026
+
+Nuvemshop/Tiendanube cobra SOMENTE nativamente; Yampi cobra pelo Mercado Pago. MP nunca entra no fluxo/interface de pagamento Nuvemshop, nem como fallback de erro. Nova plataforma exige adaptador e registro explícitos/homologados; desconhecida é recusada. Nunca escolher provedor por query/body/localStorage, reaproveitar recibo entre plataformas, reiniciar teste no OAuth ou ativar cobrança por preencher credenciais. Seguir docs/billing-platform-contract.md e manter as cinco políticas versionadas/testadas. Código desta etapa permanece em PRrascunho, sem merge/deploy/cobrança real.
