@@ -38,6 +38,11 @@ export async function initializeDatabase() {
 
 export async function migrateDatabase(client) {
 
+  await client.query(`create table if not exists image_sync_partner_receipts (
+    credit_id text primary key,store_id text not null,app_id text not null,
+    evidence jsonb not null,verified_at timestamptz not null default now()
+  )`);
+
   await client.query(`
     create table if not exists stores (
       store_id text primary key,
