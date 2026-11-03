@@ -210,3 +210,9 @@ Preço brasileiro confirmado pela proprietária nesta conversa: R$79,99, pagamen
 Validação local final: npm test, 92PASS, 0FAIL, 1SKIP de PostgreSQL externo; inclui HTTP + PGlite com preços atual/legado, repetição e imutabilidade de recibos. O teste externo não foi executado em produção. npm audit --omit=dev identificou três alertas preexistentes (body-parser, multer, qs); dependências não foram alteradas neste ajuste. Não equivale a validação financeira real.
 
 Codex implementou e integrou; revisão independente no Codex encontrou e confirmou a correção do caso de configuração antiga. Claude Code retornou Prompt is too long, sem revisão concluída. Nenhuma cobrança criada ou pagamento realizado. A consulta real de assinatura periódica retornou404 SubscriptionConcept not found; confirmar o tratamento da modalidade única com o suporte Nuvemshop antes de qualquer emissão adicional. Alteração preparada para revisão; estado de PR/publicação será registrado ao concluir.
+# Sincronização de pagamentos —03/11/2026
+
+Pagamento único nativo permanece persistido atomicamente com recibo e acesso, usando HMAC e vínculo app/loja/valor/moeda. A inscrição das notificações, antes tentada apenas no início, agora é revisada automaticamente a cada5min, sem sobreposição e com nova tentativa após erro temporário. Encerramento interrompe novas tentativas. Não há emissão de cobrança adicional, expiração mensal do pagamento único brasileiro ou alteração do fluxo Yampi.
+
+Testes direcionados:4aprovados,0falhas, incluindo assinatura nativa, persistência PostgreSQL, domínio do receptor, erro/retry e parada durante execução. A importação histórica do Partners é uma fonte separada; comprovantes com conversões estrangeiras não devem ser forjados como eventos HMAC.
+

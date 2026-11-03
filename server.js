@@ -12,6 +12,7 @@ import webhookRoutes from './routes/webhooks.js';
 import supportRoutes from './routes/support.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import { refreshAllBillingWebhooks } from './services/nativeBilling.js';
+import {createBillingWebhookReconciler} from './services/billingWebhookReconciler.js';
 import { listStoredStoreIds } from './services/oauthStore.js';
 import { NuvemshopClient } from './services/nuvemshop.js';
 import logger from './utils/logger.js';
@@ -99,7 +100,9 @@ app.listen(port, () => {
   logger.info(`Server running on port ${port}`);
   logger.info(`Local URL: http://localhost:${port}`);
   // Keeps charge webhooks on the current APP_URL so a domain/host change needs no reinstall.
-  setTimeout(()=>refreshAllBillingWebhooks({listStoreIds:listStoredStoreIds,clientFor:id=>NuvemshopClient.fromStore(id),log:logger}).catch(()=>{}),15000).unref();
+  const billingHooks=createBillingWebhookReconciler({refresh:()=>refreshAllBillingWebhooks({listStoreIds:listStoredStoreIds,clientFor:id=>NuvemshopClient.fromStore(id),log:logger}),onError:()=>logger.error('Atualização de notificações de pagamento pendente; nova tentativa automática.')});
+  billingHooks.start();
+  process.once('SIGTERM',()=>billingHooks.stop());
 });
 
 export default app;
