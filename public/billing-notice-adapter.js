@@ -40,8 +40,8 @@
     // - demoUsed && !paid: free batch consumed, need payment
     const access = data.access || {};
     const paymentRequired = Boolean(data.paymentRequired);
-    const needsPayment = !access.paid && access.demoUsed;
-    const allowed = data.verificationFailed ? false : !paymentRequired && (!access.demoUsed || access.paid);
+    const needsPayment = !access.paid && !access.courtesyActive && access.demoUsed;
+    const allowed = data.verificationFailed ? false : !paymentRequired && (!access.demoUsed || access.paid || Boolean(access.courtesyActive));
 
     // Only a platform block establishes payment_required; credentials do not prove a charge.
     // When purchaseConfigured=false, use 'unverified' since component may not recognize demo_exhausted.
@@ -59,7 +59,7 @@
     } else if (access.paid) {
       status = 'paid';
       state = 'active';
-    } else if (access.demoBatchesRemaining > 0) {
+    } else if (!access.courtesyActive && access.demoBatchesRemaining > 0) {
       status = 'demo_available';
       state = 'demo';
     }
