@@ -64,6 +64,7 @@ export async function migrateDatabase(client) {
   `);
   // Preserve consumption from the previous one-batch demo when migrating.
   await client.query('alter table image_sync_access add column if not exists demo_batches_used integer');
+  await client.query('alter table image_sync_access add column if not exists courtesy_until timestamptz');
   await client.query(`update image_sync_access set demo_batches_used=
     case when demo_used_at is null then 0 else 1 end where demo_batches_used is null`);
   await client.query('alter table image_sync_access alter column demo_batches_used set default 0');

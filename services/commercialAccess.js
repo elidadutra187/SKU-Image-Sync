@@ -10,7 +10,7 @@ const paidAccessMessage=access=>`Seu lote gratuito já foi utilizado. O pagament
 export function validateBatchAccess(access,count,imageCount=count) {
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
-  if (access.paid) return;
+  if (access.paid || access.courtesyActive) return;
   if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied(paidAccessMessage(access));
   if (!Number.isInteger(imageCount) || imageCount < 1 || imageCount > DEMO_IMAGES) throw denied('O lote gratuito permite no máximo 10 imagens. Selecione até 10 fotos para continuar.');
 }
@@ -25,9 +25,9 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
   },
   async status(storeId) {
     const pool=await this.pool();
-    const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,p.status as purchase_status
+    const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,a.courtesy_until>statement_timestamp() as courtesy_active,p.status as purchase_status
       from image_sync_access a left join image_sync_purchase p on p.store_id=a.store_id where a.store_id=$1`,[storeId]);
-    return {paid:Boolean(rows[0]?.paid_at),demoBatchesUsed:rows[0]?.demo_batches_used ?? 0,purchaseStatus:rows[0]?.purchase_status || null};
+    return {paid:Boolean(rows[0]?.paid_at),courtesyActive:Boolean(rows[0]?.courtesy_active),demoBatchesUsed:rows[0]?.demo_batches_used ?? 0,purchaseStatus:rows[0]?.purchase_status || null};
   },
   async reserve(storeId) {
     const pool=await this.pool();
@@ -59,7 +59,7 @@ export function createCommercialAccess(repository=postgresRepository) {
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);
       validateBatchAccess(access,new Set(productIds.map(String)).size,imageCount);
-      if (!dryRun && !access.paid && !await repository.reserve(storeId)) {
+      if (!dryRun && !access.paid && !access.courtesyActive && !await repository.reserve(storeId)) {
         throw denied(paidAccessMessage(access));
       }
       return access;

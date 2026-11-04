@@ -50,13 +50,14 @@ function updateActions() {
   $('previousPage').disabled=state.busy||state.reviewPage===0;
   $('nextPage').disabled=state.busy||state.reviewPage>=Math.max(0,$('reviewPage').options.length-1);
   const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
-  const oversized=state.access && !state.access.paid && imageCount>10;
-  const blocked=state.access && !state.access.paid && state.access.demoUsed;
+  const oversized=state.access && !state.access.paid && !state.access.courtesyActive && imageCount>10;
+  const blocked=state.access && !state.access.paid && !state.access.courtesyActive && state.access.demoUsed;
   $('send').disabled=state.busy || !!state.jobId || !count || !state.session || !state.access || blocked || oversized;
   $('selectionCount').textContent=count ? `${imageCount} imagem(ns) selecionada(s). ${oversized ? 'No gratuito, selecione no máximo 10 imagens.' : 'Confira as fotos antes de enviar.'}` : 'Marque os produtos que deseja atualizar.';
 }
 function renderAccess(access) {
   state.access=access;
+  const fullAccess=access.paid || access.courtesyActive;
   const accessPrice=hasAuthenticatedYampiBilling()?'79,90':'79,99';
   $('access').hidden=false;
   // Update billing notice component via adapter
@@ -65,21 +66,21 @@ function renderAccess(access) {
     window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:platform.value,paymentRequired:state.paymentRequired,access:access});
   }
   $('accessPlan').textContent=`Pagamento único de R$${accessPrice} por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.`;
-  $('accessText').textContent=access.paid?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
+  $('accessText').textContent=fullAccess?'Acesso liberado para novos lotes e reutilizações.':access.demoUsed
     ?access.paymentProvider==='pending'?'Seu lote gratuito já foi utilizado. Novos envios aguardam a liberação da cobrança Yampi.':`Seu lote gratuito já foi utilizado. O pagamento único de R$${accessPrice} por loja libera os próximos lotes e reutilizações.`
     :`Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. O lote gratuito permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
-  $('purchasePending').hidden=access.paid || !access.demoUsed;
+  $('purchasePending').hidden=fullAccess || !access.demoUsed;
   $('purchasePending').textContent=access.paymentProvider==='pending'
     ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
     :access.purchaseConfigured
     ?access.paymentProvider==='mercadopago'?(hasAuthenticatedYampiBilling()?state.yampiPaymentUi?.paymentDescription():'Não foi possível confirmar a plataforma de cobrança.'):'O pagamento único de R$79,99 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,99 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
-  $('purchase').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
+  $('purchase').hidden=fullAccess || !access.demoUsed || !access.purchaseConfigured;
   $('purchase').textContent=hasAuthenticatedYampiBilling()?'Comprar acesso por R$79,90':access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,99';
   $('purchase').disabled=state.busy || access.purchaseMode!=='platform_once'&&['creating','pending'].includes(access.purchaseStatus);
-  $('refreshAccess').hidden=access.paid || !access.demoUsed || !access.purchaseConfigured;
-  $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!access.paid && Number(option.value)>10;});
-  if(!access.paid)$('batchSize').value='10';
+  $('refreshAccess').hidden=fullAccess || !access.demoUsed || !access.purchaseConfigured;
+  $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!fullAccess && Number(option.value)>10;});
+  if(!fullAccess)$('batchSize').value='10';
   updateBatches();updateActions();
 }
 function csvGroups() {
@@ -235,7 +236,7 @@ async function watchJob(jobId) {
 }
 async function run(dryRun) {
   const selectedSkus=selected(),mode=$('mode').value;
-  const demoNotice=state.access?.paid?'':' '+t('Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.');
+  const demoNotice=(state.access?.paid || state.access?.courtesyActive)?'':' '+t('Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.');
   if(!dryRun && !window.confirm(mode==='replace'
     ?t('Este modo vai remover as fotos atuais dos produtos selecionados e enviar as novas. Confirma?')
     :t('Você conferiu os produtos e as fotos? Enviar agora?')+demoNotice))return;
