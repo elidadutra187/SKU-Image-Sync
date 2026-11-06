@@ -126,15 +126,22 @@ export async function registerBillingWebhooks(client) {
   }
 }
 
+const permanentStoreRefusal=error=>[401,402,403,404].includes(error?.status)||/^Missing environment variables: .*OAuth/.test(String(error?.message));
+
 // Re-points billing webhooks of every connected store, e.g. after APP_URL moves to a new domain.
 export async function refreshAllBillingWebhooks({listStoreIds,clientFor,log=console,failOnPartial=false}) {
   if(!platformBillingConfigured()&&!nativeBillingConfigured())return 0;
-  let updated=0,failed=0;
+  let updated=0,failed=0,refused=0;
   for(const id of await listStoreIds()) {
     try { await registerBillingWebhooks(await clientFor(id)); updated++; }
-    catch { failed++; log.error('Atualização de webhooks de cobrança pendente para uma loja.'); }
+    catch(error) {
+      // Uninstalled, unpaid or token-less stores refuse every attempt: retrying them every 5 minutes
+      // only kept the Neon compute awake. They are rechecked on the next idle (daily) scan.
+      if(permanentStoreRefusal(error)){refused++;continue;}
+      failed++; log.error('Atualização de webhooks de cobrança pendente para uma loja.');
+    }
   }
-  // Lets the reconciler retry soon instead of waiting for the next idle scan.
-  if(failOnPartial&&failed)throw Object.assign(Error('billing_webhooks_pending'),{updated,failed});
+  // Lets the reconciler retry soon instead of waiting for the next idle scan, for transient errors only.
+  if(failOnPartial&&failed)throw Object.assign(Error('billing_webhooks_pending'),{updated,failed,refused});
   return updated;
 }
