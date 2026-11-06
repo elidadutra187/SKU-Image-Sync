@@ -23,3 +23,17 @@ test('partial registration failure is reported to the reconciler when requested'
     await assert.rejects(refreshAllBillingWebhooks({listStoreIds:async()=>['2'],clientFor:async()=>{throw Error('x');},log:{error(){}},failOnPartial:true}),e=>e.message==='billing_webhooks_pending'&&e.failed===1);
   }finally{process.env=saved;}
 });
+test('stores that permanently refuse do not trigger the 5-minute retry',async()=>{
+  const saved={...process.env};
+  Object.assign(process.env,{NUVEMSHOP_CLIENT_ID:'1',NUVEMSHOP_CLIENT_SECRET:'s',NUVEMSHOP_ONE_TIME_PRICE:'79.90',NUVEMSHOP_BILLING_MODEL:'usage_once',NUVEMSHOP_NATIVE_BILLING:'true',APP_URL:'https://imagens.elunalab.com.br'});
+  try{
+    const ok={request:async(path,init={})=>path==='/webhooks'&&!init.method?[]:{}};
+    const refuse=status=>({request:async()=>{throw Object.assign(Error('Nuvemshop API '+status),{status});}});
+    const errors=[];
+    const done=await refreshAllBillingWebhooks({listStoreIds:async()=>['1','2','3','4','5','6'],clientFor:async id=>{
+      if(id==='6')throw Error('Missing environment variables: OAuth store_id, OAuth access_token');
+      return id==='1'?ok:refuse({2:401,3:402,4:403,5:404}[id]);},log:{error:m=>errors.push(m)},failOnPartial:true});
+    assert.equal(done,1);assert.equal(errors.length,0);
+    await assert.rejects(refreshAllBillingWebhooks({listStoreIds:async()=>['1','2'],clientFor:async id=>id==='1'?refuse(401):refuse(503),log:{error(){}},failOnPartial:true}),e=>e.failed===1&&e.refused===1);
+  }finally{process.env=saved;}
+});
