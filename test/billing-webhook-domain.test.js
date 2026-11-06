@@ -16,3 +16,10 @@ test('billing webhooks move to the new APP_URL and old-host hooks are removed',a
     assert.equal(done,1);
   }finally{process.env=saved;}
 });
+test('partial registration failure is reported to the reconciler when requested',async()=>{
+  const saved={...process.env};
+  Object.assign(process.env,{NUVEMSHOP_CLIENT_ID:'1',NUVEMSHOP_CLIENT_SECRET:'s',NUVEMSHOP_ONE_TIME_PRICE:'79.90',NUVEMSHOP_BILLING_MODEL:'usage_once',NUVEMSHOP_NATIVE_BILLING:'true',APP_URL:'https://imagens.elunalab.com.br'});
+  try{
+    await assert.rejects(refreshAllBillingWebhooks({listStoreIds:async()=>['2'],clientFor:async()=>{throw Error('x');},log:{error(){}},failOnPartial:true}),e=>e.message==='billing_webhooks_pending'&&e.failed===1);
+  }finally{process.env=saved;}
+});
