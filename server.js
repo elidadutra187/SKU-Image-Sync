@@ -100,7 +100,7 @@ app.listen(port, () => {
   logger.info(`Server running on port ${port}`);
   logger.info(`Local URL: http://localhost:${port}`);
   // Keeps charge webhooks on the current APP_URL so a domain/host change needs no reinstall.
-  const billingHooks=createBillingWebhookReconciler({refresh:()=>refreshAllBillingWebhooks({listStoreIds:listStoredStoreIds,clientFor:id=>NuvemshopClient.fromStore(id),log:logger}),onError:()=>logger.error('Atualização de notificações de pagamento pendente; nova tentativa automática.')});
+  const billingHooks=createBillingWebhookReconciler({refresh:()=>refreshAllBillingWebhooks({listStoreIds:listStoredStoreIds,clientFor:id=>NuvemshopClient.fromStore(id),log:logger,failOnPartial:true}),onError:()=>logger.error('Atualização de notificações de pagamento pendente; nova tentativa automática.')});
   billingHooks.start();
   process.once('SIGTERM',()=>billingHooks.stop());
 });

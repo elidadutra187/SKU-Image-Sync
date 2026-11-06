@@ -127,12 +127,14 @@ export async function registerBillingWebhooks(client) {
 }
 
 // Re-points billing webhooks of every connected store, e.g. after APP_URL moves to a new domain.
-export async function refreshAllBillingWebhooks({listStoreIds,clientFor,log=console}) {
+export async function refreshAllBillingWebhooks({listStoreIds,clientFor,log=console,failOnPartial=false}) {
   if(!platformBillingConfigured()&&!nativeBillingConfigured())return 0;
-  let updated=0;
+  let updated=0,failed=0;
   for(const id of await listStoreIds()) {
     try { await registerBillingWebhooks(await clientFor(id)); updated++; }
-    catch { log.error('Atualização de webhooks de cobrança pendente para uma loja.'); }
+    catch { failed++; log.error('Atualização de webhooks de cobrança pendente para uma loja.'); }
   }
+  // Lets the reconciler retry soon instead of waiting for the next idle scan.
+  if(failOnPartial&&failed)throw Object.assign(Error('billing_webhooks_pending'),{updated,failed});
   return updated;
 }
