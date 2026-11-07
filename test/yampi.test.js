@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {setStoreSession,readStoreSession} from '../services/session.js';
 import {createCommercialAccess} from '../services/commercialAccess.js';
+import {getYampiPaymentRuntime} from '../services/yampiPaymentRuntime.js';
 import fs from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 
@@ -70,7 +71,10 @@ test('signed Yampi sessions stay distinct from Nuvemshop numeric stores',()=>{
 test('Yampi access never advertises or invokes Nuvemshop payment',async()=>{
   const access=createCommercialAccess({status:async()=>({paid:false,demoBatchesUsed:0})});
   const state=await access.status('yampi:teste');
-  assert.equal(state.paymentProvider,'pending');assert.equal(state.purchaseConfigured,false);
+  // Independe do ambiente: o build do Railway roda os testes com as variaveis do servico (MP pode estar ativo).
+  const configured=getYampiPaymentRuntime().available('yampi:teste');
+  assert.notEqual(state.paymentProvider,'nuvemshop');assert.equal(state.purchaseMode,'mercadopago_once');
+  assert.equal(state.paymentProvider,configured?'mercadopago':'pending');assert.equal(state.purchaseConfigured,configured);
 });
 
 test('PKCE and authenticated ciphertext do not expose credentials',async()=>{
