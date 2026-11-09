@@ -121,10 +121,12 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
         running = false;
     } };
     return { router, available, checkout, reconcilePayment, reconcileAll, start() { if (provider.isConfigured() && !timer) {
-            timer = setInterval(reconcile, 1800000);
-            timer.unref();
+            // Idle Mercado Pago sweep once a day at 21:01 BRT (owner decision 09/11/2026); webhooks apply at once.
+            const day = 86400000, untilDaily = (now) => { const next = now - (now % day) + 60000; return next > now ? next - now : next + day - now; };
+            const loop = () => { timer = setTimeout(() => { void reconcile(); loop(); }, untilDaily(Date.now())); timer.unref(); };
+            loop();
             void reconcile();
-        } }, stop() { stopped = true; clearInterval(timer); } };
+        } }, stop() { stopped = true; clearTimeout(timer); } };
 }
 let runtime;
 export const getYampiPaymentRuntime = () => runtime ??= buildYampiPaymentRuntime();
