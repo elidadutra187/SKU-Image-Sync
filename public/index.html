@@ -30,7 +30,7 @@
     @media(max-width:700px){main{padding:20px 14px 40px}header{display:block}.connection{margin-top:20px}.steps,.photo-columns{grid-template-columns:1fr}.panel,.product{padding:18px}.product-heading{display:block}.badge{display:inline-block;margin-top:12px}.actions button{width:100%}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
   </style>
-<script type="module" src="/i18n.js"></script><link rel="stylesheet" href="/billing-notice.css"><script src="/billing-notice.js" defer></script><script src="/billing-notice-adapter.js" defer></script></head>
+<script type="module" src="/i18n.js"></script><link rel="stylesheet" href="/billing-notice.css"><script src="/billing-notice.js" defer></script><script src="/billing-notice-adapter.js" defer></script><link rel="stylesheet" href="/ux-audit.css"></head>
 <body><main>
   <header><div><div class="eyebrow">Imagem em Lote</div><h1>Fotos nos produtos certos, sem complicação.</h1><p class="muted">Selecione suas imagens. Nós encontramos os produtos pelo nome do arquivo ou pelo SKU. Você confere antes de enviar.</p></div>
     <aside class="connection"><strong id="connection">Verificando sua loja...</strong><label id="platformLabel" for="platform">Plataforma<select id="platform"><option value="nuvemshop">Nuvemshop / Tiendanube</option><option value="yampi">Yampi</option></select></label><p><a class="button" id="connect" href="/auth/install" target="_top">Conectar minha loja</a></p><button id="disconnect" type="button" class="secondary" hidden>Desconectar loja Yampi</button></aside>
@@ -60,9 +60,10 @@
     <div id="groupOptions"><label><input id="individual" type="checkbox"> Escolher um produto para cada foto, sem agrupar pelos nomes</label><p class="muted">Você pode enviar várias fotos para o mesmo produto. Não precisa renomear os arquivos.</p></div>
     <p class="muted">JPG, PNG, WebP ou GIF. Até 10 MB por imagem.</p><p id="fileCount" class="muted">Nenhuma foto selecionada.</p><p id="batchWeight" class="notice" hidden></p>
     <details id="batchOptions" hidden><summary>Organizar as fotos em lotes</summary><p class="muted">Confira e envie um lote de cada vez. As outras fotos continuam selecionadas.</p><div class="row"><label for="batchSize">Tamanho do lote<select id="batchSize"><option value="10">Até 10 grupos de fotos</option><option value="20">Até 20 grupos de fotos</option><option value="50">Até 50 grupos de fotos</option></select></label><label for="batchPage">Lote para conferir<select id="batchPage"><option value="0">Selecione as fotos</option></select></label></div></details>
-    <div class="actions"><button id="preview" disabled>Encontrar produtos</button></div>
+    <p id="message" class="message" role="status" aria-live="polite">Comece conectando sua loja e selecionando as fotos. Nenhuma imagem é alterada ao gerar a prévia.</p>
+    <div class="actions"><button id="preview" aria-describedby="message" disabled>Encontrar produtos</button></div>
   </section>
-  <p id="message" class="message" role="status" aria-live="polite">Comece conectando sua loja e selecionando as fotos. Nenhuma imagem é alterada ao gerar a prévia.</p>
+
   <p id="loading" class="muted" hidden>Aguarde a conclusão desta etapa...</p>
   <section id="review" class="panel" hidden aria-labelledby="reviewTitle">
     <h2 id="reviewTitle">2. Confira antes de enviar</h2><p id="reviewSummary"></p><p id="matchHelp" class="notice" hidden>Faltou encontrar um produto? Busque pelo nome e confirme na lista abaixo.</p>
