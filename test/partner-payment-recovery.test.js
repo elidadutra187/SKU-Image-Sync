@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
+import {recordPartnerPaymentEvidence} from '../services/partnerPayments.js';
 import express from 'express';
 import { applyVerifiedPartnerPaymentEvidence, reconcileStoredPartnersCredits } from '../services/partnerPaymentRecovery.js';
 import { createPartnerPaymentRecoveryRouter } from '../routes/partnerPaymentRecovery.js';
@@ -91,10 +92,7 @@ test('boot reconciliation activates only installed, previously verified, unpaid 
       );
       INSERT INTO stores (store_id,access_token) VALUES ('6556813','installed');
     `);
-    await db.query(
-      'INSERT INTO image_sync_partner_receipts (credit_id,store_id,app_id,evidence) VALUES ($1,$2,$3,$4::jsonb)',
-      [proof.creditId,proof.storeId,proof.appId,JSON.stringify(proof)]
-    );
+    await recordPartnerPaymentEvidence(proof,{query:(...args)=>db.query(...args),appId:'33268'});
     const result = await reconcileStoredPartnersCredits({
       query: (...args) => db.query(...args), appId: '33268',
       apply: (input, options) => applyVerifiedPartnerPaymentEvidence(input,{...options,client:db})
