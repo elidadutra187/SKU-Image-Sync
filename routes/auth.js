@@ -6,6 +6,7 @@ import { saveStoredToken, tokenStatusAsync } from '../services/oauthStore.js';
 import { readStoreSession, setStoreSession } from '../services/session.js';
 import logger from '../utils/logger.js';
 import {registerBillingWebhooks} from '../services/nativeBilling.js';
+import {registerMonthlyTrial} from '../services/monthlyBilling.js';
 
 const router = Router();
 
@@ -98,6 +99,9 @@ router.get('/callback', async (req, res) => {
       scopes: exchanged.scopes,
       installedAt: new Date().toISOString(),
     });
+    // The trial is created once per store, never reset on OAuth reconnection.
+    if(process.env.NUVEMSHOP_BILLING_MODEL==='platform_monthly')
+      await registerMonthlyTrial(exchanged.storeId);
     setStoreSession(res, exchanged.storeId);
     try {
       await registerBillingWebhooks(await NuvemshopClient.fromStore(exchanged.storeId));

@@ -26,6 +26,13 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
   configured=nativeBillingConfigured,appId=process.env.NUVEMSHOP_CLIENT_ID,clientForStore=NuvemshopClient.fromStore,
   prepareClient=async client=>registerBillingWebhooks(client)}={}){return {
   async purchase(storeId,confirmed){
+    if(mode==='platform_monthly'){
+      const current=await access.status(storeId);
+      if(current.paid||current.trialActive||current.courtesyActive)return {status:'active'};
+      // Monthly subscriptions are created and billed in Nuvemshop Partners.
+      // Never POST another charge from this app.
+      return {status:'unconfirmed',managedBy:'nuvemshop',manageUrl:'https://www.nuvemshop.com.br/login'};
+    }
     if(confirmed!==true)throw fail('Confirme a compra única de R$79,99 por loja.',400);
     const current=await access.status(storeId);
     if(current.paid)return {status:'paid'};

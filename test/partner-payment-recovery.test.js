@@ -19,7 +19,7 @@ test('verified Partners credit atomically grants permanent one-time access, and 
   try {
     await db.exec(`
       CREATE TABLE stores (store_id text PRIMARY KEY, access_token text NOT NULL);
-      CREATE TABLE image_sync_partner_receipts (credit_id text PRIMARY KEY, store_id text NOT NULL, app_id text NOT NULL, evidence jsonb NOT NULL, verified_at timestamptz NOT NULL DEFAULT now());
+      CREATE TABLE image_sync_partner_receipts (credit_id text PRIMARY KEY, store_id text NOT NULL, app_id text NOT NULL, evidence jsonb NOT NULL, verified_at timestamptz NOT NULL DEFAULT now(), applied_at timestamptz);
       CREATE TABLE image_sync_access (store_id text PRIMARY KEY, demo_batches_used integer DEFAULT 0, paid_at timestamptz, payment_reference text UNIQUE);
       INSERT INTO stores (store_id,access_token) VALUES ('6556813','token'),('6557210','token');
     `);
@@ -43,7 +43,7 @@ test('unknown stores or unverified claims cannot obtain access or leave receipt 
   try {
     await db.exec(`
       CREATE TABLE stores(store_id text PRIMARY KEY,access_token text NOT NULL);
-      CREATE TABLE image_sync_partner_receipts(credit_id text PRIMARY KEY, store_id text, app_id text, evidence jsonb);
+      CREATE TABLE image_sync_partner_receipts(credit_id text PRIMARY KEY, store_id text, app_id text, evidence jsonb, applied_at timestamptz);
       CREATE TABLE image_sync_access(store_id text PRIMARY KEY,paid_at timestamptz,payment_reference text UNIQUE);
       INSERT INTO stores VALUES ('6556813','token');
     `);
@@ -84,7 +84,7 @@ test('boot reconciliation activates only installed, previously verified, unpaid 
       CREATE TABLE image_sync_partner_receipts (
         credit_id text PRIMARY KEY, store_id text NOT NULL,
         app_id text NOT NULL, evidence jsonb NOT NULL,
-        verified_at timestamptz NOT NULL DEFAULT now()
+        verified_at timestamptz NOT NULL DEFAULT now(), applied_at timestamptz
       );
       CREATE TABLE image_sync_access (
         store_id text PRIMARY KEY, paid_at timestamptz,
@@ -105,4 +105,33 @@ test('boot reconciliation activates only installed, previously verified, unpaid 
       query: (...args) => db.query(...args),appId:'33268'
     }), {examined:0,recovered:0,failed:0});
   } finally { await db.close(); }
+});
+
+
+test('verified new monthly Partners credit grants only a dated period, and retries do not grant permanent access',async()=>{
+ const db=new PGlite();const previous=process.env.NUVEMSHOP_BILLING_MODEL;
+ process.env.NUVEMSHOP_BILLING_MODEL='platform_monthly';
+ try{
+  await db.exec(`
+    CREATE TABLE stores(store_id text PRIMARY KEY,access_token text NOT NULL);
+    CREATE TABLE image_sync_partner_receipts(credit_id text PRIMARY KEY,store_id text NOT NULL,app_id text NOT NULL,evidence jsonb NOT NULL,verified_at timestamptz DEFAULT now(),applied_at timestamptz);
+    CREATE TABLE image_sync_access(store_id text PRIMARY KEY,paid_at timestamptz,payment_reference text UNIQUE);
+    CREATE TABLE image_sync_monthly(store_id text PRIMARY KEY,trial_until timestamptz,paid_until timestamptz,last_charge_id text,updated_at timestamptz DEFAULT now());
+    INSERT INTO stores VALUES('6556813','token');
+  `);
+  const monthly={...proof,creditId:'21211212',paymentDate:'2026-11-11',contractedDays:30};
+  await applyVerifiedPartnerPaymentEvidence(monthly,{client:db,appId:'33268'});
+  await applyVerifiedPartnerPaymentEvidence(monthly,{client:db,appId:'33268'});
+  assert.equal((await db.query('SELECT count(*)::integer as count FROM image_sync_access')).rows[0].count,0);
+  const period=(await db.query("SELECT paid_until,last_charge_id FROM image_sync_monthly WHERE store_id='6556813'")).rows[0];
+  assert.equal(period.last_charge_id,'partners:21211212');
+  assert.equal(new Date(period.paid_until).toISOString(),'2026-12-11T00:00:00.000Z');
+  assert.ok((await db.query("SELECT applied_at FROM image_sync_partner_receipts WHERE credit_id='21211212'")).rows[0].applied_at);
+  const recon=await reconcileStoredPartnersCredits({query:(...args)=>db.query(...args),appId:'33268'});
+  assert.deepEqual(recon,{examined:0,recovered:0,failed:0});
+ }finally{
+  if(previous===undefined)delete process.env.NUVEMSHOP_BILLING_MODEL;
+  else process.env.NUVEMSHOP_BILLING_MODEL=previous;
+  await db.close();
+ }
 });

@@ -6,11 +6,13 @@ export const DEMO_IMAGES = 10;
 export const DEMO_BATCHES = 1;
 
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
-const paidAccessMessage=access=>`Seu lote gratuito já foi utilizado. O pagamento único de R$${((access.oneTimePriceCents??7999)/100).toFixed(2).replace('.',',')} libera novos lotes e reutilizações.`;
+const paidAccessMessage=access=>access.purchaseMode==='platform_monthly'
+  ? 'O período de teste ou a assinatura terminou. Regularize o Imagem em Lote na Nuvemshop para voltar a enviar imagens.'
+  : `Seu lote gratuito já foi utilizado. O pagamento único de R${((access.oneTimePriceCents??7999)/100).toFixed(2).replace('.',',')} libera novos lotes e reutilizações.`;
 export function validateBatchAccess(access,count,imageCount=count) {
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
-  if (access.paid || access.courtesyActive) return;
+  if (access.paid || access.trialActive || access.courtesyActive) return;
   if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied(paidAccessMessage(access));
   if (!Number.isInteger(imageCount) || imageCount < 1 || imageCount > DEMO_IMAGES) throw denied('O lote gratuito permite no máximo 10 imagens. Selecione até 10 fotos para continuar.');
 }
@@ -25,9 +27,21 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
   },
   async status(storeId) {
     const pool=await this.pool();
-    const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,a.courtesy_until>statement_timestamp() as courtesy_active,p.status as purchase_status
-      from image_sync_access a left join image_sync_purchase p on p.store_id=a.store_id where a.store_id=$1`,[storeId]);
-    return {paid:Boolean(rows[0]?.paid_at),courtesyActive:Boolean(rows[0]?.courtesy_active),demoBatchesUsed:rows[0]?.demo_batches_used ?? 0,purchaseStatus:rows[0]?.purchase_status || null};
+    const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,
+      a.courtesy_until>statement_timestamp() as courtesy_active,p.status as purchase_status,
+      m.paid_until,m.trial_until,m.lifecycle,m.platform_suspended,
+      (m.paid_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as monthly_paid,
+      (m.trial_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as trial_active
+      from (select $1::text as store_id) s
+      left join image_sync_access a on a.store_id=s.store_id
+      left join image_sync_monthly m on m.store_id=s.store_id
+      left join image_sync_purchase p on p.store_id=s.store_id`,[storeId]);
+    const row=rows[0]||{};
+    return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid))&&!row.platform_suspended,
+      trialActive:Boolean(row.trial_active),courtesyActive:Boolean(row.courtesy_active)&&!row.platform_suspended,
+      demoBatchesUsed:row.demo_batches_used??0,purchaseStatus:row.purchase_status||null,
+      subscriptionUntil:row.paid_until||null,trialUntil:row.trial_until||null,
+      subscriptionState:row.lifecycle||null,platformSuspended:Boolean(row.platform_suspended)};
   },
   async reserve(storeId) {
     const pool=await this.pool();
@@ -54,12 +68,17 @@ export function createCommercialAccess(repository=postgresRepository) {
       }
       return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
         demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
-        oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):platformBillingConfigured(),purchaseMode:storeId.startsWith('yampi:')?'mercadopago_once':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
+        oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),
+        monthlyPriceCents:Math.round(Number(process.env.NUVEMSHOP_MONTHLY_PRICE||'39.90')*100),
+        trialDays:3,
+        purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):platformBillingConfigured(),
+        purchaseMode:storeId.startsWith('yampi:')?'mercadopago_once':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',
+        paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);
       validateBatchAccess(access,new Set(productIds.map(String)).size,imageCount);
-      if (!dryRun && !access.paid && !access.courtesyActive && !await repository.reserve(storeId)) {
+      if (!dryRun && !access.paid && !access.trialActive && !access.courtesyActive && !await repository.reserve(storeId)) {
         throw denied(paidAccessMessage(access));
       }
       return access;

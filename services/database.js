@@ -42,6 +42,7 @@ export async function migrateDatabase(client) {
     credit_id text primary key,store_id text not null,app_id text not null,
     evidence jsonb not null,verified_at timestamptz not null default now()
   )`);
+  await client.query('alter table image_sync_partner_receipts add column if not exists applied_at timestamptz');
 
   await client.query(`
     create table if not exists stores (
@@ -83,5 +84,16 @@ export async function migrateDatabase(client) {
     from_date timestamptz not null,to_date timestamptz not null,
     confirmed_at timestamptz not null default now()
   )`);
+  // Keep monthly entitlements separate from permanent licences sold before the model change.
+  await client.query(`create table if not exists image_sync_monthly (
+    store_id text primary key,
+    paid_until timestamptz,
+    trial_until timestamptz,
+    lifecycle text not null default 'active',
+    platform_suspended boolean not null default false,
+    last_charge_id text,
+    updated_at timestamptz not null default now()
+  )`);
+
 }
 
