@@ -83,5 +83,16 @@ export async function migrateDatabase(client) {
     from_date timestamptz not null,to_date timestamptz not null,
     confirmed_at timestamptz not null default now()
   )`);
+  // Keep monthly entitlements separate from permanent licences sold before the model change.
+  await client.query(`create table if not exists image_sync_monthly (
+    store_id text primary key,
+    paid_until timestamptz,
+    trial_until timestamptz,
+    lifecycle text not null default 'active',
+    platform_suspended boolean not null default false,
+    last_charge_id text,
+    updated_at timestamptz not null default now()
+  )`);
+
 }
 
