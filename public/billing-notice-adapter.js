@@ -12,7 +12,7 @@
  *
  * Imagem uses demo batches model:
  * - Show blocking when: paymentRequired (platform) OR (demoUsed && !paid)
- * - Never block when demo batches still available
+ * - A platform block overrides an unused demo batch.
  *
  * Status mapping:
  * - payment_required: platform blocked API access
@@ -39,7 +39,7 @@
     // - paymentRequired: platform (Nuvemshop) blocked API access
     // - demoUsed && !paid: free batch consumed, need payment
     const access = data.access || {};
-    const paymentRequired = Boolean(data.paymentRequired);
+    const paymentRequired = Boolean(data.paymentRequired || access.platformSuspended);
     const needsPayment = !access.paid && !access.trialActive && !access.courtesyActive && access.demoUsed;
     const allowed = data.verificationFailed ? false : !paymentRequired && (!access.demoUsed || access.paid || access.trialActive || Boolean(access.courtesyActive));
 

@@ -20,7 +20,7 @@ test('real PostgreSQL: migration, one concurrent reservation, history persistenc
   const admin=new pg.Pool(config);let pool;
   try {
     await admin.query(`create schema ${schema}`);
-    pool=new pg.Pool({...config,options:`-c search_path=${schema}`});
+    pool=new pg.Pool({...config,application_name:'imagem-em-lote',options:`-c search_path=${schema}`});
     await pool.query('create table image_sync_access(store_id text primary key,demo_used_at timestamptz,paid_at timestamptz,payment_reference text unique)');
     await pool.query("insert into image_sync_access(store_id,demo_used_at) values('legacy-store',now())");
     await migrateDatabase(pool);await migrateDatabase(pool);
