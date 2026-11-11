@@ -39,3 +39,14 @@ Preço brasileiro vigente: R$79,99, pagamento único pela Nuvemshop. No modo pla
 ## Cobrança por plataforma — requisito obrigatório28/10/2026
 
 Nuvemshop/Tiendanube cobra SOMENTE nativamente; Yampi cobra pelo Mercado Pago. MP nunca entra no fluxo/interface de pagamento Nuvemshop, nem como fallback de erro. Nova plataforma exige adaptador e registro explícitos/homologados; desconhecida é recusada. Nunca escolher provedor por query/body/localStorage, reaproveitar recibo entre plataformas, reiniciar teste no OAuth ou ativar cobrança por preencher credenciais. Seguir docs/billing-platform-contract.md e manter as cinco políticas versionadas/testadas. Código desta etapa permanece em PRrascunho, sem merge/deploy/cobrança real.
+
+## Orientação posterior da proprietária — 11/11/2026 (substitui pagamento único para novas Nuvemshop)
+
+- O novo plano no Nuvemshop Partners é **mensal recorrente R$39,90, teste grátis 3 dias**. A Nuvemshop é a única responsável por gerar e cobrar a assinatura mensal.
+- Modo técnico: `NUVEMSHOP_BILLING_MODEL=platform_monthly`, `NUVEMSHOP_MONTHLY_PRICE=39.90`. Não criar cobranças adicionais pelo backend, nem confundir o preço por mês com o preço proporcional de um primeiro período.
+- Registrar webhooks assinados HMAC: `charge/paid`, `app_subscription/updated` (churn e phoenix), `app/suspended` e `app/resumed`. O `subscription/updated` avisa alterações, mas por si só não prova quitação.
+- Salvar a cobertura de cada período pago com validade; revogar automaticamente em `churn`, suspensão ou expiração. Deduplicar por charge_id e app_id e conferir origem/loja/valor/moeda.
+- **Não converter retroativamente o `paid_at` de pagamentos únicos existentes em mensalidade.** Permanecem vitalícios sob contrato original.
+- Trial: 3 dias registrados apenas uma vez por loja, independentemente de reconexão OAuth. O lote gratuito anterior continua separado.
+- Cobrança da Yampi e seus contratos permanecem independentes.
+- Verificar a ativação das permissões de Billing (`read_subscriptions`, `write_subscriptions`, `write_charges`, `write_plans`) com o suporte da Nuvemshop. Leitura direta de assinaturas requer escopos autorizados e pode retornar 404 para apps instalados antes da configuração. Não inferir falta de pagamento a partir de 404.
