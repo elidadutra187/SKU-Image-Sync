@@ -3,7 +3,7 @@ import {migrateDatabase} from '../services/database.js';import {grantPlatformPai
 import crypto from 'node:crypto';import express from 'express';import {createBillingWebhook} from '../services/nativeBilling.js';
 test('recibo fixo nativo persiste e libera sem pedido de cobrança local; duplicatas não alteram a compra',async()=>{
  const db=new PGlite();try{
-  await migrateDatabase(db);await db.query("INSERT INTO stores(store_id,access_token) VALUES('123','fixture'),('456','fixture')");await db.query("INSERT INTO image_sync_access(store_id,demo_batches_used) VALUES('123',1)");
+  await migrateDatabase(db);await db.exec("set application_name='imagem-em-lote'");await db.query("INSERT INTO stores(store_id,access_token) VALUES('123','fixture'),('456','fixture')");await db.query("INSERT INTO image_sync_access(store_id,demo_batches_used) VALUES('123',1)");
   const record={storeId:'123',chargeId:'native-one',receipt:{appId:'33268',amountValue:79.9,amountCurrency:'BRL',fromDate:'2026-10-27T00:00:00Z',toDate:'2026-10-28T00:00:00Z'}};
   const provider=()=>db,initialize=async()=>{};await grantPlatformPaidAccess(record,provider,initialize);const first=(await db.query('SELECT * FROM image_sync_access WHERE store_id=$1',['123'])).rows[0];await grantPlatformPaidAccess(record,provider,initialize);
   const second=(await db.query('SELECT * FROM image_sync_access WHERE store_id=$1',['123'])).rows[0];assert.equal(String(first.paid_at),String(second.paid_at));assert.equal(second.demo_batches_used,1);assert.equal((await db.query('SELECT * FROM image_sync_purchase')).rows.length,0);assert.equal((await db.query('SELECT * FROM image_sync_native_receipts')).rows.length,1);
@@ -15,7 +15,7 @@ test('recibo fixo nativo persiste e libera sem pedido de cobrança local; duplic
 test('signed current and legacy payments persist their actual values and duplicate delivery preserves access',async()=>{
  const db=new PGlite();let server;
  try{
-  await migrateDatabase(db);await db.query("INSERT INTO stores(store_id,access_token) VALUES('123','fixture'),('456','fixture')");
+  await migrateDatabase(db);await db.exec("set application_name='imagem-em-lote'");await db.query("INSERT INTO stores(store_id,access_token) VALUES('123','fixture'),('456','fixture')");
   const app=express();app.post('/hook',express.raw({type:'application/json'}),createBillingWebhook({mode:'platform_once',secret:'integration-fixture',appId:'33268',price:'79.99',
    isKnownStore:async({storeId})=>(await db.query('SELECT store_id FROM stores WHERE store_id=$1',[storeId])).rows.length===1,
    grant:record=>grantPlatformPaidAccess(record,()=>db,async()=>{})}));

@@ -24,20 +24,25 @@ export async function applyVerifiedPartnerPaymentEvidence(input, {
     // Stores the immutable, app-bound credit with UNIQUE(credit_id). Replays with
     // different metadata are rejected, including a credit reused by another store.
     await recordPartnerPaymentEvidence(input, { query, appId });
+    const previous=await query('SELECT applied_at FROM image_sync_partner_receipts WHERE credit_id=$1',[String(input.creditId)]);
+    if(previous.rows[0]?.applied_at){
+      await query('COMMIT');
+      return {storeId,appId:String(appId),creditId:String(input.creditId),applied:true};
+    }
 
     // Partners commissions are not charge/paid API events. The retired one-time
     // contracts are permanent; only credits from the new plan become time-limited.
     const isMonthly = process.env.NUVEMSHOP_BILLING_MODEL === 'platform_monthly'
       && String(input.paymentDate) >= '2026-11-11';
     const result = isMonthly ? await query(`
-      INSERT INTO image_sync_monthly(store_id, paid_until, last_charge_id)
-      VALUES ($1, ($3::date + ($4::integer * interval '1 day')), $2)
+      INSERT INTO image_sync_monthly(store_id, partners_paid_until)
+      VALUES ($1, ($2::date + ($3::integer * interval '1 day')) AT TIME ZONE 'UTC')
       ON CONFLICT (store_id) DO UPDATE SET
-        paid_until = greatest(coalesce(image_sync_monthly.paid_until, 'epoch'::timestamptz),excluded.paid_until),
-        last_charge_id=excluded.last_charge_id,
+        partners_paid_until = greatest(image_sync_monthly.partners_paid_until,excluded.partners_paid_until),
         updated_at=statement_timestamp()
-      RETURNING store_id, paid_until
-    `, [storeId,`partners:${input.creditId}`,input.paymentDate,input.contractedDays]) : await query(`
+      WHERE NOT image_sync_monthly.platform_suspended AND image_sync_monthly.lifecycle='active'
+      RETURNING store_id, partners_paid_until
+    `, [storeId,input.paymentDate,input.contractedDays]) : await query(`
       INSERT INTO image_sync_access (store_id, paid_at, payment_reference)
       VALUES ($1, statement_timestamp(), $2)
       ON CONFLICT (store_id) DO UPDATE SET

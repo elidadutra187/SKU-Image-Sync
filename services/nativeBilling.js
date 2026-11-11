@@ -78,19 +78,28 @@ export function createBillingWebhook(options={}) {
     const expected=crypto.createHmac('sha256',secret).update(body).digest();
     if(!crypto.timingSafeEqual(expected,Buffer.from(signature,'hex')))return res.status(401).json({success:false});
     let event;try{event=JSON.parse(body.toString('utf8'));}catch{return res.status(400).json({success:false});}
-    if(mode==='platform_monthly' && ['app_subscription/updated','app/suspended','app/resumed'].includes(event?.event)) {
+    const launched=Number(event?.event_launch_ts);
+    const occurredAt=Number.isSafeInteger(launched)&&launched>0&&launched*1000<=Date.now()+60000
+      ?new Date(launched*1000).toISOString():null;
+    if(mode==='platform_monthly' && ['app_subscription/updated','app/suspended','app/resumed','app/uninstalled','subscription/updated'].includes(event?.event)) {
       // Subscription lifecycle events are app-specific; charge events are store-wide.
-      if(String(event?.id)!==appId || !/^[1-9]\d*$/.test(String(event.store_id||'')))
+      const isSubscription=event.event==='subscription/updated';
+      const eventApp=isSubscription?event.service_id:event.id;
+      if(String(eventApp)!==appId || !/^[1-9]\d*$/.test(String(event.store_id||''))
+        || (isSubscription && (event.concept_code!=='app-cost'
+          || !['cancelled','canceled','suspended','inactive','expired','past_due','unpaid'].includes(String(event.status).toLowerCase()))))
         return res.json({success:true,ignored:true});
       try {
         const storeId=String(event.store_id);
         if(!await (options.isKnownStore||knownPlatformStore)({storeId}))
           return res.status(503).json({success:false});
-        if(event.event==='app_subscription/updated') {
+        if(event.event==='app/uninstalled'||isSubscription){
+          await (options.subscriptionEvent||updateMonthlyLifecycle)({storeId,topic:event.event==='app/uninstalled'?'uninstalled':'churn',occurredAt});
+        } else if(event.event==='app_subscription/updated') {
           if(!['installed','uninstalled','churn','phoenix','plan_changed'].includes(event.topic))
             return res.json({success:true,ignored:true});
-          await (options.subscriptionEvent||updateMonthlyLifecycle)({storeId,topic:event.topic});
-        } else await (options.suspensionEvent||setMonthlySuspended)({storeId,suspended:event.event==='app/suspended'});
+          await (options.subscriptionEvent||updateMonthlyLifecycle)({storeId,topic:event.topic,occurredAt});
+        } else await (options.suspensionEvent||setMonthlySuspended)({storeId,suspended:event.event==='app/suspended',occurredAt});
         return res.json({success:true});
       } catch {return res.status(503).json({success:false});}
     }
@@ -127,7 +136,7 @@ export function createBillingWebhook(options={}) {
           fromDate:new Date(from).toISOString(),toDate:new Date(to).toISOString()};
         if(mode==='platform_monthly'&&!oldFixedCharge){
           if(to-from>62*86400000)return res.json({success:true,ignored:true});
-          await (options.grantMonthly||grantMonthlyReceipt)({storeId,chargeId,receipt});
+          await (options.grantMonthly||grantMonthlyReceipt)({storeId,chargeId,receipt,occurredAt});
         } else await (options.grant||grantPlatformPaidAccess)({storeId,chargeId,receipt});
         return res.json({success:true});
       }
@@ -146,7 +155,7 @@ export async function registerBillingWebhooks(client) {
   const list=await client.request('/webhooks');
   const events=['charge/paid','charge/failed'];
   if(process.env.NUVEMSHOP_BILLING_MODEL==='platform_monthly')
-    events.push('app_subscription/updated','app/suspended','app/resumed','subscription/updated');
+    events.push('app_subscription/updated','app/suspended','app/resumed','app/uninstalled','subscription/updated');
   for(const event of events) {
     if(list.some(hook=>hook.event===event && hook.url===url))continue;
     await client.request('/webhooks',{method:'POST',body:JSON.stringify({event,url})});

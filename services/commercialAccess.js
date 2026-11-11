@@ -10,6 +10,7 @@ const paidAccessMessage=access=>access.purchaseMode==='platform_monthly'
   ? 'O período de teste ou a assinatura terminou. Regularize o Imagem em Lote na Nuvemshop para voltar a enviar imagens.'
   : `Seu lote gratuito já foi utilizado. O pagamento único de R${((access.oneTimePriceCents??7999)/100).toFixed(2).replace('.',',')} libera novos lotes e reutilizações.`;
 export function validateBatchAccess(access,count,imageCount=count) {
+  if (access.platformSuspended) throw denied('O acesso da loja está suspenso na Nuvemshop.');
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
   if (access.paid || access.trialActive || access.courtesyActive) return;
@@ -29,7 +30,9 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
     const pool=await this.pool();
     const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,
       a.courtesy_until>statement_timestamp() as courtesy_active,p.status as purchase_status,
-      m.paid_until,m.trial_until,m.lifecycle,m.platform_suspended,
+      m.paid_until,m.trial_until,m.lifecycle,m.partners_free,m.partners_paid_until,
+      (coalesce(m.platform_suspended,false) or coalesce(m.lifecycle<>'active',false)) as platform_suspended,
+      m.partners_paid_until>statement_timestamp() as partners_paid,
       (m.paid_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as monthly_paid,
       (m.trial_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as trial_active
       from (select $1::text as store_id) s
@@ -37,17 +40,19 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       left join image_sync_monthly m on m.store_id=s.store_id
       left join image_sync_purchase p on p.store_id=s.store_id`,[storeId]);
     const row=rows[0]||{};
-    return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid))&&!row.platform_suspended,
+    return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid)||Boolean(row.partners_free)||Boolean(row.partners_paid))&&!row.platform_suspended,
       trialActive:Boolean(row.trial_active),courtesyActive:Boolean(row.courtesy_active)&&!row.platform_suspended,
       demoBatchesUsed:row.demo_batches_used??0,purchaseStatus:row.purchase_status||null,
-      subscriptionUntil:row.paid_until||null,trialUntil:row.trial_until||null,
+      subscriptionUntil:row.partners_free?null:row.partners_paid_until||row.paid_until||null,trialUntil:row.trial_until||null,
       subscriptionState:row.lifecycle||null,platformSuspended:Boolean(row.platform_suspended)};
   },
   async reserve(storeId) {
     const pool=await this.pool();
     // A single conditional upsert serializes concurrent requests, including different instances.
     const {rows}=await pool.query(`
-      insert into image_sync_access (store_id, demo_used_at, demo_batches_used) values ($1,now(),1)
+      insert into image_sync_access (store_id, demo_used_at, demo_batches_used)
+      select $1,now(),1 where not exists(select 1 from image_sync_monthly
+        where store_id=$1 and (platform_suspended or lifecycle<>'active'))
       on conflict (store_id) do update set
         demo_used_at=coalesce(image_sync_access.demo_used_at,now()),
         demo_batches_used=image_sync_access.demo_batches_used+1

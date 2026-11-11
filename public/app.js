@@ -51,7 +51,7 @@ function updateActions() {
   $('nextPage').disabled=state.busy||state.reviewPage>=Math.max(0,$('reviewPage').options.length-1);
   const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
   const oversized=state.access && !state.access.paid && !state.access.trialActive && !state.access.courtesyActive && imageCount>10;
-  const blocked=state.access && !state.access.paid && !state.access.trialActive && !state.access.courtesyActive && state.access.demoUsed;
+  const blocked=state.access && (state.access.platformSuspended || (!state.access.paid && !state.access.trialActive && !state.access.courtesyActive && state.access.demoUsed));
   $('send').disabled=state.busy || !!state.jobId || !count || !state.session || !state.access || blocked || oversized;
   $('selectionCount').textContent=count ? `${imageCount} imagem(ns) selecionada(s). ${oversized ? 'No gratuito, selecione no máximo 10 imagens.' : 'Confira as fotos antes de enviar.'}` : 'Marque os produtos que deseja atualizar.';
 }

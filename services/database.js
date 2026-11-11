@@ -1,4 +1,5 @@
 import pg from 'pg';
+import {installEntitlementGuard,ENTITLEMENT_WRITER} from './entitlementGuard.js';
 
 const { Pool } = pg;
 let pool = null;
@@ -17,6 +18,7 @@ export function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      application_name: ENTITLEMENT_WRITER,
       ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: true },
       max: 5,
       connectionTimeoutMillis: 10000,
@@ -94,6 +96,12 @@ export async function migrateDatabase(client) {
     last_charge_id text,
     updated_at timestamptz not null default now()
   )`);
+  await client.query(`alter table image_sync_monthly
+    add column if not exists partners_free boolean not null default false,
+    add column if not exists partners_paid_until timestamptz,
+    add column if not exists last_blocked_at timestamptz,
+    add column if not exists last_payment_event_at timestamptz`);
+  await installEntitlementGuard(client);
 
 }
 

@@ -11,6 +11,8 @@ import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
 import supportRoutes from './routes/support.js';
 import partnerPaymentRecoveryRoutes from './routes/partnerPaymentRecovery.js';
+import {createPartnersStatusRouter} from './routes/partnersStatus.js';
+import {initializeDatabase} from './services/database.js';
 import {reconcileStoredPartnersCredits} from './services/partnerPaymentRecovery.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import { refreshAllBillingWebhooks } from './services/nativeBilling.js';
@@ -81,6 +83,7 @@ app.use('/products', productsRoutes);
 app.use('/support', supportRoutes);
 // Disabled unless PARTNERS_RECONCILE_OPS_KEY is configured on Railway.
 app.use('/ops/partner-payments', partnerPaymentRecoveryRoutes);
+app.use('/billing/admin',createPartnersStatusRouter());
 
 app.use((req, res) => {
   res.status(404).json({
@@ -98,6 +101,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+if(process.env.NODE_ENV==='production')await initializeDatabase();
 app.listen(port, () => {
   getYampiPaymentRuntime().start();
   logger.header('Imagem em Lote');

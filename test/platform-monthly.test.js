@@ -13,6 +13,7 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
  const db=new PGlite(),options={poolProvider:()=>db,initialize:async()=>{}};
  try {
   await migrateDatabase(db);
+  await db.exec("set application_name='imagem-em-lote'");
   await db.query("insert into stores(store_id,access_token) values ('123','token'),('456','token')");
   const access=createCommercialAccess(createPostgresAccessRepository(()=>db,async()=>{}));
   await registerMonthlyTrial('123',options);
@@ -33,15 +34,30 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   await updateMonthlyLifecycle({storeId:'123',topic:'churn'},options);
   assert.equal((await access.status('123')).paid,false);
   await updateMonthlyLifecycle({storeId:'123',topic:'phoenix'},options);
-  assert.equal((await access.status('123')).paid,true);
+  assert.equal((await access.status('123')).paid,false);
+  await grantMonthlyReceipt(receipt,options);
+  assert.equal((await access.status('123')).paid,false,'replaying the old receipt cannot lift the block');
   await setMonthlySuspended({storeId:'123',suspended:true},options);
   assert.equal((await access.status('123')).paid,false);
   await setMonthlySuspended({storeId:'123',suspended:false},options);
+  assert.equal((await access.status('123')).paid,false);
+  await grantMonthlyReceipt({...receipt,chargeId:'monthly-002'},options);
   assert.equal((await access.status('123')).paid,true);
   await db.query("update image_sync_monthly set paid_until=now()-interval '1 second' where store_id='123'");
   assert.equal((await access.status('123')).paid,false);
   await db.query("insert into image_sync_access(store_id,paid_at) values ('456',now())");
   assert.equal((await access.status('456')).paid,true,'retired one-time purchases remain permanent');
+  await updateMonthlyLifecycle({storeId:'456',topic:'uninstalled'},options);
+  await assert.rejects(()=>access.authorize('456',['1']),{status:402});
+  assert.ok((await db.query("select paid_at from image_sync_access where store_id='456'")).rows[0].paid_at);
+  const past=ms=>new Date(Date.now()-ms).toISOString();
+  await updateMonthlyLifecycle({storeId:'456',topic:'churn',occurredAt:past(3000)},options);
+  const renewal={...receipt,storeId:'456',chargeId:'late-001'};
+  await grantMonthlyReceipt({...renewal,occurredAt:past(6000)},options);
+  assert.equal((await access.status('456')).paid,false,'first delivery of an older payment cannot undo cancellation');
+  await grantMonthlyReceipt({...renewal,chargeId:'renewal-002',occurredAt:new Date().toISOString()},options);
+  await updateMonthlyLifecycle({storeId:'456',topic:'churn',occurredAt:past(3000)},options);
+  assert.equal((await access.status('456')).paid,true,'delayed cancellation cannot undo a newer payment');
  } finally {await db.close();}
 });
 

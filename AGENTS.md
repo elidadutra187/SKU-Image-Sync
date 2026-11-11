@@ -50,3 +50,11 @@ Nuvemshop/Tiendanube cobra SOMENTE nativamente; Yampi cobra pelo Mercado Pago. M
 - Trial: 3 dias registrados apenas uma vez por loja, independentemente de reconexão OAuth. O lote gratuito anterior continua separado.
 - Cobrança da Yampi e seus contratos permanecem independentes.
 - Verificar a ativação das permissões de Billing (`read_subscriptions`, `write_subscriptions`, `write_charges`, `write_plans`) com o suporte da Nuvemshop. Leitura direta de assinaturas requer escopos autorizados e pode retornar 404 para apps instalados antes da configuração. Não inferir falta de pagamento a partir de 404.
+
+## Partners é a verdade — 11/11/2026
+
+- Cancelamento, suspensão, inadimplência e desinstalação bloqueiam novos envios, inclusive lote gratuito, teste e acesso vitalício. Preserve a licença antiga, o token e as configurações no bloqueio; o fluxo de privacidade continua separado.
+- Eventos de retomada e reconexão não levantam o bloqueio. Um novo recibo nativo mensal válido pode reativar; reapresentar um recibo já registrado não reativa.
+- O app expõe `POST /billing/admin/partners-status` com `X-Admin-Token` para espelhar `paid`, `free`, `unpaid`, `cancelled` e `suspended`. Use a data real do Partners para `paid`, que vale por 30 dias. O servidor responde 409 se o estado não puder ser aplicado. Nunca altere acesso manualmente no Neon.
+- O pool Railway usa `application_name=imagem-em-lote`; as triggers protegem as tabelas de acesso e recibos e registram alterações em `image_sync_entitlement_audit`. Essa identificação evita alterações acidentais. Permissões do banco continuam sendo necessárias.
+- Yampi mantém cobrança própria e não recebe estados de acesso pelo endpoint do Partners.
