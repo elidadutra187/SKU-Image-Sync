@@ -80,7 +80,7 @@ export function createBillingWebhook(options={}) {
     let event;try{event=JSON.parse(body.toString('utf8'));}catch{return res.status(400).json({success:false});}
     if(mode==='platform_monthly' && ['app_subscription/updated','app/suspended','app/resumed'].includes(event?.event)) {
       // Subscription lifecycle events are app-specific; charge events are store-wide.
-      if(String(event?.id)!==appId || !/^[1-9]\\d*$/.test(String(event.store_id||'')))
+      if(String(event?.id)!==appId || !/^[1-9]\d*$/.test(String(event.store_id||'')))
         return res.json({success:true,ignored:true});
       try {
         const storeId=String(event.store_id);
