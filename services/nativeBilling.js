@@ -107,12 +107,14 @@ export function createBillingWebhook(options={}) {
     const monthlyProrated=mode==='platform_monthly' && charge?.amount_currency==='BRL'
       && Number.isInteger(receivedPrice) && receivedPrice>0 && receivedPrice<=price;
     // Payments from the retired one-time model are still permanent licences, even if delivered late.
-    const oldFixedCharge=mode==='platform_monthly' && charge?.amount_currency==='BRL' && [7990,7999].includes(receivedPrice)
+    const oldFixedCharge=mode==='platform_monthly'
+      && ((charge?.amount_currency==='BRL' && [7990,7999].includes(receivedPrice))
+        || (charge?.amount_currency==='ARS' && receivedPrice===7990))
       && Number.isFinite(Date.parse(charge?.from_date)) && Date.parse(charge.from_date)<Date.parse('2026-11-11T00:00:00Z');
     const acceptedPrice=monthlyProrated || oldFixedCharge || (platformBrlPrice?[7990,7999].includes(receivedPrice):receivedPrice===expectedPrice);
     if(!/^[1-9]\d*$/.test(storeId) || !chargeId || chargeId.length>128
       || String(charge?.id)!==chargeId || !acceptedPrice
-      || !(mode==='platform_once'&&!options.currency?['BRL','ARS'].includes(charge?.amount_currency):charge?.amount_currency===(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL'))
+      || !(oldFixedCharge || (mode==='platform_once'&&!options.currency?['BRL','ARS'].includes(charge?.amount_currency):charge?.amount_currency===(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL')))
       || charge?.concept_code!==(options.concept ?? process.env.NUVEMSHOP_BILLING_CONCEPT ?? 'app-cost')) {
       return res.json({success:true,ignored:true});
     }
