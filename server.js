@@ -10,6 +10,7 @@ import productsRoutes from './routes/products.js';
 import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
 import supportRoutes from './routes/support.js';
+import partnerPaymentRecoveryRoutes from './routes/partnerPaymentRecovery.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import { refreshAllBillingWebhooks } from './services/nativeBilling.js';
 import {createBillingWebhookReconciler} from './services/billingWebhookReconciler.js';
@@ -77,6 +78,8 @@ app.use('/yampi/billing',getYampiPaymentRuntime().router);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
 app.use('/support', supportRoutes);
+// Disabled unless PARTNERS_RECONCILE_OPS_KEY is configured on Railway.
+app.use('/ops/partner-payments', partnerPaymentRecoveryRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
