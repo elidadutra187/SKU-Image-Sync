@@ -122,7 +122,7 @@ test('verified new monthly Partners credit grants only a dated period, and retri
   const monthly={...proof,creditId:'21211212',paymentDate:'2026-11-11',contractedDays:30};
   await applyVerifiedPartnerPaymentEvidence(monthly,{client:db,appId:'33268'});
   await applyVerifiedPartnerPaymentEvidence(monthly,{client:db,appId:'33268'});
-  assert.equal((await db.query('SELECT count(*) as count FROM image_sync_access')).rows[0].count,0);
+  assert.equal((await db.query('SELECT count(*)::integer as count FROM image_sync_access')).rows[0].count,0);
   const period=(await db.query("SELECT paid_until,last_charge_id FROM image_sync_monthly WHERE store_id='6556813'")).rows[0];
   assert.equal(period.last_charge_id,'partners:21211212');
   assert.equal(new Date(period.paid_until).toISOString(),'2026-12-11T00:00:00.000Z');
