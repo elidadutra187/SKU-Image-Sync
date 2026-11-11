@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import express from 'express';
-import { applyVerifiedPartnerPaymentEvidence } from '../services/partnerPaymentRecovery.js';
+import { applyVerifiedPartnerPaymentEvidence, reconcileStoredPartnersCredits } from '../services/partnerPaymentRecovery.js';
 import { createPartnerPaymentRecoveryRouter } from '../routes/partnerPaymentRecovery.js';
 
 const proof = {
@@ -73,4 +73,38 @@ test('recovery endpoint rejects missing or wrong admin credentials', async () =>
     assert.equal(valid.status,200);
     assert.equal(calls,1);
   } finally { await new Promise(resolve=>server.close(resolve)); }
+});
+
+test('boot reconciliation activates only installed, previously verified, unpaid stores', async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`
+      CREATE TABLE stores (store_id text PRIMARY KEY, access_token text NOT NULL);
+      CREATE TABLE image_sync_partner_receipts (
+        credit_id text PRIMARY KEY, store_id text NOT NULL,
+        app_id text NOT NULL, evidence jsonb NOT NULL,
+        verified_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE image_sync_access (
+        store_id text PRIMARY KEY, paid_at timestamptz,
+        payment_reference text UNIQUE
+      );
+      INSERT INTO stores (store_id,access_token) VALUES ('6556813','installed');
+    `);
+    await db.query(
+      'INSERT INTO image_sync_partner_receipts (credit_id,store_id,app_id,evidence) VALUES ($1,$2,$3,$4::jsonb)',
+      [proof.creditId,proof.storeId,proof.appId,JSON.stringify(proof)]
+    );
+    const result = await reconcileStoredPartnersCredits({
+      query: (...args) => db.query(...args), appId: '33268',
+      apply: (input, options) => applyVerifiedPartnerPaymentEvidence(input,{...options,client:db})
+    });
+    assert.deepEqual(result, {examined:1,recovered:1,failed:0});
+    const row=(await db.query('SELECT paid_at,payment_reference FROM image_sync_access WHERE store_id=$1',[proof.storeId])).rows[0];
+    assert.ok(row.paid_at);
+    assert.equal(row.payment_reference,'partners:17194926');
+    assert.deepEqual(await reconcileStoredPartnersCredits({
+      query: (...args) => db.query(...args),appId:'33268'
+    }), {examined:0,recovered:0,failed:0});
+  } finally { await db.close(); }
 });
