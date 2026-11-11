@@ -16,7 +16,7 @@ export async function registerMonthlyTrial(storeId,{poolProvider=getPool,initial
   const pool=await connection(poolProvider,initialize)();
   await pool.query(`insert into image_sync_monthly (store_id,trial_until)
     select store_id,statement_timestamp()+($2::integer*interval '1 day') from stores where store_id=$1
-    on conflict(store_id) do nothing`,[String(storeId),days]);
+    on conflict(store_id) do update set trial_until=coalesce(image_sync_monthly.trial_until,excluded.trial_until)`,[String(storeId),days]);
 }
 
 export async function grantMonthlyReceipt({storeId,chargeId,receipt},{poolProvider=getPool,initialize=initializeDatabase}={}) {
@@ -53,6 +53,7 @@ export async function updateMonthlyLifecycle({storeId,topic},{poolProvider=getPo
   if(topic==='plan_changed')return;
   if(topic==='installed'){
     await registerMonthlyTrial(storeId,{poolProvider:()=>pool,initialize:async()=>{}});
+    await pool.query("update image_sync_monthly set lifecycle='active',updated_at=statement_timestamp() where store_id=$1",[String(storeId)]);
     return;
   }
   const state=topic==='phoenix'?'active':'churn';
