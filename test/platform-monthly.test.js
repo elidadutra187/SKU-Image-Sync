@@ -28,7 +28,7 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   await grantMonthlyReceipt(receipt,options);
   await grantMonthlyReceipt(receipt,options);
   assert.equal((await access.status('123')).paid,true);
-  assert.equal((await db.query("select count(*) from image_sync_native_receipts")).rows[0].count,1);
+  assert.equal((await db.query("select count(*)::integer as count from image_sync_native_receipts")).rows[0].count,1);
   await assert.rejects(()=>grantMonthlyReceipt({...receipt,storeId:'456'},options),/not_applied/);
   await updateMonthlyLifecycle({storeId:'123',topic:'churn'},options);
   assert.equal((await access.status('123')).paid,false);
