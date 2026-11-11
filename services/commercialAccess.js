@@ -9,6 +9,25 @@ function denied(message,status=402) { return Object.assign(new Error(message),{s
 const paidAccessMessage=access=>access.purchaseMode==='platform_monthly'
   ? 'O período de teste ou a assinatura terminou. Regularize o Imagem em Lote na Nuvemshop para voltar a enviar imagens.'
   : `Seu lote gratuito já foi utilizado. O pagamento único de R${((access.oneTimePriceCents??7999)/100).toFixed(2).replace('.',',')} libera novos lotes e reutilizações.`;
+
+const transientConnectionCodes = new Set(['08000','08001','08003','08006','57P01','57P02','57P03',
+  'ECONNRESET','ECONNREFUSED','ETIMEDOUT','EAI_AGAIN','EPIPE']);
+
+async function readAccessWithRetry(read,storeId) {
+  try { return await read(); }
+  catch (error) {
+    if (!transientConnectionCodes.has(error?.code)) throw error;
+  }
+  await new Promise(resolve=>setTimeout(resolve,250));
+  try { return await read(); }
+  catch (error) {
+    if (!transientConnectionCodes.has(error?.code)) throw error;
+    const id=String(storeId);
+    console.warn(JSON.stringify({event:'billing_verification_temporarily_unavailable',
+      storeId:/^[0-9]{1,20}$/.test(id)?id:undefined,reason:error.code}));
+    throw denied('Não foi possível verificar seu acesso. Tente novamente mais tarde.',503);
+  }
+}
 export function validateBatchAccess(access,count,imageCount=count) {
   if (access.platformSuspended) throw denied('O acesso da loja está suspenso na Nuvemshop.');
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
@@ -28,7 +47,7 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
   },
   async status(storeId) {
     const pool=await this.pool();
-    const {rows}=await pool.query(`select a.paid_at,a.demo_batches_used,
+    const {rows}=await readAccessWithRetry(()=>pool.query(`select a.paid_at,a.demo_batches_used,
       a.courtesy_until>statement_timestamp() as courtesy_active,p.status as purchase_status,
       m.paid_until,m.trial_until,m.lifecycle,m.partners_free,m.partners_paid_until,
       (coalesce(m.platform_suspended,false) or coalesce(m.lifecycle<>'active',false)) as platform_suspended,
@@ -38,7 +57,7 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       from (select $1::text as store_id) s
       left join image_sync_access a on a.store_id=s.store_id
       left join image_sync_monthly m on m.store_id=s.store_id
-      left join image_sync_purchase p on p.store_id=s.store_id`,[storeId]);
+      left join image_sync_purchase p on p.store_id=s.store_id`,[storeId]),storeId);
     const row=rows[0]||{};
     return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid)||Boolean(row.partners_free)||Boolean(row.partners_paid))&&!row.platform_suspended,
       trialActive:Boolean(row.trial_active),courtesyActive:Boolean(row.courtesy_active)&&!row.platform_suspended,
