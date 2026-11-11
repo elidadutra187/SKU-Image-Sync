@@ -11,6 +11,7 @@ import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
 import supportRoutes from './routes/support.js';
 import partnerPaymentRecoveryRoutes from './routes/partnerPaymentRecovery.js';
+import {reconcileStoredPartnersCredits} from './services/partnerPaymentRecovery.js';
 import { startUploadSessionCleanup } from './services/uploadSessions.js';
 import { refreshAllBillingWebhooks } from './services/nativeBilling.js';
 import {createBillingWebhookReconciler} from './services/billingWebhookReconciler.js';
@@ -105,6 +106,12 @@ app.listen(port, () => {
   // Keeps charge webhooks on the current APP_URL so a domain/host change needs no reinstall.
   const billingHooks=createBillingWebhookReconciler({refresh:()=>refreshAllBillingWebhooks({listStoreIds:listStoredStoreIds,clientFor:id=>NuvemshopClient.fromStore(id),log:logger,failOnPartial:true}),onError:()=>logger.error('Atualização de notificações de pagamento pendente; nova tentativa automática.')});
   billingHooks.start();
+  // An old, operator-verified Partners credit must not remain unpaid only
+  // because the original charge webhook was lost. Run once per deployment.
+  reconcileStoredPartnersCredits().then(result => {
+    if (result.recovered || result.failed) logger.info('Partners credit recovery at startup', result);
+  }).catch(() => logger.error('Partners credit recovery will need retry on next startup.'));
+
   process.once('SIGTERM',()=>billingHooks.stop());
 });
 
