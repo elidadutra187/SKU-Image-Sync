@@ -25,9 +25,19 @@ export async function applyVerifiedPartnerPaymentEvidence(input, {
     // different metadata are rejected, including a credit reused by another store.
     await recordPartnerPaymentEvidence(input, { query, appId });
 
-    // The native charge ledger remains untouched; Partners commissions are not
-    // equivalent to an API charge event. This app sells permanent ONE-TIME access.
-    const result = await query(`
+    // Partners commissions are not charge/paid API events. The retired one-time
+    // contracts are permanent; only credits from the new plan become time-limited.
+    const isMonthly = process.env.NUVEMSHOP_BILLING_MODEL === 'platform_monthly'
+      && String(input.paymentDate) >= '2026-11-11';
+    const result = isMonthly ? await query(`
+      INSERT INTO image_sync_monthly(store_id, paid_until, last_charge_id)
+      VALUES ($1, ($3::date + ($4::integer * interval '1 day')), $2)
+      ON CONFLICT (store_id) DO UPDATE SET
+        paid_until = greatest(coalesce(image_sync_monthly.paid_until, 'epoch'::timestamptz),excluded.paid_until),
+        last_charge_id=excluded.last_charge_id,
+        updated_at=statement_timestamp()
+      RETURNING store_id, paid_until
+    `, [storeId,`partners:${input.creditId}`,input.paymentDate,input.contractedDays]) : await query(`
       INSERT INTO image_sync_access (store_id, paid_at, payment_reference)
       VALUES ($1, statement_timestamp(), $2)
       ON CONFLICT (store_id) DO UPDATE SET
@@ -36,6 +46,7 @@ export async function applyVerifiedPartnerPaymentEvidence(input, {
       RETURNING store_id, paid_at
     `, [storeId, `partners:${input.creditId}`]);
     if (result.rows?.length !== 1) throw new Error('access_grant_failed');
+    await query('UPDATE image_sync_partner_receipts SET applied_at=COALESCE(applied_at,statement_timestamp()) WHERE credit_id=$1 AND store_id=$2',[String(input.creditId),storeId]);
     await query('COMMIT');
     return { storeId, appId: String(appId), creditId: String(input.creditId), applied: true };
   } catch (error) {
@@ -73,9 +84,10 @@ export async function reconcileStoredPartnersCredits({
     JOIN stores s ON s.store_id=r.store_id
     LEFT JOIN image_sync_access a ON a.store_id=r.store_id
     WHERE r.app_id=$1 AND r.evidence->>'source'='nuvemshop_partners_commissions'
-      AND r.evidence->>'status'='paid' AND a.paid_at IS NULL
+      AND r.evidence->>'status'='paid' AND r.applied_at IS NULL
+      AND (a.paid_at IS NULL OR (r.evidence->>'paymentDate'>='2026-11-11' AND $3::boolean))
     ORDER BY r.verified_at ASC LIMIT $2
-  `, [String(appId), limit])).rows || [];
+  `, [String(appId), limit, process.env.NUVEMSHOP_BILLING_MODEL==='platform_monthly'])).rows || [];
   const results = { examined: rows.length, recovered: 0, failed: 0 };
   for (const row of rows) {
     try {
