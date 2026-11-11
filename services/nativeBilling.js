@@ -107,7 +107,8 @@ export function createBillingWebhook(options={}) {
     const monthlyProrated=mode==='platform_monthly' && charge?.amount_currency==='BRL'
       && Number.isInteger(receivedPrice) && receivedPrice>0 && receivedPrice<=price;
     // Payments from the retired one-time model are still permanent licences, even if delivered late.
-    const oldFixedCharge=mode==='platform_monthly' && charge?.amount_currency==='BRL' && [7990,7999].includes(receivedPrice);
+    const oldFixedCharge=mode==='platform_monthly' && charge?.amount_currency==='BRL' && [7990,7999].includes(receivedPrice)
+      && Number.isFinite(Date.parse(charge?.from_date)) && Date.parse(charge.from_date)<Date.parse('2026-11-11T00:00:00Z');
     const acceptedPrice=monthlyProrated || oldFixedCharge || (platformBrlPrice?[7990,7999].includes(receivedPrice):receivedPrice===expectedPrice);
     if(!/^[1-9]\d*$/.test(storeId) || !chargeId || chargeId.length>128
       || String(charge?.id)!==chargeId || !acceptedPrice
