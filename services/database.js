@@ -42,6 +42,7 @@ export async function migrateDatabase(client) {
     credit_id text primary key,store_id text not null,app_id text not null,
     evidence jsonb not null,verified_at timestamptz not null default now()
   )`);
+  await client.query('alter table image_sync_partner_receipts add column if not exists applied_at timestamptz');
 
   await client.query(`
     create table if not exists stores (
