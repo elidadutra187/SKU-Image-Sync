@@ -84,7 +84,7 @@ test('boot reconciliation activates only installed, previously verified, unpaid 
       CREATE TABLE image_sync_partner_receipts (
         credit_id text PRIMARY KEY, store_id text NOT NULL,
         app_id text NOT NULL, evidence jsonb NOT NULL,
-        verified_at timestamptz NOT NULL DEFAULT now()
+        verified_at timestamptz NOT NULL DEFAULT now(), applied_at timestamptz
       );
       CREATE TABLE image_sync_access (
         store_id text PRIMARY KEY, paid_at timestamptz,
