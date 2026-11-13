@@ -12,6 +12,29 @@ test('a platform block takes precedence over a permanent licence and an unused f
   }
 });
 
+test('new Partners payment after a block restores access; old payment cannot replay',async()=>{
+  const db=new PGlite();
+  try{
+    await migrateDatabase(db);
+    await db.exec("set application_name='imagem-em-lote'");
+    await db.query("insert into stores(store_id,access_token) values ('789','fixture')");
+    const options={poolProvider:()=>db,initialize:async()=>{}};
+    const access=createPostgresAccessRepository(()=>db,async()=>{});
+    assert.equal((await applyPartnersStatus({storeId:'789',state:'cancelled'},options)).state,'cancelled');
+    const stalePaidAt=new Date(Date.now()-3*86400000).toISOString();
+    assert.equal(await applyPartnersStatus({storeId:'789',state:'paid',paidAt:stalePaidAt},options),null);
+    assert.equal((await access.status('789')).paid,false);
+    // Simulate a block processed two days ago, with a new payment yesterday.
+    await db.query("update image_sync_monthly set last_blocked_at=now()-interval '2 days' where store_id='789'");
+    const newPaidAt=new Date(Date.now()-86400000).toISOString();
+    assert.equal((await applyPartnersStatus({storeId:'789',state:'paid',paidAt:newPaidAt},options)).state,'paid');
+    const restored=await access.status('789');
+    assert.equal(restored.paid,true);
+    assert.equal(restored.platformSuspended,false);
+    assert.ok(restored.subscriptionUntil);
+  }finally{await db.close();}
+});
+
 test('authenticated Partners states persist and audit; a cancellation revokes free and paid',async()=>{
   const db=new PGlite();
   const dependencies={poolProvider:()=>db,initialize:async()=>{}};
