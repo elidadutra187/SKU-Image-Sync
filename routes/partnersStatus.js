@@ -23,9 +23,14 @@ export async function applyPartnersStatus({storeId,state,paidAt},{poolProvider=g
       last_charge_id=case when excluded.platform_suspended then null else current.last_charge_id end,
       last_blocked_at=coalesce(excluded.last_blocked_at,current.last_blocked_at),
       updated_at=statement_timestamp()
-    where excluded.platform_suspended or (not current.platform_suspended and current.lifecycle='active')
+    where excluded.platform_suspended
+      or (not current.platform_suspended and current.lifecycle='active')
+      -- A NEW Partners payment can restore a previously suspended subscription.
+      -- A stale payment from before the most recent block cannot do so.
+      or ($2='active' and $5::timestamptz is not null
+        and $6::timestamptz>coalesce(current.last_blocked_at,'-infinity'::timestamptz))
     returning store_id,lifecycle,platform_suspended,partners_free,partners_paid_until
-  `,[storeId,blocked?state:'active',blocked,state==='free',paidUntil]);
+  `,[storeId,blocked?state:'active',blocked,state==='free',paidUntil,state==='paid'?paidAt:null]);
   const row=rows[0];
   if(!row || row.lifecycle!==(blocked?state:'active') || row.platform_suspended!==blocked
     || row.partners_free!==(state==='free')
