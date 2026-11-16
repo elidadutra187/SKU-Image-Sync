@@ -2,6 +2,10 @@ import {getPool,initializeDatabase} from './database.js';
 
 // App Billing is collected by Nuvemshop, never by this application.
 // Legacy paid_at licences remain permanent; monthly entitlements use a separate ledger.
+export function configuredTrialDays() {
+  const configured=Number(process.env.NUVEMSHOP_TRIAL_DAYS ?? '3');
+  return Number.isInteger(configured) && configured >= 0 && configured <= 30 ? configured : 3;
+}
 function connection(poolProvider=getPool,initialize=initializeDatabase) {
   return async () => {
     const pool=poolProvider();
@@ -11,7 +15,7 @@ function connection(poolProvider=getPool,initialize=initializeDatabase) {
   };
 }
 
-export async function registerMonthlyTrial(storeId,{poolProvider=getPool,initialize=initializeDatabase,days=3}={}) {
+export async function registerMonthlyTrial(storeId,{poolProvider=getPool,initialize=initializeDatabase,days=configuredTrialDays()}={}) {
   if(!/^[1-9]\d*$/.test(String(storeId)) || !Number.isInteger(days) || days<0 || days>30)throw Error('invalid_monthly_trial');
   const pool=await connection(poolProvider,initialize)();
   await pool.query(`insert into image_sync_monthly (store_id,trial_until)

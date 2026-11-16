@@ -16,3 +16,27 @@ test('courtesy permits batches without consuming demo or marking payment',async(
   courtesyActive=false;
   await assert.rejects(access.authorize('5637867',['1']),/pagamento/);
 });
+
+test('Nuvemshop trial grants exactly one 10-image batch, then requires subscription',async()=>{
+  let used=0,paid=false;
+  const access=createCommercialAccess({
+    async status(){return {paid,trialActive:true,purchaseMode:'platform_monthly',demoBatchesUsed:used};},
+    async reserve(){if(used>=1)return false;used++;return true;}
+  });
+  assert.equal((await access.status('123')).demoBatchesRemaining,1);
+  await assert.rejects(access.authorize('123',['1'],{imageCount:11}),/10 imagens/);
+  assert.equal(used,0);
+  await access.authorize('123',['1'],{dryRun:true,imageCount:10});
+  assert.equal(used,0,'preview must not consume trial batch');
+  await access.authorize('123',['1'],{imageCount:10});
+  assert.equal(used,1);
+  await assert.rejects(access.authorize('123',['1'],{imageCount:1}),/assinatura|teste/);
+  paid=true;
+  await assert.doesNotReject(access.authorize('123',Array.from({length:11},(_,i)=>String(i)),{imageCount:11}));
+});
+test('expired Nuvemshop trial cannot use a remaining demo or get another one',()=>{
+  assert.throws(()=>validateBatchAccess({paid:false,trialActive:false,purchaseMode:'platform_monthly',demoBatchesUsed:0},1,1),/período de teste/);
+  assert.throws(()=>validateBatchAccess({paid:false,trialActive:true,purchaseMode:'platform_monthly',demoBatchesUsed:1},1,1),/assinatura|teste/);
+  assert.doesNotThrow(()=>validateBatchAccess({paid:false,trialActive:false,purchaseMode:'mercadopago_once',demoBatchesUsed:0},1,10));
+  assert.doesNotThrow(()=>validateBatchAccess({paid:true,trialActive:false,purchaseMode:'platform_monthly',demoBatchesUsed:1},1,11));
+});

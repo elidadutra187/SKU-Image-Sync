@@ -20,6 +20,9 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   let state=await access.status('123');
   assert.equal(state.trialActive,true);assert.equal(state.paid,false);
   const first=state.trialUntil;
+  await access.authorize('123',['product-1'],{imageCount:10});
+  await assert.rejects(()=>access.authorize('123',['product-2'],{imageCount:1}),/assinatura|teste/);
+  assert.equal((await db.query("select demo_batches_used from image_sync_access where store_id='123'")).rows[0].demo_batches_used,1);
   await registerMonthlyTrial('123',options);
   assert.equal(String((await access.status('123')).trialUntil),String(first),'OAuth reconnect cannot reset trial');
   await db.query("update image_sync_monthly set trial_until=now()-interval '1 second' where store_id='123'");

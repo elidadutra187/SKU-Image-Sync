@@ -13,6 +13,7 @@
  * Imagem uses demo batches model:
  * - Show blocking when: paymentRequired (platform) OR (demoUsed && !paid)
  * - A platform block overrides an unused demo batch.
+ * - A monthly platform trial only opens the single 10-image batch; it never grants unlimited batches.
  *
  * Status mapping:
  * - payment_required: platform blocked API access
@@ -40,8 +41,8 @@
     // - demoUsed && !paid: free batch consumed, need payment
     const access = data.access || {};
     const paymentRequired = Boolean(data.paymentRequired || access.platformSuspended);
-    const needsPayment = !access.paid && !access.trialActive && !access.courtesyActive && access.demoUsed;
-    const allowed = data.verificationFailed ? false : !paymentRequired && (!access.demoUsed || access.paid || access.trialActive || Boolean(access.courtesyActive));
+    const needsPayment = !access.paid && !access.courtesyActive && (access.demoUsed || (access.purchaseMode === 'platform_monthly' && !access.trialActive));
+    const allowed = data.verificationFailed ? false : !paymentRequired && !needsPayment;
 
     // Only a platform block establishes payment_required; credentials do not prove a charge.
     // When purchaseConfigured=false, use 'unverified' since component may not recognize demo_exhausted.
@@ -56,7 +57,7 @@
     } else if (needsPayment) {
       status = access.purchaseConfigured ? (access.paymentProvider === 'pending' ? 'payment_required' : 'payment_unconfirmed') : 'unverified';
       state = access.paymentProvider === 'pending' ? 'pending' : 'needs_payment';
-    } else if (access.paid || access.trialActive) {
+    } else if (access.paid || access.courtesyActive) {
       status = 'paid';
       state = 'active';
     } else if (!access.courtesyActive && access.demoBatchesRemaining > 0) {

@@ -1,5 +1,6 @@
 import {getPool, initializeDatabase} from './database.js';
 import {platformBillingConfigured} from './nativeBilling.js';
+import {configuredTrialDays} from './monthlyBilling.js';
 import {getYampiPaymentRuntime} from './yampiPaymentRuntime.js';
 export const DEMO_PRODUCTS = 10;
 export const DEMO_IMAGES = 10;
@@ -32,8 +33,9 @@ export function validateBatchAccess(access,count,imageCount=count) {
   if (access.platformSuspended) throw denied('O acesso da loja está suspenso na Nuvemshop.');
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
-  if (access.paid || access.trialActive || access.courtesyActive) return;
+  if (access.paid || access.courtesyActive) return;
   if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied(paidAccessMessage(access));
+  if (access.purchaseMode==='platform_monthly' && !access.trialActive) throw denied('O período de teste terminou. Regularize a assinatura na Nuvemshop para enviar novas imagens.');
   if (!Number.isInteger(imageCount) || imageCount < 1 || imageCount > DEMO_IMAGES) throw denied('O lote gratuito permite no máximo 10 imagens. Selecione até 10 fotos para continuar.');
 }
 
@@ -72,11 +74,15 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       insert into image_sync_access (store_id, demo_used_at, demo_batches_used)
       select $1,now(),1 where not exists(select 1 from image_sync_monthly
         where store_id=$1 and (platform_suspended or lifecycle<>'active'))
+      and (not $3::boolean or exists (select 1 from image_sync_monthly
+        where store_id=$1 and trial_until>statement_timestamp()
+          and lifecycle='active' and not platform_suspended))
       on conflict (store_id) do update set
         demo_used_at=coalesce(image_sync_access.demo_used_at,now()),
         demo_batches_used=image_sync_access.demo_batches_used+1
       where image_sync_access.demo_batches_used < $2 and image_sync_access.paid_at is null
-      returning store_id`,[storeId,DEMO_BATCHES]);
+      returning store_id`,[storeId,DEMO_BATCHES,
+        !String(storeId).startsWith('yampi:') && process.env.NUVEMSHOP_BILLING_MODEL==='platform_monthly']);
     return rows.length === 1;
   }
 }; }
@@ -94,7 +100,7 @@ export function createCommercialAccess(repository=postgresRepository) {
         demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
         oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),
         monthlyPriceCents:Math.round(Number(process.env.NUVEMSHOP_MONTHLY_PRICE||'39.90')*100),
-        trialDays:3,
+        trialDays:configuredTrialDays(),
         purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):platformBillingConfigured(),
         purchaseMode:storeId.startsWith('yampi:')?'mercadopago_once':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',
         paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
@@ -102,7 +108,7 @@ export function createCommercialAccess(repository=postgresRepository) {
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);
       validateBatchAccess(access,new Set(productIds.map(String)).size,imageCount);
-      if (!dryRun && !access.paid && !access.trialActive && !access.courtesyActive && !await repository.reserve(storeId)) {
+      if (!dryRun && !access.paid && !access.courtesyActive && !await repository.reserve(storeId)) {
         throw denied(paidAccessMessage(access));
       }
       return access;

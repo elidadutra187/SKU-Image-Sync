@@ -304,3 +304,20 @@ test('exhausted demo explains missing confirmation and offers support in all thr
   }finally{w.close();}
  }
 });
+
+test('monthly platform trial is limited to the one free batch even before expiry',()=>{
+ const dom=new JSDOM('<html><body></body></html>',{url:'https://app.example',runScripts:'outside-only'}),w=dom.window;
+ let detail;w.ElunaBillingNotice={update:data=>{detail=data}};
+ w.eval(fs.readFileSync(require.resolve('../public/billing-notice-adapter.js'),'utf8'));
+ const access={paid:false,trialActive:true,purchaseMode:'platform_monthly',demoUsed:false,demoBatchesRemaining:1,purchaseConfigured:true};
+ w.BillingNoticeAdapter.update({connected:true,storeId:'42',access});
+ assert.equal(detail.allowed,true);
+ assert.equal(detail.status,'demo_available');
+ w.BillingNoticeAdapter.update({connected:true,storeId:'42',access:{...access,demoUsed:true,demoBatchesRemaining:0}});
+ assert.equal(detail.allowed,false);
+ assert.equal(detail.status,'payment_unconfirmed');
+ w.BillingNoticeAdapter.update({connected:true,storeId:'42',access:{...access,trialActive:false}});
+ assert.equal(detail.allowed,false);
+ assert.equal(detail.status,'payment_unconfirmed');
+ w.close();
+});

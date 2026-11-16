@@ -28,7 +28,7 @@ export function createPurchaseService({repository=createPurchaseRepository(),acc
   async purchase(storeId,confirmed){
     if(mode==='platform_monthly'){
       const current=await access.status(storeId);
-      if(current.paid||current.trialActive||current.courtesyActive)return {status:'active'};
+      if(current.paid||current.courtesyActive)return {status:'active'};
       // Monthly subscriptions are created and billed in Nuvemshop Partners.
       // Never POST another charge from this app.
       return {status:'unconfirmed',managedBy:'nuvemshop',manageUrl:'https://www.nuvemshop.com.br/login'};
