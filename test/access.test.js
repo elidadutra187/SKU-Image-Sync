@@ -37,6 +37,6 @@ test('Nuvemshop trial grants exactly one 10-image batch, then requires subscript
 test('expired Nuvemshop trial cannot use a remaining demo or get another one',()=>{
   assert.throws(()=>validateBatchAccess({paid:false,trialActive:false,purchaseMode:'platform_monthly',demoBatchesUsed:0},1,1),/período de teste/);
   assert.throws(()=>validateBatchAccess({paid:false,trialActive:true,purchaseMode:'platform_monthly',demoBatchesUsed:1},1,1),/assinatura|teste/);
-  assert.doesNotThrow(()=>validateBatchAccess({paid:false,trialActive:false,purchaseMode:'mercadopago_once',demoBatchesUsed:0},1,10));
+  assert.doesNotThrow(()=>validateBatchAccess({paid:false,trialActive:false,purchaseMode:'mercadopago_monthly',demoBatchesUsed:0},1,10));
   assert.doesNotThrow(()=>validateBatchAccess({paid:true,trialActive:false,purchaseMode:'platform_monthly',demoBatchesUsed:1},1,11));
 });

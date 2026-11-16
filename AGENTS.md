@@ -58,3 +58,8 @@ Nuvemshop/Tiendanube cobra SOMENTE nativamente; Yampi cobra pelo Mercado Pago. M
 - O app expõe `POST /billing/admin/partners-status` com `X-Admin-Token` para espelhar `paid`, `free`, `unpaid`, `cancelled` e `suspended`. Use a data real do Partners para `paid`, que vale por 30 dias. O servidor responde 409 se o estado não puder ser aplicado. Nunca altere acesso manualmente no Neon.
 - O pool Railway usa `application_name=imagem-em-lote`; as triggers protegem as tabelas de acesso e recibos e registram alterações em `image_sync_entitlement_audit`. Essa identificação evita alterações acidentais. Permissões do banco continuam sendo necessárias.
 - Yampi mantém cobrança própria e não recebe estados de acesso pelo endpoint do Partners.
+
+## Cobrança Yampi mensal — decisão de 16/11/2026
+
+- Novas contratações Yampi custam R$ 39,90 por mês pelo Mercado Pago, com cartão recorrente ou Pix renovado manualmente. A decisão substitui o pagamento único para novas contratações Yampi. Compras únicas já confirmadas preservam o acesso previsto no contrato original.
+- O lote gratuito permanece único por loja, com até 10 imagens. A liberação mensal exige recibo canônico de R$ 39,90 vinculado a este app e loja. A cobrança da Nuvemshop/Tiendanube continua nativa e independente.

@@ -28,6 +28,7 @@ export async function yampiPool(){
   const pool=getPool();if(!pool)throw new Error('database_unavailable');await initializeDatabase();
   initializing ??= (async()=>{
     await pool.query(`create table if not exists image_sync_yampi_stores(alias text primary key, credentials text not null, installed_at timestamptz not null default now(), updated_at timestamptz not null default now())`);
+    await pool.query('alter table image_sync_yampi_stores add column if not exists billing_disconnect_until timestamptz');
     await pool.query(`create table if not exists image_sync_yampi_oauth(state_hash text primary key,browser_hash text not null,verifier text not null,expires_at timestamptz not null)`);
     await pool.query(`create table if not exists image_sync_yampi_media(token_hash text primary key,store_id text not null,content bytea not null,mime text not null,expires_at timestamptz not null)`);
   })().catch(e=>{initializing=null;throw e;});

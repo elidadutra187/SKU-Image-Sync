@@ -2,12 +2,13 @@ import {Router} from 'express';
 import crypto from 'node:crypto';
 import {createPkce,merchantAlias,yampiRepository,temporaryMedia} from '../services/yampiStore.js';
 import {tokenRequest,YampiClient} from '../services/yampi.js';
+import {getYampiMonthlyBilling} from '../services/yampi-monthly/adapter.js';
 import {readStoreSession,setStoreSession} from '../services/session.js';
 const cookieName='image_sync_yampi_oauth';
 const redirectUri=()=>process.env.YAMPI_REDIRECT_URI || `${process.env.APP_URL || process.env.RENDER_EXTERNAL_URL}/auth/yampi/callback`;
 function browserCookie(req){const value=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith(cookieName+'='));return value?.slice(cookieName.length+1);}
 function writeCookie(res,value,age){res.append('Set-Cookie',`${cookieName}=${value}; Path=/auth/yampi; HttpOnly; SameSite=Lax; Max-Age=${age}${process.env.NODE_ENV==='production'?'; Secure':''}`);}
-export function createYampiAuthRouter({repository=yampiRepository,exchange=tokenRequest,verify=async(alias,accessToken)=>new YampiClient({alias,token:async()=>accessToken}).testConnection()}={}){
+export function createYampiAuthRouter({repository=yampiRepository,disconnectBilling=(id,remove)=>getYampiMonthlyBilling().disconnect(id,remove),exchange=tokenRequest,verify=async(alias,accessToken)=>new YampiClient({alias,token:async()=>accessToken}).testConnection()}={}){
   const router=Router(),wrap=handler=>(req,res,next)=>Promise.resolve(handler(req,res)).catch(next);
   router.get('/install',wrap(async(req,res)=>{
     const clientId=process.env.YAMPI_CLIENT_ID;if(!clientId)return res.status(503).send('A conexão com a Yampi está em preparação.');
@@ -32,7 +33,7 @@ export function createYampiAuthRouter({repository=yampiRepository,exchange=token
     const storeId=readStoreSession(req);if(!storeId?.startsWith('yampi:'))return res.sendStatus(401);
     const expected=new URL(process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || req.protocol+'://'+req.get('host')).origin;
     if(req.headers.origin!==expected)return res.sendStatus(403);
-    await repository.disconnect(storeId.slice(6));res.append('Set-Cookie','sku_image_sync_store=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');res.json({success:true});
+    await disconnectBilling(storeId,()=>repository.disconnect(storeId.slice(6)));res.append('Set-Cookie','sku_image_sync_store=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');res.json({success:true});
   }));
   return router;
 }

@@ -1,3 +1,4 @@
+import {getYampiMonthlyBilling} from './yampi-monthly/adapter.js';
 import billingPlatformPolicy from './billingPlatformPolicy.cjs';
 const {createBillingPolicy,isYampiStoreId,assertYampiStoreId}=billingPlatformPolicy;
 const billingPolicy=createBillingPolicy();
@@ -7,7 +8,7 @@ import { createPurchaseLedger } from './yampiPurchaseLedger.js';
 import { yampiPool } from './yampiStore.js';
 import { readStoreSession } from './session.js';
 const fail = (message, status = 503) => Object.assign(Error(message), { status });
-export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yampiPool, sessionReader = readStoreSession, provider: injectedProvider } = {}) {
+export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yampiPool, sessionReader = readStoreSession, provider: injectedProvider, allowLegacyCheckout=true, reconcileMonthly } = {}) {
     const baseUrl = env.APP_URL || env.RENDER_EXTERNAL_URL || 'http://localhost:4315';
     const testStores = new Set((env.YAMPI_MP_TEST_STORE_IDS || '').split(',').map(s => s.trim()));
     const live = env.YAMPI_MP_MODE === 'production' && env.YAMPI_MP_PRODUCTION_ENABLED === 'true';
@@ -96,7 +97,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
             throw fail('payment_reconciliation_pending');
     }
     const router = Router(), wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
-    router.post('/checkout', wrap(async (req, res) => { const storeId = await authenticated(req, true); res.set('Cache-Control', 'no-store'); res.json({ success: true, ...await checkout(storeId) }); }));
+    if (allowLegacyCheckout) router.post('/checkout', wrap(async (req, res) => { const storeId = await authenticated(req, true); res.set('Cache-Control', 'no-store'); res.json({ success: true, ...await checkout(storeId) }); }));
     router.post('/webhook', wrap(async (req, res) => {
         const id = req.query['data.id'];
         if (!provider.isConfigured())
@@ -112,7 +113,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
     let timer, running = false, stopped = false;
     const reconcile = async () => { if (running || stopped || !provider.isConfigured())
         return; running = true; try {
-        await reconcileAll();
+        await Promise.all([reconcileAll(),reconcileMonthly?.()]);
     }
     catch {
         console.error('Confirmação de pagamentos pendente; nova tentativa automática.');
@@ -129,4 +130,7 @@ export function buildYampiPaymentRuntime({ env = process.env, poolProvider = yam
         } }, stop() { stopped = true; clearTimeout(timer); } };
 }
 let runtime;
-export const getYampiPaymentRuntime = () => runtime ??= buildYampiPaymentRuntime();
+export const getYampiPaymentRuntime = () => runtime ??= buildYampiPaymentRuntime({allowLegacyCheckout:false,reconcileMonthly:()=>{
+    const {service}=getYampiMonthlyBilling();
+    if(service.isConfigured())return service.reconcileAll();
+}});

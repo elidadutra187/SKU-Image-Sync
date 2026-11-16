@@ -73,7 +73,7 @@ test('Yampi access never advertises or invokes Nuvemshop payment',async()=>{
   const state=await access.status('yampi:teste');
   // Independe do ambiente: o build do Railway roda os testes com as variaveis do servico (MP pode estar ativo).
   const configured=getYampiPaymentRuntime().available('yampi:teste');
-  assert.notEqual(state.paymentProvider,'nuvemshop');assert.equal(state.purchaseMode,'mercadopago_once');
+  assert.notEqual(state.paymentProvider,'nuvemshop');assert.equal(state.purchaseMode,'mercadopago_monthly');
   assert.equal(state.paymentProvider,configured?'mercadopago':'pending');assert.equal(state.purchaseConfigured,configured);
 });
 
