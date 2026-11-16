@@ -12,6 +12,10 @@ for(const configured of [false,true])test(`authenticated Yampi price is consiste
  try{
   const runtime=(await fs.readFile('public/app.js','utf8')).replace(/^import .*;\r?\n/gm,'').replace("await import('/yampi-payment-ui.mjs')",'window.fixturePaymentModule');
   w.eval(runtime);await new Promise(resolve=>setTimeout(resolve,25));
+  const link=w.document.querySelector('#subscriptionLink');
+  assert.equal(link.hidden,false);
+  assert.equal(link.hash,'#access');
+  assert.equal(w.document.querySelector('#pixHelp').hidden,!configured);
   const card=w.document.querySelector('#access').textContent;
   assert.match(w.document.querySelector('#accessPlan').textContent,/79,90/);
   assert.doesNotMatch(card,/79,99|Nuvemshop/);
