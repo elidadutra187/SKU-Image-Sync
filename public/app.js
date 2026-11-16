@@ -71,7 +71,7 @@ function renderAccess(access) {
   $('accessText').textContent=access.platformSuspended?'A Nuvemshop registrou uma restrição no acesso. Confira a assinatura em Aplicativos no administrador.':
      access.paid?'Acesso pago ativo para novos lotes e reutilizações.':
      access.courtesyActive?'Cortesia adicional ativa. Você pode utilizar o aplicativo durante a vigência da cortesia.':
-     access.demoUsed?'Seu único lote gratuito de até 10 imagens já foi utilizado. Assine na Nuvemshop para realizar novos envios.':
+     access.demoUsed?(monthly?'Seu único lote gratuito de até 10 imagens já foi utilizado. Assine na Nuvemshop para realizar novos envios.':access.paymentProvider==='pending'?'Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento da Yampi ainda está em preparação.':`Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento único de R${accessPrice} libera novos lotes.`):
      demoExpired?'Seu período de teste terminou. A assinatura é necessária para começar a enviar imagens.':
      monthly?`Você tem 1 lote gratuito de até 10 imagens para usar até ${new Date(access.trialUntil).toLocaleDateString('pt-BR')}. O lote é consumido no primeiro envio; conferir e simular não consome o lote.`:
      `Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. Cada lote permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;

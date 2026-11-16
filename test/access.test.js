@@ -30,7 +30,7 @@ test('Nuvemshop trial grants exactly one 10-image batch, then requires subscript
   assert.equal(used,0,'preview must not consume trial batch');
   await access.authorize('123',['1'],{imageCount:10});
   assert.equal(used,1);
-  await assert.rejects(access.authorize('123',['1'],{imageCount:1}),/assinatura|teste/);
+  await assert.rejects(access.authorize('123',['1'],{imageCount:1}),/pagamento|assinatura|teste/);
   paid=true;
   await assert.doesNotReject(access.authorize('123',Array.from({length:11},(_,i)=>String(i)),{imageCount:11}));
 });
