@@ -1,13 +1,15 @@
 import {getPool, initializeDatabase} from './database.js';
 import {platformBillingConfigured} from './nativeBilling.js';
 import {configuredTrialDays} from './monthlyBilling.js';
-import {getYampiPaymentRuntime} from './yampiPaymentRuntime.js';
+import {getYampiMonthlyBilling,YAMPI_MONTHLY_PRICE_CENTS} from './yampi-monthly/adapter.js';
 export const DEMO_PRODUCTS = 10;
 export const DEMO_IMAGES = 10;
 export const DEMO_BATCHES = 1;
 
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
-const paidAccessMessage=access=>access.purchaseMode==='platform_monthly'
+const paidAccessMessage=access=>access.purchaseMode==='mercadopago_monthly'
+  ? 'Seu lote gratuito já foi utilizado. Assine pelo Mercado Pago para continuar enviando imagens.'
+  : access.purchaseMode==='platform_monthly'
   ? 'O período de teste ou a assinatura terminou. Regularize o Imagem em Lote na Nuvemshop para voltar a enviar imagens.'
   : `Seu lote gratuito já foi utilizado. O pagamento único de R${((access.oneTimePriceCents??7999)/100).toFixed(2).replace('.',',')} libera novos lotes e reutilizações.`;
 
@@ -54,6 +56,8 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       m.paid_until,m.trial_until,m.lifecycle,m.partners_free,m.partners_paid_until,
       (coalesce(m.platform_suspended,false) or coalesce(m.lifecycle<>'active',false)) as platform_suspended,
       m.partners_paid_until>statement_timestamp() as partners_paid,
+      (left(s.store_id,6)='yampi:' and a.yampi_paid_until>statement_timestamp()) as yampi_monthly_paid,
+      a.yampi_paid_until,
       (m.paid_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as monthly_paid,
       (m.trial_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as trial_active
       from (select $1::text as store_id) s
@@ -61,10 +65,10 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       left join image_sync_monthly m on m.store_id=s.store_id
       left join image_sync_purchase p on p.store_id=s.store_id`,[storeId]),storeId);
     const row=rows[0]||{};
-    return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid)||Boolean(row.partners_free)||Boolean(row.partners_paid))&&!row.platform_suspended,
+    return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid)||Boolean(row.yampi_monthly_paid)||Boolean(row.partners_free)||Boolean(row.partners_paid))&&!row.platform_suspended,
       trialActive:Boolean(row.trial_active),courtesyActive:Boolean(row.courtesy_active)&&!row.platform_suspended,
       demoBatchesUsed:row.demo_batches_used??0,purchaseStatus:row.purchase_status||null,
-      subscriptionUntil:row.partners_free?null:row.partners_paid_until||row.paid_until||null,trialUntil:row.trial_until||null,
+      subscriptionUntil:row.partners_free?null:row.partners_paid_until||row.paid_until||row.yampi_paid_until||null,trialUntil:row.trial_until||null,
       subscriptionState:row.lifecycle||null,platformSuspended:Boolean(row.platform_suspended)};
   },
   async reserve(storeId) {
@@ -96,14 +100,16 @@ export function createCommercialAccess(repository=postgresRepository) {
       if(!Number.isInteger(current.demoBatchesUsed) || current.demoBatchesUsed<0) {
         throw denied('Não foi possível verificar os lotes gratuitos. Tente novamente mais tarde.',503);
       }
+      const isYampi=storeId.startsWith('yampi:');
+      const yampiAvailable=isYampi && getYampiMonthlyBilling().available(storeId);
       return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
         demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
-        oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),
-        monthlyPriceCents:Math.round(Number(process.env.NUVEMSHOP_MONTHLY_PRICE||'39.90')*100),
+        oneTimePriceCents:isYampi?null:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),
+        monthlyPriceCents:isYampi?YAMPI_MONTHLY_PRICE_CENTS:Math.round(Number(process.env.NUVEMSHOP_MONTHLY_PRICE||'39.90')*100),
         trialDays:configuredTrialDays(),
-        purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):platformBillingConfigured(),
-        purchaseMode:storeId.startsWith('yampi:')?'mercadopago_once':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',
-        paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
+        purchaseConfigured:isYampi?yampiAvailable:platformBillingConfigured(),
+        purchaseMode:isYampi?'mercadopago_monthly':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',
+        paymentProvider:isYampi?(yampiAvailable?'mercadopago':'pending'):'nuvemshop'};
     },
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);

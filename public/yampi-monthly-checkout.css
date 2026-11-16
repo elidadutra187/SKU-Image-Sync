@@ -1,0 +1,28 @@
+#yampi-payment-card, #yampiPayerFields {
+  color-scheme: light; color: #16342e; background: #fff;
+  padding: clamp(1rem, 3vw, 1.5rem); border: 1px solid #c9dfd7; border-radius: 14px;
+}
+#yampi-payment-card { margin: 1rem 0 1.5rem; }
+#yampi-payment-card > h2 { margin: 0; }
+#yampi-payment-card > p { color: #46635b; }
+#yampi-payment-card [data-payment-price] { font-size: 1.15rem; font-weight: 700; color: #16342e; }
+.yampi-checkout-title { margin: 0; color: #16342e; font-size: 1.2rem; }
+.yampi-checkout-help { margin: .25rem 0 .5rem; color: #46635b; }
+.yampi-checkout-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; }
+.yampi-checkout-choice {
+  display: grid; gap: .3rem; min-height: 4.6rem; padding: .85rem 1rem;
+  text-align: left; font: inherit; color: #133a32; background: #f4faf8;
+  border: 1px solid #a6cfc3; border-radius: 12px; cursor: pointer;
+}
+.yampi-checkout-choice span { font-size: .9rem; color: #3d5e55; }
+.yampi-checkout-choice[aria-pressed="true"] { border: 2px solid #176c59; background: #e6f5f0; padding: calc(.85rem - 1px) calc(1rem - 1px); }
+.yampi-checkout-fields { display: grid; gap: .8rem; margin-top: .85rem; padding: 1rem; background: #fff; border: 1px solid #c9dfd7; border-radius: 12px; }
+.yampi-checkout-fields .yampi-checkout-label { display: grid; gap: .4rem; color: #16342e; font-weight: 600; }
+.yampi-checkout-fields input { box-sizing: border-box; width: 100%; min-height: 44px; padding: .7rem; font: inherit; color: #162e28; border: 1px solid #7caaa0; border-radius: 8px; background: #fff; }
+.yampi-checkout-submit, .yampi-checkout-back { min-height: 44px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
+.yampi-checkout-submit { border: 1px solid #096452; color: #fff; background: #096452; }
+.yampi-checkout-back { border: 1px solid #a6cfc3; color: #16342e; background: #fff; }
+.yampi-checkout-choice:focus-visible, .yampi-checkout-fields :focus-visible { outline: 3px solid #126c57; outline-offset: 3px; }
+.yampi-checkout-status { margin: .6rem 0 0; padding: .75rem; color: #183c31; background: #eef7f3; border-radius: 8px; }
+.yampi-checkout-choices[hidden], .yampi-checkout-fields[hidden], .yampi-checkout-fields [hidden], .yampi-checkout-status[hidden] { display: none !important; }
+.yampi-renewal-action { justify-self: start; margin-top: .8rem; padding: .65rem .9rem; border: 1px solid #a6cfc3; border-radius: 8px; color: #16342e; background: #fff; font: inherit; cursor: pointer; }

@@ -218,3 +218,13 @@ Pagamento único nativo permanece persistido atomicamente com recibo e acesso, u
 
 Testes direcionados:4aprovados,0falhas, incluindo assinatura nativa, persistência PostgreSQL, domínio do receptor, erro/retry e parada durante execução. A importação histórica do Partners é uma fonte separada; comprovantes com conversões estrangeiras não devem ser forjados como eventos HMAC.
 
+
+## 16/11/2026 — Imagem em Lote Yampi a R$ 39,90 ao mês
+
+A proprietária substituiu a compra única nas novas contratações Yampi. O app passa a apresentar cartão com renovação automática e Pix com renovação manual. O cadastro comercial da Yampi deve refletir R$ 39,90 por mês e o primeiro lote gratuito de até 10 imagens. Compras únicas confirmadas mantêm o acesso original. Intenções antigas em aberto impedem uma segunda cobrança até conciliação ou encerramento confirmado. A rota pública de criação de novas compras únicas é aposentada nesta versão, e seu webhook continua processando pagamentos e estornos históricos.
+
+A nova janela paga é calculada a partir da confirmação canônica do pagamento e preservada após cancelar futuras renovações. Recibos do novo fluxo ficam em yampi_billing_receipts e a cobertura em image_sync_access.yampi_paid_until. O código usa o mesmo agendamento diário existente como recuperação dos eventos, sem consultas periódicas no navegador. A abertura de checkout e a desconexão verificam a loja autenticada e coordenam o bloqueio local de novos contratos durante a desconexão.
+
+Antes de ativar a cobrança mensal em produção, homologar o checkout com as credenciais de teste exclusivas do Imagem em Lote e a lista de lojas de teste. Configurar os tópicos payments, subscription_preapproval e subscription_authorized_payment no webhook /yampi/billing/monthly/webhook. Preservar a entrega de notificações legadas em /yampi/billing/webhook. Validar assinatura, primeiro pagamento, renovação, cancelamento, estorno, Pix e reabertura após expiração. YAMPI_MP_MONTHLY_ENABLED é a flag do novo checkout, desligada por padrão. Publicação, configuração de webhooks e cobrança real não realizadas nesta etapa.
+
+O Claude foi consultado para revisão da transição e retornou um erro de limite de contexto. Implementação e testes locais pelo Codex.
