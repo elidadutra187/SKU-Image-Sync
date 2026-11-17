@@ -54,7 +54,7 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       m.paid_until,m.trial_until,m.lifecycle,m.partners_free,m.partners_paid_until,
       (coalesce(m.platform_suspended,false) or coalesce(m.lifecycle<>'active',false)) as platform_suspended,
       m.partners_paid_until>statement_timestamp() as partners_paid,
-      (m.paid_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as monthly_paid,
+      ((m.paid_until>statement_timestamp() or m.official_active_at is not null) and m.lifecycle='active' and not m.platform_suspended) as monthly_paid,
       (m.trial_until>statement_timestamp() and m.lifecycle='active' and not m.platform_suspended) as trial_active
       from (select $1::text as store_id) s
       left join image_sync_access a on a.store_id=s.store_id
