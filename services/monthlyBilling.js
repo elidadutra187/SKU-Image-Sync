@@ -63,7 +63,11 @@ export async function grantMonthlyReceipt({storeId,chargeId,receipt,occurredAt=n
 export async function updateMonthlyLifecycle({storeId,topic,occurredAt},{poolProvider=getPool,initialize=initializeDatabase}={}) {
   if(!['churn','phoenix','installed','uninstalled','plan_changed'].includes(topic))throw Error('unknown_subscription_topic');
   const pool=await connection(poolProvider,initialize)();
-  if(topic==='plan_changed'||topic==='phoenix')return;
+  if(topic==='plan_changed')return;
+  if(topic==='phoenix'){
+    await resumeMonthly(storeId,occurredAt,true,pool);
+    return;
+  }
   if(topic==='installed'){
     await registerMonthlyTrial(storeId,{poolProvider:()=>pool,initialize:async()=>{}});
     return;
@@ -72,14 +76,33 @@ export async function updateMonthlyLifecycle({storeId,topic,occurredAt},{poolPro
 }
 
 export async function setMonthlySuspended({storeId,suspended,lifecycle='suspended',occurredAt=null},{poolProvider=getPool,initialize=initializeDatabase}={}) {
-  if(!suspended)return;
   const pool=await connection(poolProvider,initialize)();
+  if(!suspended){
+    await resumeMonthly(storeId,occurredAt,false,pool);
+    return;
+  }
   await pool.query(`insert into image_sync_monthly(store_id,platform_suspended,lifecycle,last_blocked_at)
     select store_id,true,$2,coalesce($3::timestamptz,statement_timestamp()) from stores where store_id=$1
-    on conflict(store_id) do update set platform_suspended=true,lifecycle=excluded.lifecycle,
-      paid_until=null,last_charge_id=null,partners_paid_until=null,partners_free=false,
+    on conflict(store_id) do update set platform_suspended=true,
+      lifecycle=case when image_sync_monthly.lifecycle in ('churn','uninstalled')
+        and excluded.lifecycle='suspended' then image_sync_monthly.lifecycle else excluded.lifecycle end,
+      paid_until=null,last_charge_id=null,partners_paid_until=null,partners_free=false,official_active_at=null,
       last_blocked_at=excluded.last_blocked_at,updated_at=statement_timestamp()
     where excluded.last_blocked_at>=coalesce(image_sync_monthly.last_payment_event_at,'-infinity'::timestamptz)
       and excluded.last_blocked_at>coalesce(image_sync_monthly.last_blocked_at,'-infinity'::timestamptz)
+      and excluded.last_blocked_at>=coalesce(image_sync_monthly.official_active_at,'-infinity'::timestamptz)
   `,[String(storeId),lifecycle,occurredAt]);
+}
+
+async function resumeMonthly(storeId,occurredAt,phoenix,pool) {
+  await pool.query(`insert into image_sync_monthly(store_id,official_active_at)
+    select store_id,coalesce($2::timestamptz,statement_timestamp()) from stores where store_id=$1
+    on conflict(store_id) do update set lifecycle='active',platform_suspended=false,
+      official_active_at=excluded.official_active_at,updated_at=statement_timestamp()
+    where image_sync_monthly.lifecycle<>'uninstalled'
+      and ($3::boolean or image_sync_monthly.lifecycle in ('active','suspended'))
+      and excluded.official_active_at>greatest(
+        coalesce(image_sync_monthly.last_blocked_at,'-infinity'::timestamptz),
+        coalesce(image_sync_monthly.official_active_at,'-infinity'::timestamptz))
+  `,[String(storeId),occurredAt??null,phoenix]);
 }

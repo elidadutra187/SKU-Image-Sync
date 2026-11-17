@@ -1,5 +1,10 @@
 # Instruções do projeto
 
+## Acesso Nuvemshop/Tiendanube — padronização de 17/11/2026
+
+Aplicar a mesma regra do Continuar pelo WhatsApp. O estado oficial sincronizado prevalece: retomada autenticada da própria aplicação libera acesso; suspensão, cancelamento e desinstalação oficiais bloqueiam. A retomada da API não desfaz cancelamento terminal; a reativação da assinatura (phoenix) pode desfazê-lo para a instalação existente. Falha de consulta não é uma ordem de cancelamento. Retomada não cria recibo, data de pagamento ou repasse. Mantenha preços, moedas, contratos legados e cobrança Yampi separados. As rotas que autorizam uso e os workers devem aplicar a mesma regra.
+
+
 - Trabalhar e salvar artefatos em D:\Users\elida\Documents\Codex. Sempre informar esse diretório nos comandos; o diretório inicial de uma conversa pode estar em C: e não deve ser usado para este projeto.
 - Interface em pt-BR, en e es. Usar o seletor compartilhado em todas as páginas e conservar a escolha entre páginas. Traduzir mensagens dinâmicas e confirmações; nunca traduzir nomes reais de produtos ou arquivos enviados. Preço BRL não implica conversão de moeda pelo idioma.
 

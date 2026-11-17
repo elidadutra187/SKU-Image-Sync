@@ -100,7 +100,8 @@ export async function migrateDatabase(client) {
     add column if not exists partners_free boolean not null default false,
     add column if not exists partners_paid_until timestamptz,
     add column if not exists last_blocked_at timestamptz,
-    add column if not exists last_payment_event_at timestamptz`);
+    add column if not exists last_payment_event_at timestamptz,
+    add column if not exists official_active_at timestamptz`);
   await installEntitlementGuard(client);
 
 }

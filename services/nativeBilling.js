@@ -93,7 +93,9 @@ export function createBillingWebhook(options={}) {
         const storeId=String(event.store_id);
         if(!await (options.isKnownStore||knownPlatformStore)({storeId}))
           return res.status(503).json({success:false});
-        if(event.event==='app/uninstalled'||isSubscription){
+        if(isSubscription&&!['cancelled','canceled'].includes(String(event.status).toLowerCase())){
+          await (options.suspensionEvent||setMonthlySuspended)({storeId,suspended:true,occurredAt});
+        } else if(event.event==='app/uninstalled'||isSubscription){
           await (options.subscriptionEvent||updateMonthlyLifecycle)({storeId,topic:event.event==='app/uninstalled'?'uninstalled':'churn',occurredAt});
         } else if(event.event==='app_subscription/updated') {
           if(!['installed','uninstalled','churn','phoenix','plan_changed'].includes(event.topic))
