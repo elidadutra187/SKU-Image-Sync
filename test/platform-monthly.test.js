@@ -45,8 +45,9 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   assert.equal((await access.status('123')).paid,false);
   await setMonthlySuspended({storeId:'123',suspended:false},options);
   assert.equal((await access.status('123')).paid,true);
-  await setMonthlySuspended({storeId:'123',suspended:true},options);
-  await grantMonthlyReceipt({...receipt,chargeId:'monthly-002'},options);
+  const lastBlock=new Date(Date.now()+1000);
+  await setMonthlySuspended({storeId:'123',suspended:true,occurredAt:lastBlock.toISOString()},options);
+  await grantMonthlyReceipt({...receipt,chargeId:'monthly-002',occurredAt:new Date(lastBlock.getTime()+1000).toISOString()},options);
   assert.equal((await access.status('123')).paid,true);
   await db.query("update image_sync_monthly set paid_until=now()-interval '1 second' where store_id='123'");
   assert.equal((await access.status('123')).paid,false);
