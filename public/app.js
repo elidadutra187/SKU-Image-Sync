@@ -50,8 +50,9 @@ function updateActions() {
   $('previousPage').disabled=state.busy||state.reviewPage===0;
   $('nextPage').disabled=state.busy||state.reviewPage>=Math.max(0,$('reviewPage').options.length-1);
   const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
-  const oversized=state.access && !state.access.paid && !state.access.courtesyActive && imageCount>10;
-  const blocked=state.access && (state.access.platformSuspended || (!state.access.paid && !state.access.courtesyActive && (state.access.demoUsed || (state.access.purchaseMode==='platform_monthly' && !state.access.trialActive))));
+  const monthlyTrial=state.access?.purchaseMode==='platform_monthly';
+  const oversized=state.access && !state.access.paid && !state.access.courtesyActive && !monthlyTrial && imageCount>10;
+  const blocked=state.access && (state.access.platformSuspended || (!state.access.paid && !state.access.courtesyActive && (monthlyTrial?!state.access.trialActive:state.access.demoUsed)));
   $('send').disabled=state.busy || !!state.jobId || !count || !state.session || !state.access || blocked || oversized;
   $('selectionCount').textContent=count ? `${imageCount} imagem(ns) selecionada(s). ${oversized ? 'No gratuito, selecione no máximo 10 imagens.' : 'Confira as fotos antes de enviar.'}` : 'Marque os produtos que deseja atualizar.';
 }
@@ -59,7 +60,8 @@ function renderAccess(access) {
   state.access=access;
   const monthly=access.purchaseMode==='platform_monthly';
   const fullAccess=access.paid || access.courtesyActive;
-   const demoExpired=monthly && !access.trialActive;
+  const demoExpired=monthly && !access.trialActive;
+  const paymentRequired=!fullAccess && (monthly?demoExpired:access.demoUsed);
   const accessPrice=hasAuthenticatedYampiBilling()?'79,90':'79,99';
   $('access').hidden=false;
   // Update billing notice component via adapter
@@ -67,26 +69,26 @@ function renderAccess(access) {
   if(window.BillingNoticeAdapter){
     window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:platform.value,paymentRequired:state.paymentRequired,access:access});
   }
-  $('accessPlan').textContent=monthly?'Assinatura de R$39,90/mês pela Nuvemshop, com ${access.trialDays || 3} dias para utilizar 1 lote grátis de até 10 imagens. A Nuvemshop gerencia os pagamentos.':`Pagamento único de R${accessPrice} por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.`;
+  $('accessPlan').textContent=monthly?'Assinatura de R$39,90/mês pela Nuvemshop. Durante o período de teste gratuito, envie quantos lotes e imagens precisar. A Nuvemshop gerencia os pagamentos.':`Pagamento único de R${accessPrice} por loja, sem mensalidade. Inclui um lote gratuito de até 10 imagens.`;
   $('accessText').textContent=access.platformSuspended?'A Nuvemshop registrou uma restrição no acesso. Confira a assinatura em Aplicativos no administrador.':
      access.paid?'Acesso pago ativo para novos lotes e reutilizações.':
      access.courtesyActive?'Cortesia adicional ativa. Você pode utilizar o aplicativo durante a vigência da cortesia.':
-     access.demoUsed?(monthly?'Seu único lote gratuito de até 10 imagens já foi utilizado. Assine na Nuvemshop para realizar novos envios.':access.paymentProvider==='pending'?'Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento da Yampi ainda está em preparação.':`Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento único de R${accessPrice} libera novos lotes.`):
-     demoExpired?'Seu período de teste terminou. A assinatura é necessária para começar a enviar imagens.':
-     monthly?`Você tem 1 lote gratuito de até 10 imagens para usar até ${new Date(access.trialUntil).toLocaleDateString('pt-BR')}. O lote é consumido no primeiro envio; conferir e simular não consome o lote.`:
+     monthly?(demoExpired?'Seu período de teste terminou. A assinatura é necessária para enviar imagens.':
+       `Teste gratuito ativo até ${new Date(access.trialUntil).toLocaleDateString('pt-BR')}. Durante o teste, você pode enviar quantos lotes e imagens precisar.`):
+     access.demoUsed?(access.paymentProvider==='pending'?'Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento da Yampi ainda está em preparação.':`Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento único de R${accessPrice} libera novos lotes.`):
      `Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. Cada lote permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
-  $('purchasePending').hidden=fullAccess || (!access.demoUsed && !demoExpired);
+  $('purchasePending').hidden=!paymentRequired;
   $('purchasePending').textContent=monthly?'Assinatura de R$39,90/mês gerenciada pela Nuvemshop. Consulte Aplicativos no administrador para iniciar ou renovar o pagamento.':access.paymentProvider==='pending'
     ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
     :access.purchaseConfigured
     ?access.paymentProvider==='mercadopago'?(hasAuthenticatedYampiBilling()?state.yampiPaymentUi?.paymentDescription():'Não foi possível confirmar a plataforma de cobrança.'):'O pagamento único de R$79,99 por loja é pela Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
     :'O pagamento único será de R$79,99 por loja, pela Nuvemshop. A liberação do pagamento ainda está em preparação.';
-  $('purchase').hidden=fullAccess || (!access.demoUsed && !demoExpired) || !access.purchaseConfigured;
+  $('purchase').hidden=!paymentRequired || !access.purchaseConfigured;
   $('purchase').textContent=monthly?'Ver assinatura na Nuvemshop':hasAuthenticatedYampiBilling()?'Comprar acesso por R$79,90':access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Comprar acesso por R$79,99';
   $('purchase').disabled=state.busy || !['platform_once','platform_monthly'].includes(access.purchaseMode)&&['creating','pending'].includes(access.purchaseStatus);
-  $('refreshAccess').hidden=fullAccess || (!access.demoUsed && !demoExpired) || !access.purchaseConfigured;
-  $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!fullAccess && Number(option.value)>10;});
-  if(!fullAccess)$('batchSize').value='10';
+  $('refreshAccess').hidden=!paymentRequired || !access.purchaseConfigured;
+  $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!fullAccess && !monthly && Number(option.value)>10;});
+  if(!fullAccess && !monthly)$('batchSize').value='10';
   updateBatches();updateActions();
 }
 function csvGroups() {
