@@ -18,6 +18,9 @@ test('courtesy permits batches without consuming demo or marking payment',async(
 });
 
 test('Nuvemshop active monthly trial allows unlimited batches and images without consuming demo',async()=>{
+  const previousModel=process.env.NUVEMSHOP_BILLING_MODEL;
+  process.env.NUVEMSHOP_BILLING_MODEL='platform_monthly';
+  try {
   let reserveCalls=0,paid=false,trialActive=true;
   const access=createCommercialAccess({
     async status(){return {paid,trialActive,purchaseMode:'platform_monthly',demoBatchesUsed:1};},
@@ -31,6 +34,10 @@ test('Nuvemshop active monthly trial allows unlimited batches and images without
   await assert.rejects(access.authorize('123',['1'],{imageCount:1}),/período de teste/);
   paid=true;
   await assert.doesNotReject(access.authorize('123',['1'],{imageCount:125}));
+  } finally {
+    if(previousModel===undefined)delete process.env.NUVEMSHOP_BILLING_MODEL;
+    else process.env.NUVEMSHOP_BILLING_MODEL=previousModel;
+  }
 });
 test('expired Nuvemshop trial cannot use a remaining demo or get another one',()=>{
   assert.throws(()=>validateBatchAccess({paid:false,trialActive:false,purchaseMode:'platform_monthly',demoBatchesUsed:0},1,1),/período de teste/);
