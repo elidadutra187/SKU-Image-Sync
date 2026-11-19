@@ -14,13 +14,13 @@ Escolha uma das três entradas: imagens, pasta ou CSV. Uma pasta principal com f
 
 A prévia tem páginas de10/20/30/40/50 imagens e preserva os produtos marcados entre páginas. Marcar um produto inclui todas as fotos dele no lote. O envio mostra percentual por produtos concluídos, contadores de fotos e erros, resultado final e opção de retomar a consulta após falha de rede, sem reenviar o lote.
 
-## Demo e acesso
+## Teste gratuito e acesso
 
-Um lote gratuito por loja, com até10 imagens no total. Cada foto conta, inclusive várias do mesmo produto. Prévia e simulação não consomem o lote. O início do envio real reserva o lote; falhas parciais não devolvem o lote. Depois do primeiro envio, novos lotes exigem acesso pago. Reconectar não reinicia o gratuito.
+**Nuvemshop, assinatura mensal:** enquanto a loja tiver período de teste ativo, pode realizar quantos envios e processar quantas imagens desejar. Não há limite comercial de 1 lote ou 10 imagens nesse período, inclusive para lojas que já consumiram o antigo lote de demonstração. Permanecem os limites técnicos por operação: até 50 produtos por lote e até 500 arquivos por seleção (até 10 MB por foto). A duração do teste é controlada pelo registro de assinatura da loja. Após o fim do período, sem pagamento confirmado, novos envios são bloqueados no backend. A assinatura é cobrada pela Nuvemshop, com preço de referência de R$39,90/mês.
 
-Depois do demo, pagamento único de **R$79,99 por loja**, pela **Nuvemshop**, deve liberar novos lotes e reutilizações na mesma loja. O receptor de confirmação nativa está implementado em `/webhooks/billing`, validando HMAC, aplicativo, loja, valor, moeda e conceito. **Preço aprovado pela usuária; configuração da cobrança no Partners e validação do fluxo pendentes.** O bloqueio é feito no servidor e persistido no PostgreSQL, independente da autorização OAuth. Sem DATABASE_URL, o processamento fica bloqueado. Não há checkout externo.
+**Yampi e fluxo de compra única legado:** mantêm um lote gratuito por loja de até 10 imagens, com reserva no primeiro envio real. Prévia e simulação não consomem o lote. A reconexão não reinicia o benefício. Contratos de compra única anteriores permanecem válidos.
 
-Veja [PREPARACAO-PUBLICO.md](PREPARACAO-PUBLICO.md) para as pendências antes da reabertura. Esta revisão está em preparação, sem implantação pública.
+O processamento continua sujeito à confirmação de acesso no PostgreSQL e aos estados oficiais de assinatura da plataforma. A implementação distingue teste mensal de demonstração legada. Sem DATABASE_URL, o processamento permanece bloqueado.
 
 ## Desenvolvimento
 
