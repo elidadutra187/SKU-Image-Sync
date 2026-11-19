@@ -34,8 +34,13 @@ export function validateBatchAccess(access,count,imageCount=count) {
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
   if (access.paid || access.courtesyActive) return;
+  // Nuvemshop monthly trials are time-limited, not batch- or image-limited.
+  // Keep the legacy single-batch demo unchanged for one-time plans and Yampi.
+  if (access.purchaseMode==='platform_monthly') {
+    if (!access.trialActive) throw denied('O período de teste terminou. Regularize a assinatura na Nuvemshop para enviar novas imagens.');
+    return;
+  }
   if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied(paidAccessMessage(access));
-  if (access.purchaseMode==='platform_monthly' && !access.trialActive) throw denied('O período de teste terminou. Regularize a assinatura na Nuvemshop para enviar novas imagens.');
   if (!Number.isInteger(imageCount) || imageCount < 1 || imageCount > DEMO_IMAGES) throw denied('O lote gratuito permite no máximo 10 imagens. Selecione até 10 fotos para continuar.');
 }
 
@@ -96,8 +101,10 @@ export function createCommercialAccess(repository=postgresRepository) {
       if(!Number.isInteger(current.demoBatchesUsed) || current.demoBatchesUsed<0) {
         throw denied('Não foi possível verificar os lotes gratuitos. Tente novamente mais tarde.',503);
       }
-      return {...current,demoUsed:current.demoBatchesUsed>=DEMO_BATCHES,
-        demoBatches:DEMO_BATCHES,demoBatchesRemaining:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),demoProducts:DEMO_PRODUCTS,demoImages:DEMO_IMAGES,
+      const monthly=!storeId.startsWith('yampi:') && process.env.NUVEMSHOP_BILLING_MODEL==='platform_monthly';
+      return {...current,demoUsed:monthly?false:current.demoBatchesUsed>=DEMO_BATCHES,
+        demoBatches:monthly?null:DEMO_BATCHES,demoBatchesRemaining:monthly?null:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),
+        demoProducts:monthly?null:DEMO_PRODUCTS,demoImages:monthly?null:DEMO_IMAGES,
         oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),
         monthlyPriceCents:Math.round(Number(process.env.NUVEMSHOP_MONTHLY_PRICE||'39.90')*100),
         trialDays:configuredTrialDays(),
@@ -108,7 +115,7 @@ export function createCommercialAccess(repository=postgresRepository) {
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);
       validateBatchAccess(access,new Set(productIds.map(String)).size,imageCount);
-      if (!dryRun && !access.paid && !access.courtesyActive && !await repository.reserve(storeId)) {
+      if (!dryRun && !access.paid && !access.courtesyActive && access.purchaseMode!=='platform_monthly' && !await repository.reserve(storeId)) {
         throw denied(paidAccessMessage(access));
       }
       return access;
