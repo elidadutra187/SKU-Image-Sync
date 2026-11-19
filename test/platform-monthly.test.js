@@ -10,6 +10,8 @@ import {createBillingWebhook} from '../services/nativeBilling.js';
 import {createPurchaseService} from '../services/purchase.js';
 
 test('monthly trial, expiry, renewal, churn, suspension, replay and old paid licences',async()=>{
+ const previousModel=process.env.NUVEMSHOP_BILLING_MODEL;
+ process.env.NUVEMSHOP_BILLING_MODEL='platform_monthly';
  const db=new PGlite(),options={poolProvider:()=>db,initialize:async()=>{}};
  try {
   await migrateDatabase(db);
@@ -20,13 +22,19 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   let state=await access.status('123');
   assert.equal(state.trialActive,true);assert.equal(state.paid,false);
   const first=state.trialUntil;
-  await access.authorize('123',['product-1'],{imageCount:10});
-  await assert.rejects(()=>access.authorize('123',['product-2'],{imageCount:1}),/pagamento|assinatura|teste/);
-  assert.equal((await db.query("select demo_batches_used from image_sync_access where store_id='123'")).rows[0].demo_batches_used,1);
+  assert.equal(state.demoBatchesRemaining,null,'monthly trial must not expose a batch quota');
+  await access.authorize('123',['product-1'],{imageCount:120});
+  await access.authorize('123',['product-2'],{imageCount:125});
+  assert.equal((await db.query("select count(*)::integer as count from image_sync_access where store_id='123'")).rows[0].count,0);
+  // Stores that consumed the old one-batch demo also regain access while their trial is active.
+  await db.query("insert into image_sync_access(store_id,demo_batches_used) values ('123',1)");
+  assert.equal((await access.status('123')).demoUsed,false);
+  await access.authorize('123',['product-3'],{imageCount:125});
   await registerMonthlyTrial('123',options);
   assert.equal(String((await access.status('123')).trialUntil),String(first),'OAuth reconnect cannot reset trial');
   await db.query("update image_sync_monthly set trial_until=now()-interval '1 second' where store_id='123'");
   assert.equal((await access.status('123')).trialActive,false);
+  await assert.rejects(()=>access.authorize('123',['product-4'],{imageCount:1}),/período de teste/);
   const start=new Date(Date.now()-86400000).toISOString(),end=new Date(Date.now()+12*86400000).toISOString();
   const receipt={storeId:'123',chargeId:'monthly-001',receipt:{appId:'33268',amountValue:12.99,amountCurrency:'BRL',fromDate:start,toDate:end}};
   await grantMonthlyReceipt(receipt,options);
@@ -64,7 +72,7 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   await grantMonthlyReceipt({...renewal,chargeId:'renewal-002',occurredAt:new Date().toISOString()},options);
   await updateMonthlyLifecycle({storeId:'456',topic:'churn',occurredAt:past(3000)},options);
   assert.equal((await access.status('456')).paid,true,'delayed cancellation cannot undo a newer payment');
- } finally {await db.close();}
+ } finally {await db.close();if(previousModel===undefined)delete process.env.NUVEMSHOP_BILLING_MODEL;else process.env.NUVEMSHOP_BILLING_MODEL=previousModel;}
 });
 
 test('monthly webhook scopes signed receipts to app, accepts prorations and handles cancellation',async()=>{
