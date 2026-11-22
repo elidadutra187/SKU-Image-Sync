@@ -127,12 +127,12 @@ test('read requests are throttled and recover from 429 without retrying mutation
   assert.deepEqual(await client.request('/catalog/products'),{data:[]});assert.equal(attempts,2);assert.equal(waits.length,2);assert.ok(waits[1]>=3000);
 });
 
-test('callback with missing state cannot save tokens or establish a session',async()=>{
+test('marketplace entry without state starts a fresh flow without exchanging its code',async()=>{
   const express=(await import('express')).default;
   const {createYampiAuthRouter}=await import('../routes/yampiAuth.js');let exchanges=0;
   const app=express();app.use(createYampiAuthRouter({repository:{consumeState:async()=>null},exchange:async()=>{exchanges++;}}));
   const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
   try{const res=await fetch(`http://127.0.0.1:${server.address().port}/callback?code=rogue&merchant=other`,{redirect:'manual'});
-    assert.equal(res.status,400);assert.equal(exchanges,0);assert.equal(res.headers.get('set-cookie'),null);
+    assert.equal(res.status,302);assert.equal(res.headers.get('location'),'/auth/yampi/install');assert.equal(exchanges,0);assert.equal(res.headers.get('set-cookie'),null);
   }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });

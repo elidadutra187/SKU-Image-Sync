@@ -16,8 +16,9 @@ export function createYampiAuthRouter({repository=yampiRepository,exchange=token
     res.redirect('https://auth.yampi.com.br/oauth/authorize?'+new URLSearchParams({client_id:clientId,redirect_uri:redirectUri(),response_type:'code',state,code_challenge:challenge,code_challenge_method:'S256'}));
   }));
   router.get('/callback',wrap(async(req,res)=>{
-    // Marketplace installation can begin at the callback with no authorization code.
-    if(!req.query.code && !req.query.error)return res.redirect('/auth/yampi/install');
+    // Marketplace entry may carry its own code, without our browser-bound PKCE.
+    // Discard that code and start a fresh flow; never relax callback validation.
+    if(!req.query.state && !req.query.error && !browserCookie(req))return res.redirect('/auth/yampi/install');
     if(typeof req.query.state!=='string' || typeof req.query.code!=='string' || !browserCookie(req))return res.status(400).send('Conexão inválida. Abra o app e conecte novamente sua loja Yampi.');
     const verifier=await repository.consumeState(req.query.state,browserCookie(req));
     if(!verifier)return res.status(400).send('Conexão expirada. Conecte novamente sua loja Yampi.');
