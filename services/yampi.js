@@ -1,7 +1,8 @@
 import {merchantAlias,yampiRepository,temporaryMedia} from './yampiStore.js';
 export async function tokenRequest(body,fetchImpl=fetch){
   const response=await fetchImpl('https://auth.yampi.com.br/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body),signal:AbortSignal.timeout(30000)});
-  const data=await response.json();if(!response.ok || !data.access_token || !data.refresh_token)throw new Error('yampi_token_exchange_failed');return data;
+  const data=await response.json().catch(()=>null),expires=Number(data?.expires_in);
+  if(!response.ok || typeof data?.access_token!=='string' || !data.access_token || typeof data.refresh_token!=='string' || !data.refresh_token || !Number.isFinite(expires) || expires<=0 || expires>86400)throw new Error('yampi_token_exchange_failed');return data;
 }
 const numeric=value=>{if(!/^[1-9]\d*$/.test(String(value)))throw new Error('invalid_yampi_id');return String(value);};
 let requestQueue=Promise.resolve(),lastRequestAt=0;
@@ -27,16 +28,27 @@ export class YampiClient{
     if(!response.ok)throw new Error(`Yampi API ${response.status}`);
     return response.status===204?null:response.json();
   }
-  async list(endpoint){const result=[];
+  async list(endpoint){const result=[],seen=new Set();
     for(let page=1;page<=500;page++){
       const response=await this.request(`${endpoint}?limit=100&page=${page}`);
       if(!Array.isArray(response.data))throw new Error('invalid_yampi_catalog');
-      result.push(...response.data);const pagination=response.meta?.pagination || response.meta?.meta?.pagination;
+      const pagination=response.meta?.pagination || response.meta?.meta?.pagination;
+      if(pagination?.current_page!=null&&Number(pagination.current_page)!==page)throw new Error('invalid_yampi_pagination');
+      for(const item of response.data){
+        if(item.id==null||seen.has(String(item.id)))throw new Error('invalid_yampi_pagination');
+        seen.add(String(item.id));result.push(item);
+      }
+      if(page>1&&!response.data.length&&pagination?.total_pages&&page<Number(pagination.total_pages))throw new Error('invalid_yampi_pagination');
       if(pagination?.total_pages ? page>=Number(pagination.total_pages) : response.data.length<100)return result;
     }throw new Error('yampi_catalog_too_large');
   }
   async getProducts(){
     if(this.catalog)return this.catalog;
+    if(this.catalogPending)return this.catalogPending;
+    const pending=this.loadProducts();this.catalogPending=pending;
+    try{return await pending;}finally{if(this.catalogPending===pending)this.catalogPending=null;}
+  }
+  async loadProducts(){
     const products=await this.list('/catalog/products'),skus=await this.list('/catalog/skus');
     const names=new Map(products.map(p=>[String(p.id),p.name]));
     this.catalog=skus.map(sku=>{const base=names.get(String(sku.product_id)) || sku.title || sku.sku;
