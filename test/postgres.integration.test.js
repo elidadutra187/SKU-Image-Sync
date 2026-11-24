@@ -50,7 +50,8 @@ test('real PostgreSQL: migration, one concurrent reservation, history persistenc
     const cleaned=[];
     await createStoreRedactor(()=>pool,async()=>{},locks,async id=>cleaned.push(id))('123');
     await createStoreRedactor(()=>pool,async()=>{},locks,async()=>{})('123');
-    for(const table of ['stores','image_sync_access','image_sync_history','image_sync_purchase'])assert.equal((await pool.query(`select count(*)::int as count from ${table} where store_id='123'`)).rows[0].count,0);
+    assert.equal((await pool.query("select demo_batches_used from image_sync_access where store_id='123'")).rows[0].demo_batches_used,1);
+    for(const table of ['stores','image_sync_history'])assert.equal((await pool.query(`select count(*)::int as count from ${table} where store_id='123'`)).rows[0].count,0);
     assert.equal((await pool.query("select count(*)::int as count from stores where store_id='456'")).rows[0].count,1);
     assert.deepEqual(cleaned,['123']);await assert.rejects(()=>history.save('123',state),/store_no_longer_authorized/);
   }finally {

@@ -10,7 +10,10 @@ export function createStoreRedactor(poolProvider=getPool,initialize=initializeDa
     let client;
     try {
       client=await pool.connect();await client.query('begin');
-      for(const table of ['image_sync_history','image_sync_purchase','image_sync_access','stores'])await client.query(`delete from ${table} where store_id=$1`,[String(storeId)]);
+      // image_sync_access/image_sync_purchase hold no personal data (store id, free-batch use,
+      // payment reference). Keeping them stops a reinstall from granting a new free batch
+      // and keeps a paid one-time purchase valid.
+      for(const table of ['image_sync_history','stores'])await client.query(`delete from ${table} where store_id=$1`,[String(storeId)]);
       await client.query('commit');await cleanup(String(storeId));
     }catch(error){if(client)await client.query('rollback');throw error;}
     finally{client?.release();await release();}
