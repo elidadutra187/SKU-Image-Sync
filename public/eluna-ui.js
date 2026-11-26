@@ -147,8 +147,9 @@
   function connection(btn) {
     function isVisible(n) { return !!n && !n.hidden && !n.closest("[hidden]") && getComputedStyle(n).display !== "none"; }
     function update() {
-      var src = document.querySelector(btn.getAttribute("data-connected-when"));
-      var on = isVisible(src);
+      var inverse = btn.getAttribute("data-connected-when-hidden");
+      var src = document.querySelector(inverse || btn.getAttribute("data-connected-when"));
+      var on = inverse ? !!src && src.hidden : isVisible(src);
       var match = btn.getAttribute("data-connected-text-match");
       if (match && src) on = new RegExp(match, "i").test(src.textContent || "");
       var t = CONN[currentLocale()];
@@ -157,15 +158,17 @@
       setText(btn, on ? t[0] : t[1]);
       setAttr(btn, "aria-pressed", on ? "true" : "false");
       setAttr(btn, "data-connected", on ? "true" : "false");
+      /* Status-only pill next to the app's own connect button: hide it while disconnected. */
+      if (inverse && btn.hidden === on) btn.hidden = !on;
     }
     if (!btn.dataset.elunaWired) {
       btn.dataset.elunaWired = "1";
       btn.addEventListener("click", function (e) {
         if (btn.dataset.connected === "true") { var card = document.querySelector(btn.getAttribute("data-card") || ""); if (card && card.scrollIntoView) { e.preventDefault(); card.scrollIntoView({ block: "center", behavior: "smooth" }); } return; }
         var target = document.querySelector(btn.getAttribute("data-connect") || "");
-        if (target) { e.preventDefault(); if (isVisible(target) && target.matches("a,button,input,[role=button]")) target.click(); else if (target.scrollIntoView) target.scrollIntoView({ block: "center", behavior: "smooth" }); }
+        if (target) { e.preventDefault(); if (target.matches("a[href]") && target.getAttribute("href").charAt(0) !== "#") window.location.assign(target.href); else if (isVisible(target) && target.matches("a,button,input,[role=button]")) target.click(); else if (target.scrollIntoView) target.scrollIntoView({ block: "center", behavior: "smooth" }); }
       });
-      var src = document.querySelector(btn.getAttribute("data-connected-when"));
+      var src = document.querySelector(btn.getAttribute("data-connected-when-hidden") || btn.getAttribute("data-connected-when"));
       if (src) new MutationObserver(update).observe(src, { attributes: true, childList: true, characterData: true, subtree: true });
       var root = src && src.parentNode; if (root) new MutationObserver(update).observe(root, { attributes: true, attributeFilter: ["hidden", "class", "style"] });
     }
@@ -185,6 +188,14 @@
     });
     document.querySelectorAll("[data-eluna-lang]").forEach(function (n) { globe(n); });
     document.querySelectorAll("[data-eluna-connection]").forEach(connection);
+    /* Highlight the pill of the current page when the markup did not set one (pages served for several routes). */
+    document.querySelectorAll(".eluna-nav").forEach(function (nav) {
+      if (nav.querySelector("a[aria-current]")) return;
+      Array.prototype.forEach.call(nav.querySelectorAll("a[href]"), function (link) {
+        var url; try { url = new URL(link.getAttribute("href"), location.href); } catch (e) { return; }
+        if (url.origin === location.origin && !url.hash && url.pathname === location.pathname && location.pathname !== "/") link.setAttribute("aria-current", "page");
+      });
+    });
     if (body && document.querySelector("[data-guide-step]")) helpIcons({ locale: l, href: body.getAttribute("data-guide-href") || "/how-to-use", localeParam: body.getAttribute("data-guide-locale-param") || "" });
   }
   function start() {
