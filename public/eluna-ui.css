@@ -1,0 +1,95 @@
+/* ElunaLab shared UI (topbar + "Como usar" guide + help icons). Same file in every app; only --eluna-accent changes. */
+:root{--eluna-accent:var(--eluna-app-accent,#004aad);--eluna-accent-soft:color-mix(in srgb,var(--eluna-accent) 10%,#fff);--eluna-ink:#111827;--eluna-muted:#4b5563;--eluna-line:#e5e7eb}
+
+/* ---------- Topbar ---------- */
+.eluna-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px 20px;flex-wrap:wrap;margin:0 0 24px;padding:12px 16px 12px 12px;background:#fff;border:1px solid var(--eluna-line);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);font-family:inherit}
+.eluna-brand{display:flex;align-items:center;gap:12px;min-width:0;color:inherit;text-decoration:none}
+.eluna-brand-logo{flex:0 0 auto;width:48px;height:48px;object-fit:contain;padding:5px;border-radius:14px;background:var(--eluna-accent-soft);box-sizing:border-box}
+.eluna-brand-text{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.eluna-brand-company{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--eluna-accent)}
+.eluna-brand-product{margin:2px 0 0;font-size:clamp(17px,2vw,21px);font-weight:800;letter-spacing:-.02em;color:var(--eluna-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eluna-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0;padding:0}
+.eluna-nav [hidden]{display:none!important}
+.eluna-pill,.eluna-nav>a{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border:1px solid transparent;border-radius:999px;background:#f3f4f6;color:#1f2937;font-size:14px;font-weight:600;line-height:1;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s,border-color .15s,box-shadow .15s;box-sizing:border-box}
+.eluna-pill:hover,.eluna-nav>a:hover{background:var(--eluna-accent-soft);color:var(--eluna-accent);border-color:color-mix(in srgb,var(--eluna-accent) 25%,#fff)}
+.eluna-pill:focus-visible,.eluna-nav>a:focus-visible,.eluna-lang:focus-within{outline:3px solid color-mix(in srgb,var(--eluna-accent) 35%,#fff);outline-offset:2px}
+.eluna-pill[aria-current="page"],.eluna-nav>a[aria-current="page"]{background:var(--eluna-accent);color:#fff}
+.eluna-ext::after{content:"↗";font-size:12px;opacity:.7}
+.eluna-lang{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 10px 0 12px;border-radius:999px;background:#f3f4f6;color:#1f2937;font-size:14px;font-weight:600;box-sizing:border-box}
+.eluna-lang svg{flex:0 0 auto;width:16px;height:16px;color:var(--eluna-accent)}
+.eluna-topbar .eluna-lang select,.eluna-lang select{border-radius:0;min-width:0;appearance:none;-webkit-appearance:none;margin:0;padding:0 18px 0 0;min-height:36px;border:0;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 2px center;color:inherit;font:inherit;cursor:pointer;box-shadow:none;width:auto}
+.eluna-topbar .eluna-lang select:focus,.eluna-lang select:focus{outline:none}
+.eluna-lang .locale-switcher{display:none!important}
+.eluna-topbar-action{display:flex;align-items:center;gap:8px;margin-left:auto}
+.eluna-topbar-action:empty{display:none}
+.eluna-topbar .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.eluna-topbar [hidden]{display:none!important}
+.eluna-connect{margin:0;min-width:0;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--eluna-accent);color:#fff;font:inherit;font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:0 4px 12px color-mix(in srgb,var(--eluna-accent) 30%,transparent)}
+.eluna-connect:hover{filter:brightness(1.08)}
+.eluna-status{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 14px;border-radius:999px;background:#ecfdf3;color:#067647;font-size:13px;font-weight:700;white-space:nowrap}
+.eluna-status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.eluna-status.is-off{background:#fef3f2;color:#b42318}
+@media (max-width:760px){
+ .eluna-topbar{padding:10px;border-radius:16px;gap:10px}
+ .eluna-brand{flex:1 1 auto}
+ .eluna-brand-logo{width:42px;height:42px}
+ .eluna-topbar-action{margin-left:0}
+ .eluna-nav{order:3;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -10px;padding:2px 10px}
+ .eluna-nav::-webkit-scrollbar{display:none}
+ .eluna-pill,.eluna-nav>a,.eluna-lang{min-height:36px;font-size:13px}
+}
+
+/* ---------- Help "?" icons ---------- */
+.eluna-help{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:22px;height:22px;margin-left:8px;border-radius:50%;background:var(--eluna-accent-soft);color:var(--eluna-accent);font-size:13px;font-weight:800;line-height:1;text-decoration:none;vertical-align:middle;border:1px solid color-mix(in srgb,var(--eluna-accent) 25%,#fff)}
+.eluna-help:hover,.eluna-help:focus-visible{background:var(--eluna-accent);color:#fff}
+[data-guide-step]{position:relative}
+[data-guide-step]>.eluna-help{position:absolute;top:-9px;right:-9px;box-shadow:0 1px 3px rgba(16,24,40,.15);background:#fff;margin:0;z-index:2}
+[data-guide-step][data-guide-inline]{position:static}
+[data-guide-step][data-guide-inline]>.eluna-help{position:static;margin-left:8px}
+
+/* ---------- "Como usar" guide ---------- */
+.eluna-guide{max-width:980px;margin:0 auto;color:var(--eluna-ink)}
+.eluna-guide-hero{margin:0 0 28px;padding:28px;border-radius:20px;background:linear-gradient(135deg,var(--eluna-accent-soft),#fff 70%);border:1px solid var(--eluna-line)}
+.eluna-guide-eyebrow{display:inline-block;margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--eluna-accent)}
+.eluna-guide-hero h1,.eluna-guide-hero h2{margin:0 0 10px;font-size:clamp(24px,3.2vw,34px);line-height:1.15;letter-spacing:-.02em}
+.eluna-guide-hero p{margin:0 0 16px;font-size:17px;line-height:1.6;color:#374151;max-width:760px}
+.eluna-guide-actions{display:flex;flex-wrap:wrap;gap:10px}
+.eluna-btn{margin:0;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:999px;border:1px solid transparent;background:var(--eluna-accent);color:#fff;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer}
+.eluna-btn:hover{filter:brightness(1.08)}
+.eluna-btn.is-secondary{background:#fff;color:var(--eluna-accent);border-color:color-mix(in srgb,var(--eluna-accent) 35%,#fff)}
+.eluna-guide h3{font-size:19px;margin:0 0 12px;color:var(--eluna-ink)}
+.eluna-guide section{margin:0 0 36px}
+.eluna-guide-toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px;padding:0;list-style:none}
+.eluna-guide-toc a{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#f3f4f6;color:#1f2937;font-size:13px;font-weight:600;text-decoration:none}
+.eluna-guide-toc a:hover{background:var(--eluna-accent-soft);color:var(--eluna-accent)}
+.eluna-guide-demo{padding:20px;border:1px solid var(--eluna-line);border-radius:16px;background:#f9fafb}
+.eluna-guide-demo .eluna-guide-help{margin:0 0 14px;color:var(--eluna-muted);line-height:1.5}
+.eluna-guide-terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.eluna-guide-term{padding:14px 16px;border:1px solid var(--eluna-line);border-radius:12px;background:#fff}
+.eluna-guide-term strong{display:block;font-size:16px;color:var(--eluna-accent);margin-bottom:4px}
+.eluna-guide-term p{margin:0;font-size:14px;line-height:1.5;color:#374151}
+.eluna-guide-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px}
+.eluna-guide-step{display:flex;gap:16px;align-items:flex-start;padding:20px;border:1px solid var(--eluna-line);border-radius:16px;background:#fff;scroll-margin-top:16px;transition:box-shadow .2s,border-color .2s}
+.eluna-guide-step:target{border-color:var(--eluna-accent);box-shadow:0 0 0 4px var(--eluna-accent-soft)}
+.eluna-guide-num{flex:0 0 40px;height:40px;border-radius:50%;background:var(--eluna-accent);color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center}
+.eluna-guide-step-body{flex:1;min-width:0}
+.eluna-guide-step-body>p{margin:0 0 10px;line-height:1.6;color:#374151}
+.eluna-guide-list{margin:0 0 12px;padding-left:20px;line-height:1.6;color:#374151}
+.eluna-guide-list li{margin:4px 0}
+.eluna-guide-shot{display:block;max-width:100%;height:auto;margin:6px 0 12px;border:1px solid var(--eluna-line);border-radius:12px;box-shadow:0 4px 14px rgba(16,24,40,.06)}
+.eluna-guide-tip{margin:0 0 12px;padding:10px 14px;border-left:4px solid #f59e0b;background:#fffbeb;border-radius:6px;color:#78350f;line-height:1.5}
+.eluna-guide-go{font-weight:700;color:var(--eluna-accent);text-decoration:none}
+.eluna-guide-go:hover{text-decoration:underline}
+.eluna-guide-features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.eluna-guide-feature{padding:14px 16px;border-radius:12px;background:var(--eluna-accent-soft);border:1px solid color-mix(in srgb,var(--eluna-accent) 15%,#fff)}
+.eluna-guide-feature strong{display:block;margin-bottom:4px;color:var(--eluna-ink)}
+.eluna-guide-feature p{margin:0;font-size:14px;line-height:1.5;color:#374151}
+.eluna-guide-q{border:1px solid var(--eluna-line);border-radius:12px;background:#fff;margin:0 0 8px}
+.eluna-guide-q summary{cursor:pointer;padding:14px 16px;font-weight:600;color:var(--eluna-ink);list-style:none;display:flex;justify-content:space-between;gap:12px}
+.eluna-guide-q summary::-webkit-details-marker{display:none}
+.eluna-guide-q summary::after{content:"+";font-size:20px;line-height:1;color:#6b7280}
+.eluna-guide-q[open] summary::after{content:"−"}
+.eluna-guide-q p{margin:0;padding:0 16px 14px;line-height:1.6;color:#374151}
+.eluna-guide-support{padding:24px;border-radius:16px;background:var(--eluna-accent-soft);text-align:center}
+.eluna-guide-support p{color:#374151;margin:0 0 14px}
+@media (max-width:640px){.eluna-guide-hero{padding:20px}.eluna-guide-step{flex-direction:column;padding:16px}.eluna-guide-demo{padding:12px}}

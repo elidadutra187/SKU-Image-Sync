@@ -35,7 +35,7 @@ test('all pages switch languages, retain selection and translate dynamic updates
 });
 
 test('interface text across all pages has English and Spanish translations',async()=>{
-  const ignored=new Set(['Imagem em Lote','1','2','3','·','.','elunalab@gmail.com']);
+  const ignored=new Set(['Imagem em Lote','ELUNA LAB','1','2','3','·','.','elunalab@gmail.com']);
   for(const page of ['index','how-to','privacy']) {
     const dom=new JSDOM(await fs.readFile(`public/${page}.html`,'utf8'));
     const walk=dom.window.document.createTreeWalker(dom.window.document.body,dom.window.NodeFilter.SHOW_TEXT);
