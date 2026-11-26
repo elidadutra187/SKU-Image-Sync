@@ -9,7 +9,6 @@ import yampiAuthRoutes,{yampiMediaRouter} from './routes/yampiAuth.js';
 import productsRoutes from './routes/products.js';
 import syncRoutes from './routes/sync.js';
 import webhookRoutes from './routes/webhooks.js';
-import supportRoutes from './routes/support.js';
 import partnerPaymentRecoveryRoutes from './routes/partnerPaymentRecovery.js';
 import {createPartnersStatusRouter} from './routes/partnersStatus.js';
 import {initializeDatabase} from './services/database.js';
@@ -35,6 +34,8 @@ app.post('/webhooks/billing', express.raw({type:'application/json',limit:'64kb'}
 app.use('/webhooks', express.raw({type:'application/json',limit:'64kb'}), webhookRoutes);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+// Support is centralized at ElunaLab; old links (Partners, billing notices) keep working.
+app.use(['/support', '/support.html'], (req, res) => res.redirect(302, 'https://elunalab.com.br/suporte'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/product-matching.js', (req, res) => res.sendFile(path.join(__dirname, 'services', 'productMatching.js')));
 app.get('/csv-mapping.js', (req, res) => res.sendFile(path.join(__dirname, 'services', 'csvMapping.js')));
@@ -46,10 +47,6 @@ app.get('/', (req, res) => {
 
 app.get('/privacy', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
-});
-
-app.get('/support', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'support.html'));
 });
 
 app.get('/health', (req, res) => {
@@ -65,7 +62,7 @@ app.get('/api', (req, res) => {
   res.json({
     name: 'Imagem em Lote',
     routes: {
-      pages: ['GET /', 'GET /privacy', 'GET /support'],
+      pages: ['GET /', 'GET /privacy'],
       auth: ['GET /auth/install', 'GET /auth/callback', 'GET /auth/status'],
       sync: ['POST /sync/preview', 'POST /sync/session/:sessionId/run', 'POST /sync/dry-run', 'POST /sync/add', 'POST /sync/sync', 'POST /sync/replace', 'GET /sync/status'],
       products: ['GET /products/sku/:sku', 'GET /products/:id', 'GET /products/:id/images'],
@@ -80,7 +77,6 @@ app.use('/yampi/media', yampiMediaRouter);
 app.use('/yampi/billing',getYampiPaymentRuntime().router);
 app.use('/sync', syncRoutes);
 app.use('/products', productsRoutes);
-app.use('/support', supportRoutes);
 // Disabled unless PARTNERS_RECONCILE_OPS_KEY is configured on Railway.
 app.use('/ops/partner-payments', partnerPaymentRecoveryRoutes);
 app.use('/billing/admin',createPartnersStatusRouter());

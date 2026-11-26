@@ -6,7 +6,7 @@ import {translate,rows} from '../public/locales.js';
 
 test('all pages switch languages, retain selection and translate dynamic updates without altering merchant data',async()=>{
   const runtime=(await fs.readFile('public/i18n.js','utf8')).replace(/^import .*;\r?\n/,'').replaceAll('export const ','const ');
-  for(const page of ['index','how-to','support','privacy']) {
+  for(const page of ['index','how-to','privacy']) {
     const dom=new JSDOM(await fs.readFile(`public/${page}.html`,'utf8'),{url:`https://imagememlote.onrender.com/${page}`,runScripts:'outside-only'});
     const w=dom.window;w.translate=translate;w.eval(runtime);
     const select=w.document.querySelector('#app-language');
@@ -36,7 +36,7 @@ test('all pages switch languages, retain selection and translate dynamic updates
 
 test('interface text across all pages has English and Spanish translations',async()=>{
   const ignored=new Set(['Imagem em Lote','1','2','3','·','.','elunalab@gmail.com']);
-  for(const page of ['index','how-to','support','privacy']) {
+  for(const page of ['index','how-to','privacy']) {
     const dom=new JSDOM(await fs.readFile(`public/${page}.html`,'utf8'));
     const walk=dom.window.document.createTreeWalker(dom.window.document.body,dom.window.NodeFilter.SHOW_TEXT);
     while(walk.nextNode()){
@@ -48,3 +48,12 @@ test('interface text across all pages has English and Spanish translations',asyn
   }
 });
 
+
+test('support links open the central ElunaLab page and no public email is shown',async()=>{
+  for(const page of ['index','how-to','privacy']){
+    const html=await fs.readFile(`public/${page}.html`,'utf8');
+    assert.doesNotMatch(html,/mailto:|@gmail\.com|href="\/support(\.html)?["?]/i,page);
+  }
+  for(const page of ['index','privacy'])assert.match(await fs.readFile(`public/${page}.html`,'utf8'),/href="https:\/\/elunalab\.com\.br\/suporte" target="_blank" rel="noopener"/,page);
+  assert.doesNotMatch(await fs.readFile('public/locales.js','utf8'),/@gmail\.com/);
+});
