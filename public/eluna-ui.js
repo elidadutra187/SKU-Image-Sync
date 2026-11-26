@@ -32,7 +32,7 @@
     var panelHref = withLocale(options.panelHref || "/", l, options.localeParam);
     container.replaceChildren();
     var root = el("div", "eluna-guide"); container.appendChild(root);
-    if (g.pageTitle) document.title = g.pageTitle;
+    if (g.pageTitle && options.setTitle !== false) document.title = g.pageTitle;
 
     var hero = el("div", "eluna-guide-hero");
     hero.appendChild(el("span", "eluna-guide-eyebrow", L.eyebrow));

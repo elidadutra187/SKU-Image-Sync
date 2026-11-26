@@ -15,7 +15,8 @@
         locale: locale,
         panelHref: host.getAttribute("data-panel-href") || "/",
         localeParam: host.getAttribute("data-locale-param") || "",
-        demo: window.ElunaGuideDemo
+        demo: window.ElunaGuideDemo,
+        setTitle: host.getAttribute("data-set-title") !== "false"
       });
     }
     render();
