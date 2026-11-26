@@ -163,7 +163,7 @@
       btn.addEventListener("click", function (e) {
         if (btn.dataset.connected === "true") { var card = document.querySelector(btn.getAttribute("data-card") || ""); if (card && card.scrollIntoView) { e.preventDefault(); card.scrollIntoView({ block: "center", behavior: "smooth" }); } return; }
         var target = document.querySelector(btn.getAttribute("data-connect") || "");
-        if (target) { e.preventDefault(); if (isVisible(target)) target.click(); else if (target.scrollIntoView) target.scrollIntoView({ block: "center", behavior: "smooth" }); }
+        if (target) { e.preventDefault(); if (isVisible(target) && target.matches("a,button,input,[role=button]")) target.click(); else if (target.scrollIntoView) target.scrollIntoView({ block: "center", behavior: "smooth" }); }
       });
       var src = document.querySelector(btn.getAttribute("data-connected-when"));
       if (src) new MutationObserver(update).observe(src, { attributes: true, childList: true, characterData: true, subtree: true });
