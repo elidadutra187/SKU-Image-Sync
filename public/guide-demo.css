@@ -1,0 +1,11 @@
+:root{--eluna-app-accent:#2355de}
+.eluna-topbar .language-toolbar{display:contents!important}
+.eluna-topbar .language-toolbar>label{display:none}
+.eluna-topbar .eluna-lang select{display:inline-block;margin:0;width:auto!important;min-width:0!important;padding:0 18px 0 0;min-height:36px;border:0}
+.eluna-topbar button.eluna-connect,.eluna-topbar button.eluna-status{min-height:40px;padding:0 16px;border-radius:999px;font-size:14px}
+.il-demo{display:flex;flex-direction:column;gap:8px}
+.il-demo-row{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);align-items:center;gap:8px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+.il-demo-arrow{text-align:center;color:#2355de;font-weight:800}
+.il-demo-product{font-weight:700;color:#065f46}
+.il-demo-row.is-manual .il-demo-product{color:#92400e}
+@media (max-width:600px){.il-demo-row{grid-template-columns:1fr}.il-demo-arrow{display:none}}
