@@ -54,7 +54,7 @@ export function createYampiPaymentUI(ctx) {
     // Identity guard before any action
     if (!isAuthorized()) return;
 
-    const confirmMsg = t('Confirma a compra única de R$79,90 por loja, pelo Mercado Pago, sem mensalidade?');
+    const confirmMsg = t('Deseja consultar as condições de contratação no Mercado Pago?');
     if (!confirm(confirmMsg)) return;
 
     // Revalidate after confirm dialog
@@ -103,7 +103,7 @@ export function createYampiPaymentUI(ctx) {
    */
   function paymentDescription() {
     if (!isAuthorized()) return '';
-    return 'Pagamento único R$79,90 pelo Mercado Pago, sem mensalidade.';
+    return 'Consulte as condições de contratação no Mercado Pago antes de confirmar o pagamento.';
   }
 
   return { purchase, paymentDescription };

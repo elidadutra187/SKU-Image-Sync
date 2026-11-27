@@ -36,7 +36,7 @@
         ["Preciso renomear todos os arquivos?", "Não. O nome ajuda a associação automática. Se o arquivo não tiver o nome do produto, escolha o produto na prévia."],
         ["Vou perder as fotos que já estão nos produtos?", "Não, a não ser que você escolha \"Remover as atuais\". O padrão é manter e adicionar."],
         ["Quantas fotos posso enviar?", "Até 50 produtos por lote e até 500 fotos por seleção. Seleções maiores são divididas em lotes."],
-        ["Quanto custa?", "Na Nuvemshop: assinatura de R$ 39,90 por mês, com 3 dias grátis, cobrada pela Nuvemshop. Na Yampi: 1 lote grátis de até 10 imagens e depois pagamento único de R$ 79,90 pelo Mercado Pago."],
+        ["Quanto custa?", "Consulte as condições e o valor na loja de aplicativos ou na etapa de contratação, antes de confirmar."],
         ["Reconectar a loja reinicia o teste grátis?", "Não. O teste e o lote grátis valem uma vez por loja."]
       ]
     },
@@ -63,7 +63,7 @@
         { title: "Sigue el envío y descarga el informe", text: "La barra muestra cuántas fotos van. Espera la confirmación y descarga el informe.", list: ["Si se corta la conexión, no reenvíes enseguida: revisa el informe y la tienda."], tip: "¿Una foto fue al producto equivocado? Escribe al soporte antes de reintentar.", go: "/#progressPanel" }
       ],
       features: [["Asociación por nombre", "Encuentra el producto por el nombre del archivo."], ["Reconoce SKU", "Si el archivo o la subcarpeta tiene el SKU, lo encuentra al instante."], ["Tres formas de selección", "Por imágenes, carpeta o CSV."], ["Vista previa segura", "Revisas todo antes de enviar."], ["Elección manual", "Para nombres iguales o archivos genéricos."], ["Progreso e informe", "Sigue el envío y descarga el resultado."]],
-      faq: [["¿Tengo que renombrar todo?", "No. Si el archivo no tiene el nombre, eliges el producto en la vista previa."], ["¿Pierdo las fotos actuales?", "No, salvo que elijas \"Quitar las actuales\"."], ["¿Cuántas fotos puedo enviar?", "Hasta 50 productos por lote y 500 fotos por selección."], ["¿Cuánto cuesta?", "En Tiendanube: R$ 39,90 por mes con 3 días gratis, cobrado por Tiendanube. En Yampi: 1 lote gratis de hasta 10 imágenes y luego pago único de R$ 79,90 por Mercado Pago."], ["¿Reconectar reinicia la prueba?", "No. La prueba y el lote gratis valen una vez por tienda."]]
+      faq: [["¿Tengo que renombrar todo?", "No. Si el archivo no tiene el nombre, eliges el producto en la vista previa."], ["¿Pierdo las fotos actuales?", "No, salvo que elijas \"Quitar las actuales\"."], ["¿Cuántas fotos puedo enviar?", "Hasta 50 productos por lote y 500 fotos por selección."], ["¿Cuánto cuesta?", "Consulta las condiciones y el precio en la tienda de aplicaciones o al contratar, antes de confirmar."], ["¿Reconectar reinicia la prueba?", "No. La prueba y el lote gratis valen una vez por tienda."]]
     },
     en: {
       pageTitle: "How to use — Imagem em Lote",
@@ -82,7 +82,7 @@
         { title: "Follow the upload and download the report", text: "The progress bar shows how many photos are done. Wait for the confirmation and download the report.", list: ["If the connection drops, do not resend right away: check the report and the store."], tip: "A photo went to the wrong product? Contact support before retrying.", go: "/#progressPanel" }
       ],
       features: [["Name matching", "Finds the product by file name."], ["SKU aware", "If the file or subfolder has the SKU, it is found instantly."], ["Three ways to select", "By images, folder or CSV."], ["Safe preview", "Check everything before sending."], ["Manual choice", "For duplicate names or generic files."], ["Progress and report", "Follow the upload and download the result."]],
-      faq: [["Do I need to rename every file?", "No. If a file lacks the product name, pick the product in the preview."], ["Will I lose current photos?", "No, unless you choose \"Remove current\"."], ["How many photos can I send?", "Up to 50 products per batch and 500 photos per selection."], ["How much is it?", "On Nuvemshop: R$ 39.90 per month with 3 free days, billed by Nuvemshop. On Yampi: 1 free batch of up to 10 images, then a one-time R$ 79.90 payment with Mercado Pago."], ["Does reconnecting restart the trial?", "No. The trial and free batch apply once per store."]]
+      faq: [["Do I need to rename every file?", "No. If a file lacks the product name, pick the product in the preview."], ["Will I lose current photos?", "No, unless you choose \"Remove current\"."], ["How many photos can I send?", "Up to 50 products per batch and 500 photos per selection."], ["How much is it?", "Check the terms and price in the app store or during checkout, before confirming."], ["Does reconnecting restart the trial?", "No. The trial and free batch apply once per store."]]
     }
   };
   var FILES = { pt: [["Camiseta Azul_01.jpg", "Camiseta Azul"], ["Camiseta Azul_02.jpg", "Camiseta Azul"], ["CAL-042 Calça Preta.jpg", "Calça Preta (SKU CAL-042)"], ["IMG_1234.jpg", "?"]], es: [["Remera Azul_01.jpg", "Remera Azul"], ["Remera Azul_02.jpg", "Remera Azul"], ["PAN-042 Pantalón Negro.jpg", "Pantalón Negro (SKU PAN-042)"], ["IMG_1234.jpg", "?"]], en: [["Blue Shirt_01.jpg", "Blue Shirt"], ["Blue Shirt_02.jpg", "Blue Shirt"], ["PAN-042 Black Pants.jpg", "Black Pants (SKU PAN-042)"], ["IMG_1234.jpg", "?"]] };

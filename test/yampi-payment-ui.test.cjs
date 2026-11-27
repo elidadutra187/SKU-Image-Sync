@@ -173,7 +173,7 @@ test('checkout navigates to valid MP URL - mlb/checkout/start', async () => {
   assert.equal(ctx.getNavigatedTo(), validUrl, 'navigates to valid URL');
 });
 
-test('paymentDescription returns one-time payment text without monthly fee', async () => {
+test('paymentDescription directs merchants to checkout terms without showing a price', async () => {
   const ctx = createTestContext(true);
   const { createYampiPaymentUI } = await import('../public/yampi-payment-ui.mjs');
 
@@ -181,9 +181,8 @@ test('paymentDescription returns one-time payment text without monthly fee', asy
 
   const desc = ui.paymentDescription();
 
-  assert.ok(desc.includes('79,90'), 'price in description');
-  assert.ok(desc.includes('sem mensalidade'), 'no monthly fee mentioned');
-  assert.ok(desc.includes('Pagamento único'), 'one-time payment');
+  assert.match(desc, /Mercado Pago/);
+  assert.doesNotMatch(desc, /79[,.]90|pagamento único|sem mensalidade/i);
 });
 
 test('purchase respects confirm dialog rejection', async () => {

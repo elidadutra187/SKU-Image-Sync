@@ -7,6 +7,6 @@ test('Imagem keeps approved Yampi one-time price separate from the newer native 
  const yampi=await access.status('yampi:demo'),native=await access.status('123');
  assert.equal(yampi.oneTimePriceCents,7990);assert.equal(yampi.purchaseMode,'mercadopago_once');
  assert.equal(native.oneTimePriceCents,7999);assert.equal(native.paymentProvider,'nuvemshop');
- assert.throws(()=>validateBatchAccess(yampi,1,1),error=>error.status===402&&error.message.includes('79,90')&&!error.message.includes('79,99'));
- assert.throws(()=>validateBatchAccess(native,1,1),error=>error.status===402&&error.message.includes('79,99'));
+ assert.throws(()=>validateBatchAccess(yampi,1,1),error=>error.status===402&&! /79[,.]9[09]/.test(error.message));
+ assert.throws(()=>validateBatchAccess(native,1,1),error=>error.status===402&&! /79[,.]9[09]/.test(error.message));
 });

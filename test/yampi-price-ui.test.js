@@ -13,8 +13,8 @@ for(const configured of [false,true])test(`authenticated Yampi price is consiste
   const runtime=(await fs.readFile('public/app.js','utf8')).replace(/^import .*;\r?\n/gm,'').replace("await import('/yampi-payment-ui.mjs')",'window.fixturePaymentModule');
   w.eval(runtime);await new Promise(resolve=>setTimeout(resolve,25));
   const card=w.document.querySelector('#access').textContent;
-  assert.match(w.document.querySelector('#accessPlan').textContent,/79,90/);
-  assert.doesNotMatch(card,/79,99|Nuvemshop/);
+  assert.match(w.document.querySelector('#accessPlan').textContent,/lote gratuito/);
+  assert.doesNotMatch(card,/79[,.]9[09]|R\$|Nuvemshop|pagamento único|sem mensalidade/i);
   if(configured)assert.match(w.document.querySelector('#purchasePending').textContent,/Mercado Pago/);
  }finally{w.close();}
 });
