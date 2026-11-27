@@ -62,30 +62,19 @@ function renderAccess(access) {
   const fullAccess=access.paid || access.courtesyActive;
   const demoExpired=monthly && !access.trialActive;
   const paymentRequired=!fullAccess && (monthly?demoExpired:access.demoUsed);
-  $('access').hidden=false;
+  $('access').hidden=!paymentRequired || !access.purchaseConfigured;
   // Update billing notice component via adapter
   // Pass storeId from state; adapter tracks it across calls
   if(window.BillingNoticeAdapter){
     window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:state.billingIdentity?.platform||platform.value,paymentRequired:state.paymentRequired,access:access});
   }
-  $('accessPlan').textContent=monthly?'Durante o teste gratuito, envie quantos lotes e imagens precisar. Após o teste, gerencie sua assinatura pela Nuvemshop.':'Inclui um lote gratuito de até 10 imagens por loja.';
-  $('accessText').textContent=access.platformSuspended?'A Nuvemshop registrou uma restrição no acesso. Confira a assinatura em Aplicativos no administrador.':
-     access.paid?'Acesso pago ativo para novos lotes e reutilizações.':
-     access.courtesyActive?'Cortesia adicional ativa. Você pode utilizar o aplicativo durante a vigência da cortesia.':
-     monthly?(demoExpired?'Seu período de teste terminou. A assinatura é necessária para enviar imagens.':
-       `Teste gratuito ativo até ${new Date(access.trialUntil).toLocaleDateString('pt-BR')}. Durante o teste, você pode enviar quantos lotes e imagens precisar.`):
-     access.demoUsed?(access.paymentProvider==='pending'?'Seu único lote gratuito de até 10 imagens já foi utilizado. O pagamento da Yampi ainda está em preparação.':'Seu lote gratuito já foi utilizado. Ative seu acesso para enviar novos lotes.'):
-     `Você tem ${access.demoBatchesRemaining} de ${access.demoBatches} lotes gratuitos disponíveis. Cada lote permite até ${access.demoImages} imagens. Conferir e simular não consome lotes.`;
-  $('purchasePending').hidden=!paymentRequired;
-  $('purchasePending').textContent=monthly?'Consulte Aplicativos no administrador da Nuvemshop para iniciar ou renovar a assinatura.':access.paymentProvider==='pending'
-    ?'A cobrança para lojas Yampi ainda está em preparação. Fale com o suporte para acompanhar a disponibilidade de novos envios.'
-    :access.purchaseConfigured
-    ?access.paymentProvider==='mercadopago'?(hasAuthenticatedYampiBilling()?state.yampiPaymentUi?.paymentDescription():'Não foi possível confirmar a plataforma de cobrança.'):'Consulte as condições de acesso na Nuvemshop. O acesso será liberado após a confirmação do pagamento.'
-    :'A cobrança ainda está em preparação. Fale com o suporte.';
   $('purchase').hidden=!paymentRequired || !access.purchaseConfigured;
   $('purchase').textContent=monthly?'Ver assinatura na Nuvemshop':hasAuthenticatedYampiBilling()?'Ver opções de acesso':access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Ver opções de acesso';
   $('purchase').disabled=state.busy || !['platform_once','platform_monthly'].includes(access.purchaseMode)&&['creating','pending'].includes(access.purchaseStatus);
   $('refreshAccess').hidden=!paymentRequired || !access.purchaseConfigured;
+  // Keep only essential checkout actions in the existing blocking notice, never a standalone plan card.
+  const noticeActions=document.querySelector('#eluna-billing-notice:not([hidden]) .eluna-billing-actions');
+  if(noticeActions&& !$('access').hidden)noticeActions.prepend($('access'));
   $('batchSize').querySelectorAll('option').forEach(option=>{option.disabled=!fullAccess && !monthly && Number(option.value)>10;});
   if(!fullAccess && !monthly)$('batchSize').value='10';
   updateBatches();updateActions();

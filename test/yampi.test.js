@@ -41,7 +41,7 @@ test('exhausted Yampi demo does not claim a free batch is still available',async
   window.t=s=>s;window.imageGroupName=s=>s;window.normalizeName=s=>s;
   window.eval((await fs.readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,''));
   await new Promise(r=>setTimeout(r,20));
-  try{const access=window.document.getElementById('access').textContent;assert.ok(!access.includes('permanece disponível'));assert.ok(!window.document.getElementById('accessText').textContent.includes('R$79,90'));assert.equal(window.document.getElementById('purchase').hidden,true);}
+  try{const access=window.document.getElementById('access').textContent;assert.ok(!access.includes('permanece disponível'));assert.equal(window.document.getElementById('accessText'),null);assert.equal(window.document.getElementById('purchase').hidden,true);}
   finally{dom.window.close();}
 });
 
