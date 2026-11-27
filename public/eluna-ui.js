@@ -120,22 +120,89 @@
     });
   }
 
+  /* Progressive enhancement: keep the original select and existing locale handlers. */
+  var languageId = 0;
+  function modernLanguage(select, wrap) {
+    if (select._elunaSync) { select._elunaSync(); return; }
+    var names = {pt:"Português",es:"Español",en:"English"};
+    var trigger = el("button","eluna-language-trigger"), label = el("span","eluna-language-label"), arrow = el("span","eluna-language-chevron");
+    trigger.type = "button"; trigger.innerHTML = GLOBE; arrow.setAttribute("aria-hidden","true"); trigger.append(label,arrow);
+    var menu = el("div","eluna-language-menu");
+    menu.id = "eluna-language-menu-" + (++languageId); menu.setAttribute("role","menu");
+    trigger.setAttribute("aria-haspopup","menu"); trigger.setAttribute("aria-expanded","false"); trigger.setAttribute("aria-controls",menu.id);
+    var open = false, items = [];
+    function sync() {
+      var option = select.options[select.selectedIndex], name = option ? (names[lang(option.value)] || option.textContent) : "";
+      setText(label,name); setAttr(trigger,"aria-label",LABELS[currentLocale()].lang + ": " + name);
+      setAttr(menu,"aria-label",LABELS[currentLocale()].lang); trigger.disabled = select.disabled;
+      items.forEach(function(item){setAttr(item,"aria-checked",String(item.dataset.value === select.value));});
+    }
+    function close(restore) {
+      if (!open) return; open = false; trigger.setAttribute("aria-expanded","false"); menu.remove();
+      document.removeEventListener("pointerdown",outside,true); window.removeEventListener("resize",position); window.removeEventListener("scroll",onScroll,true);
+      if (restore && trigger.isConnected) trigger.focus({preventScroll:true});
+    }
+    function outside(e){if(!wrap.contains(e.target)&&!menu.contains(e.target))close(false);}
+    function onScroll(e){if(!menu.contains(e.target))close(false);}
+    function position(){
+      if(!trigger.isConnected){close(false);return;}
+      var r=trigger.getBoundingClientRect(), width=Math.min(208,window.innerWidth-16), below=window.innerHeight-r.bottom-16, above=r.top-16;
+      menu.style.width=width+"px"; menu.style.left=Math.max(8,Math.min(r.right-width,window.innerWidth-width-8))+"px";
+      menu.style.maxHeight=Math.max(80,Math.max(below,above))+"px";
+      var h=menu.offsetHeight; menu.style.top=(below>=h||below>=above?r.bottom+8:Math.max(8,r.top-h-8))+"px";
+    }
+    function choose(value){
+      if(select.value!==value){select.value=value;select.dispatchEvent(new Event("change",{bubbles:true}));}
+      sync();close(true);requestAnimationFrame(sync);
+    }
+    function show(last){
+      if(open||trigger.disabled)return;
+      menu.textContent="";items=[];
+      Array.prototype.forEach.call(select.options,function(option){
+        if(option.disabled)return;
+        var item=el("button","eluna-language-option"), name=el("span","eluna-language-name",names[lang(option.value)]||option.textContent);
+        item.type="button";item.tabIndex=-1;item.dataset.value=option.value;item.setAttribute("role","menuitemradio");name.lang=option.value;
+        var check=el("span","eluna-language-check","✓");check.setAttribute("aria-hidden","true");item.append(name,check);
+        item.addEventListener("click",function(){choose(option.value);});items.push(item);menu.appendChild(item);
+      });
+      if(!items.length)return;
+      open=true;trigger.setAttribute("aria-expanded","true");document.body.appendChild(menu);sync();position();
+      document.addEventListener("pointerdown",outside,true);window.addEventListener("resize",position);window.addEventListener("scroll",onScroll,true);
+      (last?items[items.length-1]:items.find(function(item){return item.dataset.value===select.value;})||items[0]).focus({preventScroll:true});
+    }
+    trigger.addEventListener("click",function(){if(open)close(true);else show(false);});
+    trigger.addEventListener("keydown",function(e){if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();show(e.key==="ArrowUp");}else if(e.key==="Escape"&&open){e.preventDefault();close(true);}});
+    menu.addEventListener("keydown",function(e){
+      var index=items.indexOf(document.activeElement),next;
+      if(e.key==="Escape"){e.preventDefault();close(true);return;}
+      if(e.key==="Tab"){close(true);return;}
+      if(e.key==="ArrowDown")next=(index+1)%items.length;else if(e.key==="ArrowUp")next=(index-1+items.length)%items.length;
+      else if(e.key==="Home")next=0;else if(e.key==="End")next=items.length-1;else return;
+      e.preventDefault();items[next].focus();
+    });
+    select.addEventListener("change",function(){sync();requestAnimationFrame(sync);});
+    new MutationObserver(sync).observe(select,{attributes:true,childList:true,subtree:true,characterData:true});
+    select._elunaSync=sync;wrap.appendChild(trigger);select.classList.add("eluna-language-native");wrap.classList.add("is-custom");sync();
+  }
+
   /* Wrap a language <select> (or a .locale-switcher of [data-locale] buttons) in a globe pill. */
   function globe(target) {
     var host = typeof target === "string" ? document.querySelector(target) : target;
-    if (!host || host.closest(".eluna-lang")) return;
+    if (!host) return;
+    var existingWrap = host.closest(".eluna-lang");
+    if (existingWrap) { var existing = host.tagName === "SELECT" ? host : existingWrap.querySelector("select"); if (existing) modernLanguage(existing, existingWrap); return existing; }
     var wrap = el("span", "eluna-lang"); wrap.innerHTML = GLOBE;
     host.parentNode.insertBefore(wrap, host);
-    if (host.tagName === "SELECT") { wrap.appendChild(host); return host; }
+    if (host.tagName === "SELECT") { wrap.appendChild(host); modernLanguage(host, wrap); return host; }
     var buttons = Array.prototype.slice.call(host.querySelectorAll("[data-locale]"));
     var select = el("select"); select.setAttribute("aria-label", LABELS[lang(document.documentElement.lang)].lang);
     var names = { pt: "Português", es: "Español", en: "English" };
     buttons.forEach(function (b) { var o = el("option", "", names[b.dataset.locale] || b.dataset.locale); o.value = b.dataset.locale; select.appendChild(o); });
-    function sync() { var active = buttons.filter(function (b) { return b.classList.contains("is-active") || b.getAttribute("aria-pressed") === "true"; })[0]; if (active && select.value !== active.dataset.locale) select.value = active.dataset.locale; setAttr(select, "aria-label", LABELS[lang(document.documentElement.lang)].lang); }
+    function sync() { var active = buttons.filter(function (b) { return b.classList.contains("is-active") || b.getAttribute("aria-pressed") === "true"; })[0]; if (active && select.value !== active.dataset.locale) select.value = active.dataset.locale; setAttr(select, "aria-label", LABELS[lang(document.documentElement.lang)].lang); if (select._elunaSync) select._elunaSync(); }
     select.addEventListener("change", function () { var b = buttons.filter(function (x) { return x.dataset.locale === select.value; })[0]; if (b) b.click(); sync(); });
     wrap.appendChild(select); wrap.appendChild(host);
     new MutationObserver(sync).observe(host, { subtree: true, attributes: true, attributeFilter: ["class", "aria-pressed"] });
-    sync();
+    sync(); modernLanguage(select, wrap);
     return select;
   }
 
@@ -186,7 +253,7 @@
       setAttr(a, "href", SUPPORT_URL); setAttr(a, "target", "_blank"); setAttr(a, "rel", "noopener noreferrer");
       if (!a.hasAttribute("data-keep-text")) setText(a, L.support);
     });
-    document.querySelectorAll("[data-eluna-lang]").forEach(function (n) { globe(n); });
+    document.querySelectorAll("[data-eluna-lang], .eluna-lang > select").forEach(function (n) { globe(n); });
     document.querySelectorAll("[data-eluna-connection]").forEach(connection);
     /* Highlight the pill of the current page when the markup did not set one (pages served for several routes). */
     document.querySelectorAll(".eluna-nav").forEach(function (nav) {
