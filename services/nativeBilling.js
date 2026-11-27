@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import {getPool,initializeDatabase} from './database.js';
 import {grantMonthlyReceipt,updateMonthlyLifecycle,setMonthlySuspended} from './monthlyBilling.js';
+import verifyMonthlyCurrency from './monthlyCurrency.js';
 
 function cents(value) {
   const text=String(value ?? '');
@@ -122,10 +123,33 @@ export function createBillingWebhook(options={}) {
       && ((charge?.amount_currency==='BRL' && [7990,7999].includes(receivedPrice))
         || (charge?.amount_currency==='ARS' && receivedPrice===7990))
       && Number.isFinite(Date.parse(charge?.from_date)) && Date.parse(charge.from_date)<Date.parse('2026-11-11T00:00:00Z');
-    const acceptedPrice=monthlyProrated || oldFixedCharge || (platformBrlPrice?[7990,7999].includes(receivedPrice):receivedPrice===expectedPrice);
+    let verifiedForeignMonthly=false;
+    // The Partners BRL base price can produce different ARS subscription amounts
+    // per store. Never compare that converted amount with a BRL constant.
+    if(mode==='platform_monthly'&&charge?.amount_currency==='ARS'&&!oldFixedCharge
+      &&/^[1-9]\d*$/.test(storeId)&&chargeId&&chargeId.length<=128&&String(charge?.id)===chargeId
+      &&receivedPrice&&charge?.concept_code==='app-cost') {
+      const from=Date.parse(charge.from_date),to=Date.parse(charge.to_date);
+      if(typeof charge.from_date!=='string'||typeof charge.to_date!=='string'||!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>62*86400000)
+        return res.json({success:true,ignored:true});
+      try {
+        const verification=await (options.verifyMonthlyCurrency||verifyMonthlyCurrency)({storeId,chargeId,
+          receipt:{appId,amountValue:receivedPrice/100,amountCurrency:'ARS',fromDate:new Date(from).toISOString(),toDate:new Date(to).toISOString()}});
+        if(verification?.verified!==true)throw Error('monthly_contract_unverified');
+        verifiedForeignMonthly=true;
+        console.info(JSON.stringify({event:'billing_monthly_currency_verified',store_id:storeId,
+          source:verification.source,timestamp:new Date().toISOString()}));
+      } catch {
+        console.warn(JSON.stringify({event:'billing_monthly_currency_unverified',store_id:storeId,
+          source:'official_subscription',reason:'verification_unavailable_or_mismatch',timestamp:new Date().toISOString()}));
+        // Non-2xx keeps platform retries active. A 404 is not a financial refusal.
+        return res.status(503).json({success:false});
+      }
+    }
+    const acceptedPrice=verifiedForeignMonthly || monthlyProrated || oldFixedCharge || (platformBrlPrice?[7990,7999].includes(receivedPrice):receivedPrice===expectedPrice);
     if(!/^[1-9]\d*$/.test(storeId) || !chargeId || chargeId.length>128
       || String(charge?.id)!==chargeId || !acceptedPrice
-      || !(oldFixedCharge || (mode==='platform_once'&&!options.currency?['BRL','ARS'].includes(charge?.amount_currency):charge?.amount_currency===(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL')))
+      || !(verifiedForeignMonthly || oldFixedCharge || (mode==='platform_once'&&!options.currency?['BRL','ARS'].includes(charge?.amount_currency):charge?.amount_currency===(options.currency ?? process.env.NUVEMSHOP_BILLING_CURRENCY ?? 'BRL')))
       || charge?.concept_code!==(options.concept ?? process.env.NUVEMSHOP_BILLING_CONCEPT ?? 'app-cost')) {
       return res.json({success:true,ignored:true});
     }
@@ -133,12 +157,13 @@ export function createBillingWebhook(options={}) {
       if(mode==='platform_once'||mode==='platform_monthly'){
         const from=Date.parse(charge.from_date),to=Date.parse(charge.to_date);
         if(typeof charge.from_date!=='string'||typeof charge.to_date!=='string'||!Number.isFinite(from)||!Number.isFinite(to)||to<=from)return res.json({success:true,ignored:true});
-        if(!await (options.isKnownStore||knownPlatformStore)({storeId}))return res.status(503).json({success:false});
+        if(!verifiedForeignMonthly&&!await (options.isKnownStore||knownPlatformStore)({storeId}))return res.status(503).json({success:false});
         const receipt={appId,amountValue:receivedPrice/100,amountCurrency:charge.amount_currency,
           fromDate:new Date(from).toISOString(),toDate:new Date(to).toISOString()};
         if(mode==='platform_monthly'&&!oldFixedCharge){
           if(to-from>62*86400000)return res.json({success:true,ignored:true});
-          await (options.grantMonthly||grantMonthlyReceipt)({storeId,chargeId,receipt,occurredAt});
+          await (options.grantMonthly||grantMonthlyReceipt)({storeId,chargeId,receipt,occurredAt,
+            ...(verifiedForeignMonthly?{requireEventTimeForRecovery:true}:{})});
         } else await (options.grant||grantPlatformPaidAccess)({storeId,chargeId,receipt});
         return res.json({success:true});
       }
