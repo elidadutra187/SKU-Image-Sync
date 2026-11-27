@@ -82,3 +82,16 @@ test('reconnection and restored browser cache reverify instead of reusing a fina
   w.dispatchEvent(new w.PageTransitionEvent('pageshow',{persisted:true}));await tick();assert.equal(authCalls,3);
  }finally{w.close();}
 });
+
+for(const [lang,title] of [['pt-BR','Acesso restrito pela plataforma'],['en','Access restricted by the platform'],['es','Acceso restringido por la plataforma']])test(`API restriction respects the trial ledger without attributing an app debt (${lang})`,async()=>{
+ const {w}=setup(async url=>({ok:true,json:async()=>url==='/auth/status'?{...connection,apiAvailable:false,paymentRequired:true,accessDecision:{allowed:false,reason:'platform_api_restricted',status:'platform_restricted'}}:url==='/sync/access'?good:{running:false}}));
+ try{
+  w.document.documentElement.lang=lang;
+  w.eval(await fs.readFile('public/billing-notice.js','utf8'));w.eval(adapter);w.eval(runtime);
+  await tick();
+  assert.equal(w.document.querySelector('[data-billing-title]').textContent,title);
+  assert.equal(w.document.getElementById('send').disabled,true);
+  assert.equal(w.document.getElementById('connectionIssue').hidden,false);
+  assert.doesNotMatch(w.document.getElementById('connectionIssue').textContent,/regularizar.*pagamento do aplicativo|informa uma restrição de pagamento/);
+ }finally{w.close();}
+});

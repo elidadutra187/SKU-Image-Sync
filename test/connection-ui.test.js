@@ -21,7 +21,7 @@ for(const blocked of [true,false])test(`authenticated store UI and photo selecti
  Object.defineProperty(input,'files',{value:[new w.File(['image'],'Piso_01.jpg',{type:'image/jpeg'})]});
  input.dispatchEvent(new w.Event('change'));
  assert.equal(w.document.querySelector('#preview').disabled,blocked);
- if(blocked){assert.equal(w.document.querySelector('#connectionIssue').hidden,false);assert.match(w.document.querySelector('#message').textContent,/pagamento/i);}
+ if(blocked){assert.equal(w.document.querySelector('#connectionIssue').hidden,false);assert.match(w.document.querySelector('#message').textContent,/restringiu/i);}
  else assert.match(w.document.querySelector('#message').textContent,/Encontrar produtos/);
  }finally{w.close();}
 });

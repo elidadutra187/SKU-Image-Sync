@@ -128,7 +128,7 @@ function selectFiles(files) {
   state.files=[...files].filter(file=>/\.(jpe?g|png|webp|gif)$/i.test(file.name));
   state.session=null;state.items=[];state.selection.clear();state.reviewPage=0;$('review').hidden=true;$('report').hidden=true;
   updateBatches();updateActions();
-  message(state.paymentRequired?'Fotos selecionadas. A Nuvemshop exige regularizar o pagamento do aplicativo antes de consultar os produtos. Consulte o aviso de acesso acima.':state.files.length?'Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.':'Selecione fotos JPG, PNG, WebP ou GIF para continuar.',state.paymentRequired);
+  message(state.paymentRequired?'Fotos selecionadas. A API da Nuvemshop restringiu a consulta aos produtos. Verifique o aviso de acesso acima.':state.files.length?'Fotos selecionadas. Clique em “Encontrar produtos” para conferir a associação.':'Selecione fotos JPG, PNG, WebP ou GIF para continuar.',state.paymentRequired);
 }
 function images(list,local) {
   return list.length?`<div class="photos">${list.map(image=>`<figure><img ${local?'data-no-translate':''} loading="lazy" src="${escape(local?image.previewUrl:image.src)}" alt="${escape(local?image.originalName || image.filename:'Foto atual do produto')}"><figcaption ${local?'data-no-translate':''}>${escape(local?image.originalName || image.filename:'Foto atual')}</figcaption></figure>`).join('')}</div>`:'<p class="muted">Nenhuma foto.</p>';
@@ -332,7 +332,7 @@ async function refreshAuthorization() {
     $('platformLabel').hidden=state.connected;
     $('disconnect').hidden=!state.connected || connection.platform!=='yampi';
     $('connectionIssue').hidden=!state.paymentRequired;
-    if(state.paymentRequired)message('A loja está conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo. Suas fotos ainda não foram enviadas.',true);
+    if(state.paymentRequired)message('A loja está conectada, mas a API da Nuvemshop restringiu a consulta aos produtos. Verifique o plano da loja e a assinatura do aplicativo com o suporte. Suas fotos ainda não foram enviadas.',true);
     state.billingIdentity=state.connected?{platform:connection.platform||'nuvemshop',storeId:String(connection.storeId)}:null;
     if(state.connected){
       const access=await request('/sync/access');
