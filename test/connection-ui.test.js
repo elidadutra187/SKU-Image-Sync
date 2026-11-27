@@ -15,7 +15,8 @@ for(const blocked of [true,false])test(`authenticated store UI and photo selecti
  assert.equal(w.document.querySelector('#connect').hidden,true);
  assert.match(w.document.querySelector('#connection').textContent,/5255436/);
  assert.equal(w.document.querySelector('#access').hidden,false);
- assert.match(w.document.querySelector('#access').textContent,/79,99/);
+ assert.match(w.document.querySelector('#access').textContent,/lote gratuito/i);
+ assert.doesNotMatch(w.document.querySelector('#access').textContent,/79[,.]9[09]|R\$|pagamento único|sem mensalidade/i);
  const input=w.document.querySelector('#images');
  Object.defineProperty(input,'files',{value:[new w.File(['image'],'Piso_01.jpg',{type:'image/jpeg'})]});
  input.dispatchEvent(new w.Event('change'));

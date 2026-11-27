@@ -9,7 +9,7 @@ export const DEMO_BATCHES = 1;
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
 const paidAccessMessage=access=>access.purchaseMode==='platform_monthly'
   ? 'O período de teste ou a assinatura terminou. Regularize o Imagem em Lote na Nuvemshop para voltar a enviar imagens.'
-  : 'Seu lote gratuito já foi utilizado. Ative seu acesso para enviar novos lotes.';
+  : 'Seu lote gratuito já foi utilizado. Confirme o pagamento para enviar novos lotes.';
 
 const transientConnectionCodes = new Set(['08000','08001','08003','08006','57P01','57P02','57P03',
   'ECONNRESET','ECONNREFUSED','ETIMEDOUT','EAI_AGAIN','EPIPE']);
