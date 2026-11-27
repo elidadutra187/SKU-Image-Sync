@@ -8,6 +8,8 @@ import {createImageHistory} from '../services/imageHistory.js';
 import {createStoreLock} from '../services/storeLock.js';
 import {createStoreRedactor} from '../services/storeData.js';
 import {createPurchaseRepository} from '../services/purchase.js';
+import {grantMonthlyReceipt,setMonthlySuspended} from '../services/monthlyBilling.js';
+import {readMonthlyReceiptContext} from '../services/monthlyCurrency.js';
 
 test('real PostgreSQL: migration, one concurrent reservation, history persistence and store redaction', {skip:process.env.RUN_POSTGRES_TESTS!=='true'},async()=>{
   assert.ok(process.env.DATABASE_URL,'DATABASE_URL required');
@@ -47,6 +49,17 @@ test('real PostgreSQL: migration, one concurrent reservation, history persistenc
     assert.deepEqual(await history.load('456'),{skus:{}});
     await pool.query("update image_sync_access set paid_at=now(),payment_reference='validation-paid' where store_id='123'");
     await reconnected.authorize('123',['1']);assert.equal((await reconnected.status('123')).demoBatchesUsed,1);
+    const monthlyOptions={poolProvider:()=>pool,initialize:async()=>{}};
+    const arsReceipt={storeId:'456',chargeId:'ars-validation',requireEventTimeForRecovery:true,
+      receipt:{appId:'33268',amountValue:10580.62,amountCurrency:'ARS',
+        fromDate:new Date(Date.now()-86400000).toISOString(),toDate:new Date(Date.now()+20*86400000).toISOString()}};
+    await grantMonthlyReceipt(arsReceipt,monthlyOptions);
+    assert.equal((await readMonthlyReceiptContext(arsReceipt,monthlyOptions)).recorded,true);
+    assert.equal((await pool.query("select last_payment_event_at from image_sync_monthly where store_id='456'")).rows[0].last_payment_event_at,null);
+    await setMonthlySuspended({storeId:'456',suspended:true,lifecycle:'churn'},monthlyOptions);
+    await grantMonthlyReceipt({...arsReceipt,chargeId:'ars-delayed-validation'},monthlyOptions);
+    assert.equal((await pool.query("select platform_suspended from image_sync_monthly where store_id='456'")).rows[0].platform_suspended,true);
+    assert.equal((await readMonthlyReceiptContext({...arsReceipt,storeId:'123'},monthlyOptions)).conflict,true);
     const cleaned=[];
     await createStoreRedactor(()=>pool,async()=>{},locks,async id=>cleaned.push(id))('123');
     await createStoreRedactor(()=>pool,async()=>{},locks,async()=>{})('123');

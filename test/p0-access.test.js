@@ -41,5 +41,6 @@ for(const [status,reason] of [[402,'platform_api_restricted'],[401,'reauthorizat
   assert.equal(result.accessDecision.allowed,false);assert.equal(result.accessDecision.reason,reason);
   assert.equal(result.upstreamStatus,status);
   assert.equal(result.paymentRequired,status===402);
+  if(status===402)assert.equal(result.accessDecision.status,'platform_restricted','API402 does not identify whether store plan or app subscription is responsible');
  });
 }

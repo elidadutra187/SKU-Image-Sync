@@ -11,7 +11,7 @@ for (const [status,connected,apiAvailable,paymentRequired] of [[402,true,false,t
     assert.equal(result.apiAvailable,apiAvailable);
     assert.equal(result.paymentRequired,paymentRequired);
     assert.equal(result.platform,'nuvemshop');
-    if(status===402)assert.match(result.message,/pagamento/i);
+    if(status===402){assert.match(result.message,/restringiu/i);assert.doesNotMatch(result.message,/até a regularização do pagamento do aplicativo/);}
     assert.doesNotMatch(result.message,/provider detail/);
   });
 }

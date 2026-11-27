@@ -256,13 +256,13 @@ export class NuvemshopClient {
         connected: error.status === 402,
         apiAvailable: false,
         upstreamStatus: error.status || null,
-        accessDecision: {allowed:false,reason,status:error.status===402?'payment_required':'unverified',source:'nuvemshop_api',checkedAt},
+        accessDecision: {allowed:false,reason,status:error.status===402?'platform_restricted':'unverified',source:'nuvemshop_api',checkedAt},
         paymentRequired: error.status === 402,
         platform: 'nuvemshop',
         storeId: this.storeId,
         apiVersion: this.apiVersion,
         message: error.status === 402
-          ? 'Loja conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo.'
+          ? 'A API da Nuvemshop restringiu o acesso aos produtos. Verifique o plano da loja e a assinatura do aplicativo. Se o teste estiver vigente ou já estiver pago, fale com o suporte antes de pagar novamente.'
           : [401,403].includes(error.status)
           ? 'A autorização da loja precisa ser renovada. Conecte sua loja novamente.'
           : 'Não foi possível consultar a loja agora. Tente novamente.',

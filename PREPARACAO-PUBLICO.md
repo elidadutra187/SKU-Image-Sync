@@ -214,6 +214,8 @@ Codex implementou e integrou; revisão independente no Codex encontrou e confirm
 
 ## Incidente de autorização — 27/11/2026
 
+Continuação da investigação: [docs/P0-ARS-20261127.md](docs/P0-ARS-20261127.md). A configuração argentina mostra base em BRL, mas assinaturas oficiais devolvem valores convertidos em ARS por loja. O receptor mensal passa a conferir eventos ARS assinados contra a assinatura real, preservando valor/moeda/período e idempotência. Falha de confirmação solicita retry; não concede acesso. Sem nova cobrança, mudança de preço, polling ou consulta financeira em renderizações. Publicação será registrada no relatório do workspace após validação.
+
 Correção P0 e auditoria em [docs/P0-20261127.md](docs/P0-20261127.md). Decisão comercial centralizada no backend; frontend aguarda verificação, descarta resultados antigos e atualiza autorização no retry. Trial mensal de três dias permanece sem limite comercial de lotes. Yampi separado. Quatro divergências do Partners reconciliadas pelo endpoint administrativo, sem criar recibos, cortesias ou alterar produtos. Causa histórica específica do aviso da loja 1068328 ainda não demonstrada pelos logs antigos; defeitos do fluxo reproduzidos e corrigidos. Publicação será registrada após validação real.
 
 ## Entrada pelo marketplace Yampi — 22/11/2026
