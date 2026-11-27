@@ -212,6 +212,10 @@ Validação local final: npm test, 92PASS, 0FAIL, 1SKIP de PostgreSQL externo; i
 Codex implementou e integrou; revisão independente no Codex encontrou e confirmou a correção do caso de configuração antiga. Claude Code retornou Prompt is too long, sem revisão concluída. Nenhuma cobrança criada ou pagamento realizado. A consulta real de assinatura periódica retornou404 SubscriptionConcept not found; confirmar o tratamento da modalidade única com o suporte Nuvemshop antes de qualquer emissão adicional. Alteração preparada para revisão; estado de PR/publicação será registrado ao concluir.
 # Sincronização de pagamentos —03/11/2026
 
+## Incidente de autorização — 27/11/2026
+
+Correção P0 e auditoria em [docs/P0-20261127.md](docs/P0-20261127.md). Decisão comercial centralizada no backend; frontend aguarda verificação, descarta resultados antigos e atualiza autorização no retry. Trial mensal de três dias permanece sem limite comercial de lotes. Yampi separado. Quatro divergências do Partners reconciliadas pelo endpoint administrativo, sem criar recibos, cortesias ou alterar produtos. Causa histórica específica do aviso da loja 1068328 ainda não demonstrada pelos logs antigos; defeitos do fluxo reproduzidos e corrigidos. Publicação será registrada após validação real.
+
 ## Entrada pelo marketplace Yampi — 22/11/2026
 
 Corrigido o HTTP 400 na entrada inicial com código do marketplace, sem state/cookie PKCE do aplicativo: o código é descartado e uma nova autorização é iniciada. Uma resposta com state inválido, erro ou cookie de uma tentativa incompleta continua recusada antes de trocar tokens ou salvar a conexão. Nenhuma mudança de permissões, cobrança, saldo gratuito ou integração Nuvemshop.

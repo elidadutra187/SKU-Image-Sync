@@ -1,116 +1,26 @@
 'use strict';
-/**
- * Billing Notice Adapter — Imagem em Lote
- *
- * Integrates with window.ElunaBillingNotice component.
- * Component CSS/JS loaded in index.html before this script.
- *
- * Contract:
- *   window.ElunaBillingNotice.update({connected,storeId,platform,allowed,status,state,supportUrl,billingUrl})
- *   Retry button emits eluna:billing-retry
- *   Event eluna:billing dispatched on state change
- *
- * Imagem uses demo batches model:
- * - Show blocking when: paymentRequired (platform) OR (demoUsed && !paid)
- * - A platform block overrides an unused demo batch.
- * - A monthly platform trial only opens the single 10-image batch; it never grants unlimited batches.
- *
- * Status mapping:
- * - payment_required: platform blocked API access
- * - payment_unconfirmed: demo exhausted; no payment confirmation received
- * - unverified: demo exhausted but purchaseConfigured=false (can't charge yet)
- * - paid: user paid
- * - demo_available: free batch remaining
+/** Presentation only: commercial decisions come from /sync/access; platform API
+ * refusals come from /auth/status. An active monthly trial has no demo batch quota.
+ * Missing decisions are unverified, never inferred debts or unrestricted access.
+ * Retry uses the app verification flow so notice and actions stay together.
  */
 (function() {
-  const SUPPORT_URL = '/support';
-  const BILLING_URL = null; // Nuvemshop native billing
-
-  let lastState = null;
-  let lastKnownStoreId = null;
-
+  let lastState=null,retryHandler=null;
   function update(data) {
-    if (!window.ElunaBillingNotice) return;
-
-    // Track storeId across calls — initial connection provides it, later access updates may not
-    if (data.storeId) lastKnownStoreId = data.storeId;
-    const storeId = data.storeId || lastKnownStoreId || null;
-
-    // Determine if blocking is needed
-    // - paymentRequired: platform (Nuvemshop) blocked API access
-    // - demoUsed && !paid: free batch consumed, need payment
-    const access = data.access || {};
-    const paymentRequired = Boolean(data.paymentRequired || access.platformSuspended);
-    const needsPayment = !access.paid && !access.courtesyActive && (access.demoUsed || (access.purchaseMode === 'platform_monthly' && !access.trialActive));
-    const allowed = data.verificationFailed ? false : !paymentRequired && !needsPayment;
-
-    // Only a platform block establishes payment_required; credentials do not prove a charge.
-    // When purchaseConfigured=false, use 'unverified' since component may not recognize demo_exhausted.
-    let status = null;
-    let state = null;
-    if (data.verificationFailed) {
-      status = 'unverified';
-      state = 'unverified';
-    } else if (paymentRequired) {
-      status = 'payment_required';
-      state = 'platform_blocked';
-    } else if (needsPayment) {
-      status = access.purchaseConfigured ? (access.paymentProvider === 'pending' ? 'payment_required' : 'payment_unconfirmed') : 'unverified';
-      state = access.paymentProvider === 'pending' ? 'pending' : 'needs_payment';
-    } else if (access.paid || access.courtesyActive) {
-      status = 'paid';
-      state = 'active';
-    } else if (!access.courtesyActive && access.demoBatchesRemaining > 0) {
-      status = 'demo_available';
-      state = 'demo';
-    }
-
-    const detail = {
-      connected: Boolean(data.connected),
-      storeId: storeId,
-      platform: data.platform || 'nuvemshop',
-      allowed: allowed,
-      status: status,
-      state: state,
-      supportUrl: SUPPORT_URL,
-      billingUrl: BILLING_URL
-    };
-
-    // Avoid redundant updates
-    const stateKey = JSON.stringify(detail);
-    if (stateKey === lastState) return;
-    lastState = stateKey;
-
-    window.ElunaBillingNotice.update(detail);
-    window.dispatchEvent(new CustomEvent('eluna:billing', { detail }));
+    const access=data.access,decision=data.connectionDecision;
+    const verified=typeof access?.allowed==='boolean';
+    const apiBlocked=decision?.allowed===false;
+    const allowed=data.checking?null:!data.verificationFailed&&verified&&!apiBlocked&&access.allowed;
+    const status=data.verificationFailed?'unverified':apiBlocked?decision.status:verified?access.accessStatus:'unverified';
+    const detail={connected:Boolean(data.connected),storeId:data.storeId||null,
+      platform:data.platform||'nuvemshop',allowed,status,
+      state:apiBlocked?decision.reason:verified?access.accessReason:'unverified',supportUrl:'/support',billingUrl:null};
+    const key=JSON.stringify(detail);
+    if(key===lastState)return;
+    lastState=key;
+    window.ElunaBillingNotice?.update(detail);
+    window.dispatchEvent(new CustomEvent('eluna:billing',{detail}));
   }
-
-  // Listen for retry requests - refresh access state via real routes
-  window.addEventListener('eluna:billing-retry', async function() {
-    try {
-      // Fetch connection status first
-      const connectionResponse = await fetch('/auth/status', { cache: 'no-store' });
-      const connection = connectionResponse.ok ? await connectionResponse.json() : {};
-      if (!connection.connected || !connection.storeId) {
-        update({ connected: false, storeId: null, platform: 'nuvemshop', access: {} });
-        return;
-      }
-      // Then fetch access for the billing state
-      const accessResponse = await fetch('/sync/access', { cache: 'no-store' });
-      const access = accessResponse.ok ? await accessResponse.json() : {};
-      update({
-        connected: true,
-        storeId: connection.storeId,
-        platform: connection.platform || 'nuvemshop',
-        paymentRequired: Boolean(connection.paymentRequired),
-        access: access,
-        verificationFailed: !accessResponse.ok
-      });
-    } catch (error) {
-      console.error('Billing retry failed:', error);
-    }
-  });
-
-  // Expose for integration with existing app.js
-  window.BillingNoticeAdapter = { update };
+  window.addEventListener('eluna:billing-retry',()=>retryHandler?.());
+  window.BillingNoticeAdapter={update,setRetryHandler:handler=>{retryHandler=handler;}};
 })();

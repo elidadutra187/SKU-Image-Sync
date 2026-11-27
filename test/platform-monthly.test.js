@@ -44,6 +44,10 @@ test('monthly trial, expiry, renewal, churn, suspension, replay and old paid lic
   await assert.rejects(()=>grantMonthlyReceipt({...receipt,storeId:'456'},options),/not_applied/);
   await updateMonthlyLifecycle({storeId:'123',topic:'churn'},options);
   assert.equal((await access.status('123')).paid,false);
+  const cancelledTrial=(await access.status('123')).trialUntil;
+  await registerMonthlyTrial('123',options);
+  assert.equal(String((await access.status('123')).trialUntil),String(cancelledTrial),'reinstallation cannot reset an expired trial');
+  assert.equal((await access.status('123')).platformSuspended,true,'OAuth reinstallation cannot undo official cancellation');
   await grantMonthlyReceipt(receipt,options);
   assert.equal((await access.status('123')).paid,false,'replaying the old receipt cannot lift the block');
   await updateMonthlyLifecycle({storeId:'123',topic:'phoenix'},options);
