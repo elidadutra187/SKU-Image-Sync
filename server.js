@@ -36,7 +36,9 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 // Support is centralized at ElunaLab; old links (Partners, billing notices) keep working.
 app.use(['/support', '/support.html'], (req, res) => res.redirect(302, 'https://elunalab.com.br/suporte'));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'),{setHeaders(res,filePath){
+  if(/\.(?:html|js|mjs)$/.test(filePath))res.setHeader('Cache-Control','no-store');
+}}));
 app.get('/product-matching.js', (req, res) => res.sendFile(path.join(__dirname, 'services', 'productMatching.js')));
 app.get('/csv-mapping.js', (req, res) => res.sendFile(path.join(__dirname, 'services', 'csvMapping.js')));
 app.get('/how-to', (req, res) => res.sendFile(path.join(__dirname, 'public', 'how-to.html')));

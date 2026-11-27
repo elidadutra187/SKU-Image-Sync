@@ -56,10 +56,11 @@ router.get('/status', async (req, res) => {
     }, Boolean(storeId)));
   } catch (error) {
     const storeId = readStoreSession(req);
-    res.json(sanitizeStatusResponse({
+    res.status(503).json(sanitizeStatusResponse({
       connected: false,
-      token: await tokenStatusAsync(storeId),
-      message: error.message,
+      storeId,
+      accessDecision:{allowed:false,reason:'verification_unavailable',status:'unverified',source:'auth_status',checkedAt:new Date().toISOString()},
+      message: 'Não foi possível verificar seu acesso. Tente novamente.',
     }, Boolean(storeId)));
   }
 });

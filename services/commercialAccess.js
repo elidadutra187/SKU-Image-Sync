@@ -7,6 +7,27 @@ export const DEMO_IMAGES = 10;
 export const DEMO_BATCHES = 1;
 
 function denied(message,status=402) { return Object.assign(new Error(message),{status}); }
+// This decision is shared by the read-only status and every batch authorization.
+// API availability is a separate backend decision: a ledger grant cannot bypass an API refusal.
+function commercialDecision(access) {
+  if(access.storeInstalled===false)return {allowed:false,accessReason:'store_not_installed',accessStatus:'unverified'};
+  if(access.platformSuspended)return {allowed:false,accessReason:'platform_blocked',accessStatus:'suspended'};
+  if(access.paid)return {allowed:true,accessReason:'paid',accessStatus:'paid'};
+  if(access.courtesyActive)return {allowed:true,accessReason:'courtesy',accessStatus:'paid'};
+  if(access.purchaseMode==='platform_monthly') {
+    if(access.subscriptionState===null)return {allowed:false,accessReason:'unverified',accessStatus:'unverified'};
+    return access.trialActive
+      ?{allowed:true,accessReason:'trial_active',accessStatus:'trial_active'}
+      :{allowed:false,accessReason:'trial_expired',accessStatus:'payment_unconfirmed'};
+  }
+  return access.demoBatchesUsed<DEMO_BATCHES
+    ?{allowed:true,accessReason:'demo_available',accessStatus:'demo_available'}
+    :{allowed:false,accessReason:'demo_exhausted',accessStatus:'payment_unconfirmed'};
+}
+function logDecision(storeId,decision,source='commercial_ledger') {
+  console.info(JSON.stringify({event:'access_decision',store_id:String(storeId),allowed:decision.allowed,
+    reason:decision.accessReason,source,timestamp:new Date().toISOString()}));
+}
 const paidAccessMessage=access=>access.purchaseMode==='platform_monthly'
   ? 'O período de teste ou a assinatura terminou. Regularize o Imagem em Lote na Nuvemshop para voltar a enviar imagens.'
   : 'Seu lote gratuito já foi utilizado. Confirme o pagamento para enviar novos lotes.';
@@ -30,17 +51,17 @@ async function readAccessWithRetry(read,storeId) {
   }
 }
 export function validateBatchAccess(access,count,imageCount=count) {
-  if (access.platformSuspended) throw denied('O acesso da loja está suspenso na Nuvemshop.');
+  const decision=commercialDecision(access);
+  if(decision.accessReason==='store_not_installed')throw denied('Conecte sua loja para continuar.',401);
+  if(decision.accessReason==='platform_blocked')throw denied('O acesso da loja está suspenso na Nuvemshop.');
   if (!Number.isInteger(count) || count < 1) throw denied('Selecione ao menos um produto.',400);
   if (count > 50) throw denied('Envie até 50 produtos por lote.',400);
-  if (access.paid || access.courtesyActive) return;
-  // Nuvemshop monthly trials are time-limited, not batch- or image-limited.
-  // Keep the legacy single-batch demo unchanged for one-time plans and Yampi.
-  if (access.purchaseMode==='platform_monthly') {
-    if (!access.trialActive) throw denied('O período de teste terminou. Regularize a assinatura na Nuvemshop para enviar novas imagens.');
-    return;
+  if(decision.accessReason==='unverified')throw denied('Não foi possível verificar seu acesso. Tente novamente mais tarde.',503);
+  if(!decision.allowed) {
+    if(decision.accessReason==='trial_expired')throw denied('O período de teste terminou. Regularize a assinatura na Nuvemshop para enviar novas imagens.');
+    throw denied(paidAccessMessage(access));
   }
-  if (access.demoBatchesUsed >= DEMO_BATCHES) throw denied(paidAccessMessage(access));
+  if(decision.accessReason!=='demo_available')return;
   if (!Number.isInteger(imageCount) || imageCount < 1 || imageCount > DEMO_IMAGES) throw denied('O lote gratuito permite no máximo 10 imagens. Selecione até 10 fotos para continuar.');
 }
 
@@ -55,6 +76,8 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
   async status(storeId) {
     const pool=await this.pool();
     const {rows}=await readAccessWithRetry(()=>pool.query(`select a.paid_at,a.demo_batches_used,
+      case when $1::text like 'yampi:%' then true
+        else exists(select 1 from stores where store_id=$1) end as store_installed,
       a.courtesy_until>statement_timestamp() as courtesy_active,p.status as purchase_status,
       m.paid_until,m.trial_until,m.lifecycle,m.partners_free,m.partners_paid_until,
       (coalesce(m.platform_suspended,false) or coalesce(m.lifecycle<>'active',false)) as platform_suspended,
@@ -67,7 +90,7 @@ export function createPostgresAccessRepository(poolProvider=getPool,initialize=i
       left join image_sync_purchase p on p.store_id=s.store_id`,[storeId]),storeId);
     const row=rows[0]||{};
     return {paid:(Boolean(row.paid_at)||Boolean(row.monthly_paid)||Boolean(row.partners_free)||Boolean(row.partners_paid))&&!row.platform_suspended,
-      trialActive:Boolean(row.trial_active),courtesyActive:Boolean(row.courtesy_active)&&!row.platform_suspended,
+      storeInstalled:row.store_installed,trialActive:Boolean(row.trial_active),courtesyActive:Boolean(row.courtesy_active)&&!row.platform_suspended,
       demoBatchesUsed:row.demo_batches_used??0,purchaseStatus:row.purchase_status||null,
       subscriptionUntil:row.partners_free?null:row.partners_paid_until||row.paid_until||null,trialUntil:row.trial_until||null,
       subscriptionState:row.lifecycle||null,platformSuspended:Boolean(row.platform_suspended)};
@@ -97,12 +120,17 @@ export function createCommercialAccess(repository=postgresRepository) {
   return {
     async status(storeId) {
       if (!storeId) throw denied('Conecte sua loja para continuar.',401);
-      const current=await repository.status(storeId);
+      let current;
+      try {current=await repository.status(storeId);}
+      catch {
+        logDecision(storeId,{allowed:false,accessReason:'verification_unavailable'});
+        throw denied('Não foi possível verificar seu acesso. Tente novamente mais tarde.',503);
+      }
       if(!Number.isInteger(current.demoBatchesUsed) || current.demoBatchesUsed<0) {
         throw denied('Não foi possível verificar os lotes gratuitos. Tente novamente mais tarde.',503);
       }
       const monthly=!storeId.startsWith('yampi:') && process.env.NUVEMSHOP_BILLING_MODEL==='platform_monthly';
-      return {...current,demoUsed:monthly?false:current.demoBatchesUsed>=DEMO_BATCHES,
+      const result={...current,demoUsed:monthly?false:current.demoBatchesUsed>=DEMO_BATCHES,
         demoBatches:monthly?null:DEMO_BATCHES,demoBatchesRemaining:monthly?null:Math.max(0,DEMO_BATCHES-current.demoBatchesUsed),
         demoProducts:monthly?null:DEMO_PRODUCTS,demoImages:monthly?null:DEMO_IMAGES,
         oneTimePriceCents:storeId.startsWith('yampi:')?7990:Math.round(Number(process.env.NUVEMSHOP_ONE_TIME_PRICE||'79.99')*100),
@@ -111,6 +139,11 @@ export function createCommercialAccess(repository=postgresRepository) {
         purchaseConfigured:storeId.startsWith('yampi:')?getYampiPaymentRuntime().available(storeId):platformBillingConfigured(),
         purchaseMode:storeId.startsWith('yampi:')?'mercadopago_once':process.env.NUVEMSHOP_BILLING_MODEL||'platform_once',
         paymentProvider:storeId.startsWith('yampi:')?(getYampiPaymentRuntime().available(storeId)?'mercadopago':'pending'):'nuvemshop'};
+      const decision=commercialDecision(result);
+      logDecision(storeId,decision);
+      return {...result,...decision,storeId:String(storeId),platform:storeId.startsWith('yampi:')?'yampi':'nuvemshop',
+        maxImages:decision.allowed&&!monthly&&!result.paid&&!result.courtesyActive?DEMO_IMAGES:null,
+        decisionSource:'commercial_ledger',checkedAt:new Date().toISOString()};
     },
     async authorize(storeId, productIds, {dryRun=false,imageCount=productIds.length}={}) {
       const access=await this.status(storeId);

@@ -24,13 +24,14 @@ export function createSyncRouter({clientForStore=platformClientForStore,
   const router=Router();
   const wrap=handler=>(req,res,next)=>Promise.resolve(handler(req,res)).catch(next);
   router.use((req,res,next)=>{
+    res.setHeader('Cache-Control','no-store');
     req.storeId=readStoreSession(req);
     if(!req.storeId)return res.status(401).json({success:false,error:'Conecte sua loja para continuar.'});
     if(req.method!=='GET' && req.headers.origin) {
       const expected=process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || req.protocol+'://'+req.get('host');
       if(new URL(expected).origin!==req.headers.origin)return res.status(403).json({success:false,error:'Origem não autorizada.'});
     }
-    res.setHeader('Cache-Control','no-store');next();
+    next();
   });
   function ownedSession(req) {
     const session=getUploadSession(req.params.sessionId);

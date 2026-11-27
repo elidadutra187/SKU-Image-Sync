@@ -9,9 +9,10 @@ async function ensureYampiPaymentUi(){
   if(!hasAuthenticatedYampiBilling())throw Error('billing_platform_mismatch');
   if(state.yampiPaymentUi)return state.yampiPaymentUi;
   const id=state.billingIdentity.storeId;
+  const generation=accessGeneration;
   const module=await import('/yampi-payment-ui.mjs');
-  if(!hasAuthenticatedYampiBilling()||state.billingIdentity.storeId!==id)throw Error('billing_platform_mismatch');
-  state.yampiPaymentUi=module.createYampiPaymentUI({isAuthorized:()=>hasAuthenticatedYampiBilling()&&state.billingIdentity.storeId===id,request,renderAccess,message,busy,t,confirm:text=>confirm(text),navigate:url=>location.assign(url)});
+  if(generation!==accessGeneration||!hasAuthenticatedYampiBilling()||state.billingIdentity.storeId!==id)throw Error('billing_platform_mismatch');
+  state.yampiPaymentUi=module.createYampiPaymentUI({isAuthorized:()=>generation===accessGeneration&&hasAuthenticatedYampiBilling()&&state.billingIdentity.storeId===id,request,renderAccess,message,busy,t,confirm:text=>confirm(text),navigate:url=>location.assign(url)});
   return state.yampiPaymentUi;
 }
 const platform=$('platform');
@@ -24,7 +25,7 @@ const message=(text,error=false)=>{ $('message').textContent=text;$('message').c
 
 async function request(url,options={},timeoutMs=30000) {
   let response;
-  try{response=await fetch(url,{signal:AbortSignal.timeout(timeoutMs),...options});}
+  try{response=await fetch(url,{signal:AbortSignal.timeout(timeoutMs),cache:'no-store',...options});}
   catch(error){
     if(error?.name==='TimeoutError')throw Object.assign(new Error('A consulta demorou mais que o esperado. Escolha um lote menor e tente novamente.'),{timeout:true});
     throw error;
@@ -50,23 +51,21 @@ function updateActions() {
   $('previousPage').disabled=state.busy||state.reviewPage===0;
   $('nextPage').disabled=state.busy||state.reviewPage>=Math.max(0,$('reviewPage').options.length-1);
   const imageCount=state.items.filter(item=>selected().includes(item.sku)).reduce((n,item)=>n+item.localImages.length,0);
-  const monthlyTrial=state.access?.purchaseMode==='platform_monthly';
-  const oversized=state.access && !state.access.paid && !state.access.courtesyActive && !monthlyTrial && imageCount>10;
-  const blocked=state.access && (state.access.platformSuspended || (!state.access.paid && !state.access.courtesyActive && (monthlyTrial?!state.access.trialActive:state.access.demoUsed)));
-  $('send').disabled=state.busy || !!state.jobId || !count || !state.session || !state.access || blocked || oversized;
+  const oversized=state.access?.maxImages!=null && imageCount>state.access.maxImages;
+  const blocked=state.access?.allowed!==true || !state.apiAvailable;
+  $('send').disabled=state.busy || !!state.jobId || !count || !state.session || blocked || oversized;
   $('selectionCount').textContent=count ? `${imageCount} imagem(ns) selecionada(s). ${oversized ? 'No gratuito, selecione no máximo 10 imagens.' : 'Confira as fotos antes de enviar.'}` : 'Marque os produtos que deseja atualizar.';
 }
 function renderAccess(access) {
   state.access=access;
   const monthly=access.purchaseMode==='platform_monthly';
   const fullAccess=access.paid || access.courtesyActive;
-  const demoExpired=monthly && !access.trialActive;
-  const paymentRequired=!fullAccess && (monthly?demoExpired:access.demoUsed);
+  const paymentRequired=access.allowed===false && access.accessStatus==='payment_unconfirmed';
   $('access').hidden=!paymentRequired || !access.purchaseConfigured;
   // Update billing notice component via adapter
-  // Pass storeId from state; adapter tracks it across calls
+  // Identity and connection refusal belong to this verification generation.
   if(window.BillingNoticeAdapter){
-    window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:state.billingIdentity?.platform||platform.value,paymentRequired:state.paymentRequired,access:access});
+    window.BillingNoticeAdapter.update({connected:state.connected,storeId:state.storeId||null,platform:state.billingIdentity?.platform||platform.value,connectionDecision:state.connectionDecision,access});
   }
   $('purchase').hidden=!paymentRequired || !access.purchaseConfigured;
   $('purchase').textContent=monthly?'Ver assinatura na Nuvemshop':hasAuthenticatedYampiBilling()?'Ver opções de acesso':access.purchaseMode==='platform_once'?'Ver pagamento na Nuvemshop':'Ver opções de acesso';
@@ -181,6 +180,7 @@ function renderItems() {
   updateActions();
 }
 async function preview() {
+  const generation=accessGeneration,storeId=state.storeId;
   const batch=batchGroups(),files=[...new Set(batch.flatMap(group=>group.files))];
   const form=new FormData();files.forEach(file=>form.append('images',file,file.name));
   form.append('individual',String($('individual').checked));
@@ -191,6 +191,7 @@ async function preview() {
   busy(true,state.inputMode==='csv'?'Conferindo os SKUs e arquivos do CSV...':'Encontrando os produtos pelo nome das fotos. Aguarde...');
   try {
     const data=await request('/sync/preview',{method:'POST',body:form},300000);
+    if(generation!==accessGeneration || storeId!==state.storeId)return;
     state.session=data.sessionId;state.items=data.items;state.catalog=data.catalog;
     state.selection=new Set(state.items.filter(item=>item.status==='ok').map(item=>item.sku));state.reviewPage=0;
     renderAccess(data.access);renderItems();
@@ -232,7 +233,7 @@ async function watchJob(jobId) {
 }
 async function run(dryRun) {
   const selectedSkus=selected(),mode=$('mode').value;
-  const demoNotice=(state.access?.paid || state.access?.courtesyActive)?'':' '+t('Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.');
+  const demoNotice=state.access?.maxImages==null?'':' '+t('Ao iniciar, você utiliza 1 dos seus lotes gratuitos disponíveis.');
   if(!dryRun && !window.confirm(mode==='replace'
     ?t('Este modo vai remover as fotos atuais dos produtos selecionados e enviar as novas. Confirma?')
     :t('Você conferiu os produtos e as fotos? Enviar agora?')+demoNotice))return;
@@ -247,7 +248,7 @@ async function run(dryRun) {
     if(error.status){state.jobId=null;$('progressTitle').textContent='Envio não iniciado';$('progressNotice').textContent=error.message;}
     else{state.jobId='unknown';$('progressNotice').textContent='Não foi possível confirmar o início. Atualize o progresso antes de repetir o envio.';$('resumeProgress').hidden=false;}
   }finally{
-    try{renderAccess(await request('/sync/access'));}catch{}
+    await refreshAuthorization();
     busy(false);if(!state.session){$('simulate').disabled=true;$('send').disabled=true;}
   }
 }
@@ -297,27 +298,33 @@ $('purchase').addEventListener('click',async()=>{
   busy(true,'Solicitando a compra pela Nuvemshop...');
   try{
     const purchase=await request('/sync/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmed:true})});
-    renderAccess(await request('/sync/access'));
+    await refreshAuthorization();
     message(purchase.managedBy==='nuvemshop'?'Abra Aplicativos no administrador da Nuvemshop e confira o pagamento do Imagem em Lote. Se já pagou, não compre novamente: fale com o suporte para recuperar o acesso.':purchase.status==='paid'?'Pagamento confirmado. Seu acesso está liberado.':purchase.status==='pending'?'Cobrança solicitada. Consulte os pagamentos no administrador da Nuvemshop. O acesso será liberado após a confirmação.':'A criação da cobrança está sendo verificada. Fale com o suporte antes de tentar novamente.');
   }catch(error){message(error.message,true);}finally{busy(false);}
 });
 $('refreshAccess').addEventListener('click',async()=>{
-  busy(true,'Verificando a confirmação do pagamento...');
-  try {
-    const access=await request('/sync/access');renderAccess(access);
-    message(access.trialActive?'Seu período de teste está ativo.':access.paid?'Pagamento confirmado. Seu acesso está liberado.':'O pagamento ainda não foi confirmado. Aguarde a compensação e tente novamente.');
-  }catch(error){message(error.message,true);}finally{busy(false);}
+  await refreshAuthorization();
 });
 $('simulate').addEventListener('click',()=>run(true));$('send').addEventListener('click',()=>run(false));
 $('batchSize').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateBatches();updateActions();});$('batchPage').addEventListener('change',()=>{state.session=null;$('review').hidden=true;updateWeight();updateActions();});
 $('mode').addEventListener('change',()=>{$('modeHelp').textContent=$('mode').value==='add'?'As fotos atuais serão mantidas.':$('mode').value==='sync'?'Atualiza fotos enviadas anteriormente por este app que tenham mudado.':'Atenção: remove todas as fotos atuais dos produtos selecionados.';updateActions();});
-async function initialize() {
+let accessGeneration=0;
+async function refreshAuthorization() {
+  const generation=++accessGeneration;
+  state.access=null;state.apiAvailable=false;state.connectionDecision=null;state.paymentRequired=false;
+  $('access').hidden=true;$('purchase').hidden=true;$('connectionIssue').hidden=true;
   state.billingIdentity=null;state.yampiPaymentUi=null;
+  window.BillingNoticeAdapter?.update({connected:state.connected,storeId:state.storeId,checking:true});
+  updateActions();
   try {
-    const connection=await request('/auth/status');state.connected=Boolean(connection.connected && connection.storeId);
+    const connection=await request('/auth/status');
+    if(generation!==accessGeneration)return;
+    const previousStoreId=state.storeId;
+    state.connected=Boolean(connection.connected && connection.storeId);
     state.storeId=connection.storeId||null;
+    if(previousStoreId && previousStoreId!==state.storeId){state.session=null;state.items=[];state.catalog=[];state.selection.clear();$('review').hidden=true;}
+    state.connectionDecision=connection.accessDecision||null;
     state.paymentRequired=Boolean(connection.paymentRequired);
-    window.BillingNoticeAdapter?.update({connected:state.connected,storeId:state.storeId,platform:connection.platform||'nuvemshop',paymentRequired:state.paymentRequired,access:state.access});
     state.apiAvailable=state.connected && connection.apiAvailable!==false;
     $('connection').textContent=state.connected?`${t('Loja conectada')} · ${connection.storeId}`:'Conecte a loja para começar';
     $('connect').hidden=state.connected;
@@ -327,12 +334,36 @@ async function initialize() {
     $('connectionIssue').hidden=!state.paymentRequired;
     if(state.paymentRequired)message('A loja está conectada. A Nuvemshop bloqueou o acesso aos produtos até a regularização do pagamento do aplicativo. Suas fotos ainda não foram enviadas.',true);
     state.billingIdentity=state.connected?{platform:connection.platform||'nuvemshop',storeId:String(connection.storeId)}:null;
-    if(state.connected){const access=await request('/sync/access');if(hasAuthenticatedYampiBilling()&&access.paymentProvider==='mercadopago')await ensureYampiPaymentUi();renderAccess(access);}
+    if(state.connected){
+      const access=await request('/sync/access');
+      if(generation!==accessGeneration)return;
+      if(access.storeId && access.storeId!==state.storeId)throw Error('Não foi possível verificar seu acesso. Tente novamente.');
+      if(hasAuthenticatedYampiBilling()&&access.paymentProvider==='mercadopago')await ensureYampiPaymentUi();
+      if(generation!==accessGeneration)return;
+      renderAccess(access);
+    } else {
+      window.BillingNoticeAdapter?.update({connected:Boolean(connection.storeId),storeId:state.storeId,platform:connection.platform,connectionDecision:state.connectionDecision,verificationFailed:true});
+      if(connection.message)message(connection.message,true);
+    }
+  } catch(error){
+    if(generation!==accessGeneration)return;
+    state.access=null;state.apiAvailable=false;
+    window.BillingNoticeAdapter?.update({connected:true,storeId:state.storeId||null,platform:platform.value,verificationFailed:true});
+    message('Não foi possível verificar seu acesso. Tente novamente.',true);
+  }
+  if(generation===accessGeneration)updateActions();
+}
+window.BillingNoticeAdapter?.setRetryHandler(refreshAuthorization);
+window.addEventListener('online',()=>{if(!state.busy)refreshAuthorization();});
+window.addEventListener('pageshow',event=>{if(event.persisted&&!state.busy)refreshAuthorization();});
+async function initialize() {
+  await refreshAuthorization();
+  try {
     if(state.connected){
       const active=await request('/sync/status');
       if(active.running&&active.job){state.jobId=active.job.id;busy(true);renderProgress(active.job);try{await watchJob(state.jobId);}finally{busy(false);}}
     }
-  } catch(error){if(state.connected&&!state.access)window.BillingNoticeAdapter?.update({connected:true,storeId:state.storeId,platform:platform.value,verificationFailed:true});message(error.message,true);}
+  } catch(error){message(error.message,true);}
   updateActions();
 }
 $('disconnect').addEventListener('click',async()=>{

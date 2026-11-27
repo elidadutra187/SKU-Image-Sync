@@ -248,9 +248,15 @@ export class NuvemshopClient {
         message: 'Connection with Nuvemshop API is working.',
       };
     } catch (error) {
+      const reason=error.status===402?'platform_api_restricted':[401,403].includes(error.status)?'reauthorization_required':'verification_unavailable';
+      const checkedAt=new Date().toISOString();
+      console.info(JSON.stringify({event:'access_decision',store_id:String(this.storeId),allowed:false,
+        reason,source:'nuvemshop_api',upstream_status:error.status||null,timestamp:checkedAt}));
       return {
         connected: error.status === 402,
         apiAvailable: false,
+        upstreamStatus: error.status || null,
+        accessDecision: {allowed:false,reason,status:error.status===402?'payment_required':'unverified',source:'nuvemshop_api',checkedAt},
         paymentRequired: error.status === 402,
         platform: 'nuvemshop',
         storeId: this.storeId,
