@@ -59,5 +59,10 @@ test('real SQL proof reuses exact receipt; delayed ARS without event time cannot
   assert.equal((await readMonthlyReceiptContext(input,options)).recorded,true);
   assert.equal((await readMonthlyReceiptContext({...input,storeId:'8219542'},options)).conflict,true);
   assert.equal((await readMonthlyReceiptContext({...input,receipt:{...input.receipt,amountValue:1}},options)).conflict,true);
+  await grantMonthlyReceipt({...input,storeId:'8219542',chargeId:'unknown-time',requireEventTimeForRecovery:true},options);
+  const priority=(await db.query("select last_payment_event_at from image_sync_monthly where store_id='8219542'")).rows[0];
+  assert.equal(priority.last_payment_event_at,null,'delivery time must not masquerade as the payment event time');
+  await setMonthlySuspended({storeId:'8219542',suspended:true,lifecycle:'churn',occurredAt:new Date(Date.now()-1000).toISOString()},options);
+  assert.equal((await db.query("select platform_suspended from image_sync_monthly where store_id='8219542'")).rows[0].platform_suspended,true);
  }finally{await db.close();}
 });

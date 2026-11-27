@@ -55,6 +55,7 @@ test('real PostgreSQL: migration, one concurrent reservation, history persistenc
         fromDate:new Date(Date.now()-86400000).toISOString(),toDate:new Date(Date.now()+20*86400000).toISOString()}};
     await grantMonthlyReceipt(arsReceipt,monthlyOptions);
     assert.equal((await readMonthlyReceiptContext(arsReceipt,monthlyOptions)).recorded,true);
+    assert.equal((await pool.query("select last_payment_event_at from image_sync_monthly where store_id='456'")).rows[0].last_payment_event_at,null);
     await setMonthlySuspended({storeId:'456',suspended:true,lifecycle:'churn'},monthlyOptions);
     await grantMonthlyReceipt({...arsReceipt,chargeId:'ars-delayed-validation'},monthlyOptions);
     assert.equal((await pool.query("select platform_suspended from image_sync_monthly where store_id='456'")).rows[0].platform_suspended,true);

@@ -25,13 +25,17 @@ export async function registerMonthlyTrial(storeId,{poolProvider=getPool,initial
 
 export async function grantMonthlyReceipt({storeId,chargeId,receipt,occurredAt=null,requireEventTimeForRecovery=false},{poolProvider=getPool,initialize=initializeDatabase}={}) {
   const pool=await connection(poolProvider,initialize)();
+  // In the strict converted-currency path, receipt delivery is not the payment
+  // event time. Unknown ordering may renew an active installation, never lift a
+  // block or suppress a later-delivered authenticated cancellation.
   const {rows}=await pool.query(`with confirmed as (
     insert into image_sync_native_receipts(charge_id,store_id,app_id,amount_value,amount_currency,from_date,to_date)
     select $2,$1,$3,$4,$5,$6,$7 from stores where store_id=$1
     on conflict(charge_id) do nothing
     returning store_id,confirmed_at
   ) insert into image_sync_monthly(store_id,paid_until,last_charge_id,last_payment_event_at)
-    select store_id,$7::timestamptz,$2,coalesce($8::timestamptz,confirmed_at) from confirmed
+    select store_id,$7::timestamptz,$2,coalesce($8::timestamptz,
+      case when not $9::boolean then confirmed_at end) from confirmed
     where $7::timestamptz>statement_timestamp()
     on conflict(store_id) do update set
       paid_until=case when image_sync_monthly.platform_suspended or image_sync_monthly.lifecycle<>'active'
@@ -49,8 +53,8 @@ export async function grantMonthlyReceipt({storeId,chargeId,receipt,occurredAt=n
       image_sync_monthly.last_blocked_at,
       case when image_sync_monthly.platform_suspended or image_sync_monthly.lifecycle<>'active'
         then image_sync_monthly.updated_at end,'-infinity'::timestamptz)
-      and (not $9::boolean or $8::timestamptz is not null
-        or (image_sync_monthly.lifecycle='active' and not image_sync_monthly.platform_suspended))
+      or ($9::boolean and $8::timestamptz is null
+        and image_sync_monthly.lifecycle='active' and not image_sync_monthly.platform_suspended)
     returning store_id`,[String(storeId),String(chargeId),String(receipt.appId),
       receipt.amountValue,receipt.amountCurrency,receipt.fromDate,receipt.toDate,occurredAt,requireEventTimeForRecovery]);
   if(rows.length!==1){
